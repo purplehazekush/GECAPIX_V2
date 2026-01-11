@@ -5,8 +5,6 @@ import {
   Cancel, 
   Person, 
   AddCircle, 
-  Delete,
-  // --- FALTAVA IMPORTAR ESSES ÍCONES: ---
   LockOpen, 
   Lock, 
   Public, 
@@ -89,7 +87,7 @@ export default function Admin() {
     if (!novoProd.nome || !novoProd.preco) return;
 
     try {
-      await api.post(`${API_URL}/produtos`, {
+      await api.post(`/produtos`, {
         nome: novoProd.nome,
         preco: parseFloat(novoProd.preco.replace(',', '.'))
       });
