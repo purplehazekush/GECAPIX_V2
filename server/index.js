@@ -52,12 +52,11 @@ const ConfigModel = mongoose.models.Config || mongoose.model('Config', ConfigSch
 // --- CONFIGURAÇÃO DO SERVIDOR ---
 const app = express();
 app.use(express.json());
-// ...
 app.use(cors({
     origin: [
-        "http://localhost:5173", // Seu PC local
-        "https://gecapix-v2.vercel.app", // Vamos descobrir esse nome jájá, mas já deixa preparado
-        process.env.FRONTEND_URL // Variável extra pra garantir
+        "http://localhost:5173",
+        "https://gecapix-v2.vercel.app", // Verifique se o endereço na Vercel é exatamente este
+        /\.vercel\.app$/ // Isso aceita qualquer subdomínio da vercel (útil para testes)
     ],
     credentials: true
 }));
