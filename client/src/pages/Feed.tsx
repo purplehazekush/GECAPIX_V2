@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Pix } from '../types';
 import { Refresh, Save, CheckCircle, ShoppingBag } from '@mui/icons-material';
-import { api } from "../lib/api"; // <--- IMPORTANTE: ADICIONE ISSO
+import { api } from "../lib/api"
 
 export default function Feed() {
   const [transacoes, setTransacoes] = useState<Pix[]>([]);
