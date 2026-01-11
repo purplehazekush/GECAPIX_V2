@@ -66,7 +66,7 @@ export default function Admin() {
     const novoValor = !modoAberto;
     setModoAberto(novoValor); // Muda na tela na hora (otimista)
     try {
-        await api.put(`${API_URL}/config/modo-aberto`, { valor: novoValor });
+        await api.put(`/config/modo-aberto`, { valor: novoValor });
     } catch (error) {
         setModoAberto(!novoValor); // Desfaz se der erro
         alert("Erro ao mudar configuração");
@@ -76,7 +76,7 @@ export default function Admin() {
   // --- AÇÕES DE USUÁRIOS ---
   const alterarStatus = async (email: string, novoStatus: 'ativo' | 'pendente') => {
     try {
-      await api.put(`${API_URL}/admin/usuarios`, { email, novoStatus });
+      await api.put(`/admin/usuarios`, { email, novoStatus });
       fetchData(); 
     } catch (error) {
       alert("Erro ao alterar status");
