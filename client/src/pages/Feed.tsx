@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import type { Pix } from '../types';
 import { Refresh, Save, CheckCircle, ShoppingBag } from '@mui/icons-material';
-
-// Se for deployar, mude isso para a URL do seu servidor
-const API_URL = 'http://localhost:3001/api';
+import { api } from "../lib/api"; // <--- IMPORTANTE: ADICIONE ISSO
 
 export default function Feed() {
   const [transacoes, setTransacoes] = useState<Pix[]>([]);
@@ -13,7 +10,8 @@ export default function Feed() {
   const fetchFeed = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_URL}/pix`);
+      // USE api.get E TIRE O ${API_URL}
+      const res = await api.get('/pix');
       setTransacoes(res.data);
     } catch (error) {
       console.error("Erro", error);
@@ -73,7 +71,7 @@ function CardItem({ pix, onUpdate }: { pix: Pix, onUpdate: () => void }) {
     setLoadingSave(true);
     try {
         // Envia para o backend (ajuste a rota conforme seu server)
-        await axios.put(`${API_URL}/pix/${pix._id}`, {
+        await api.put(`/pix/${pix._id}`, {
             item: produto,
             quantidade: 1, // Pode implementar o select de qtd depois
             editor_email: "react@app.com" // Pegaremos do AuthContext depois

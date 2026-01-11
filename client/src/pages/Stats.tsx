@@ -1,4 +1,5 @@
 // client/src/pages/Stats.tsx
+import { api } from "../lib/api"; // <--- IMPORTANTE: ADICIONE ISSO
 import { useEffect, useState } from 'react';
 import { 
   AttachMoney, 
@@ -24,7 +25,7 @@ export default function Stats() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await api.get(`${API_URL}/stats`);
+        const res = await api.get('/stats');
         setData(res.data);
       } catch (error) {
         console.error("Erro ao buscar stats", error);

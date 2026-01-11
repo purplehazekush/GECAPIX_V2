@@ -6,10 +6,7 @@ import {
   onAuthStateChanged 
 } from "firebase/auth";
 import { auth, googleProvider } from "../lib/firebase";
-import axios from "axios";
-
-// URL do Backend
-const API_URL = 'http://localhost:3001/api';
+import { api } from "../lib/api"; // <--- IMPORTANTE: ADICIONE ISSO
 
 // Tipo do Usuário no MongoDB
 export interface DbUser {
@@ -38,14 +35,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Função auxiliar para buscar/criar usuário no backend
   const syncWithBackend = async (firebaseUser: User) => {
     try {
-      const res = await axios.post(`${API_URL}/auth/login`, {
+      // MUDANÇA AQUI: use api.post e apenas o final da rota
+      const res = await api.post('/auth/login', {
         email: firebaseUser.email,
         nome: firebaseUser.displayName
       });
       setDbUser(res.data);
     } catch (error) {
       console.error("Erro ao sincronizar com backend:", error);
-      // Opcional: Deslogar se o backend falhar
     }
   };
 

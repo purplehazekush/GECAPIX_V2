@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import { 
   Shield, 
   CheckCircle, 
@@ -13,8 +12,8 @@ import {
   Public, 
   Security 
 } from '@mui/icons-material';
+import { api } from "../lib/api"; // <--- IMPORTANTE: ADICIONE ISSO
 
-const API_URL = 'http://localhost:3001/api';
 
 interface User {
   _id: string;
@@ -43,9 +42,10 @@ export default function Admin() {
   const fetchData = async () => {
     try {
       const [resUsers, resProds, resConfig] = await Promise.all([
-        axios.get(`${API_URL}/admin/usuarios`),
-        axios.get(`${API_URL}/produtos`),
-        axios.get(`${API_URL}/config/modo-aberto`)
+        // USE api.get e limpe as URLs
+        api.get('/admin/usuarios'),
+        api.get('/produtos'),
+        api.get('/config/modo-aberto')
       ]);
       setUsuarios(resUsers.data);
       setProdutos(resProds.data);
@@ -66,7 +66,7 @@ export default function Admin() {
     const novoValor = !modoAberto;
     setModoAberto(novoValor); // Muda na tela na hora (otimista)
     try {
-        await axios.put(`${API_URL}/config/modo-aberto`, { valor: novoValor });
+        await api.put(`${API_URL}/config/modo-aberto`, { valor: novoValor });
     } catch (error) {
         setModoAberto(!novoValor); // Desfaz se der erro
         alert("Erro ao mudar configuração");
@@ -76,7 +76,7 @@ export default function Admin() {
   // --- AÇÕES DE USUÁRIOS ---
   const alterarStatus = async (email: string, novoStatus: 'ativo' | 'pendente') => {
     try {
-      await axios.put(`${API_URL}/admin/usuarios`, { email, novoStatus });
+      await api.put(`${API_URL}/admin/usuarios`, { email, novoStatus });
       fetchData(); 
     } catch (error) {
       alert("Erro ao alterar status");
@@ -89,7 +89,7 @@ export default function Admin() {
     if (!novoProd.nome || !novoProd.preco) return;
 
     try {
-      await axios.post(`${API_URL}/produtos`, {
+      await api.post(`${API_URL}/produtos`, {
         nome: novoProd.nome,
         preco: parseFloat(novoProd.preco.replace(',', '.'))
       });
