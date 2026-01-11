@@ -9,8 +9,6 @@ import Feed from './pages/Feed';
 import Stats from './pages/Stats';
 import Admin from './pages/Admin';
 
-const API_URL = 'http://localhost:3001/api';
-
 function AppRoutes() {
   const { user, dbUser, loading } = useAuth();
   const [sistemaAberto, setSistemaAberto] = useState<boolean>(false);
@@ -18,7 +16,7 @@ function AppRoutes() {
 
   // Verifica se o sistema está em modo "Liberar Geral"
   useEffect(() => {
-    axios.get(`${API_URL}/config/modo-aberto`)
+    axios.get(`config/modo-aberto`)
       .then(res => setSistemaAberto(res.data.aberto))
       .catch(() => setSistemaAberto(false)) // Padrão seguro se falhar
       .finally(() => setLoadingConfig(false));
