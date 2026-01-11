@@ -270,4 +270,8 @@ app.get('/api/stats', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
+
+// Mude a linha do listen para garantir que ele aceite conexões externas na VPS
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Servidor rodando em http://0.0.0.0:${PORT}`);
+});
