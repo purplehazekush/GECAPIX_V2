@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from "../lib/api";
 import { AttachMoney, ShowChart, EmojiEvents, Groups } from '@mui/icons-material';
-import HourlyHeatmap from '../components/charts/HourlyHeatmap'
+import HourlyHeatmap from '../components/charts/Hourly_Heatmap'
 import PaymentMethodChart from '../components/charts/PaymentMethodChart'; // O de Pizza que criamos antes
 
 export default function Stats() {

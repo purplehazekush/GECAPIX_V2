@@ -222,43 +222,71 @@ app.put('/api/admin/usuarios', async (req, res) => {
 });
 
 // --- 6. STATS ---
+// --- 6. STATS AVANÇADOS ---
 app.get('/api/stats', async (req, res) => {
     try {
-        // Pega do início do mês (ou mude para Date() de hoje para ver só o dia)
-        const dataInicio = new Date();
-        dataInicio.setDate(1); dataInicio.setHours(0,0,0,0);
+        const hoje = new Date();
+        const diaSemanaHoje = hoje.getDay() + 1; // Mongo usa 1=Domingo, 7=Sábado
         
-        const transacoes = await PixModel.find({ data: { $gte: dataInicio } });
+        // Pega transações do mês para totais gerais
+        const inicioMes = new Date();
+        inicioMes.setDate(1); inicioMes.setHours(0,0,0,0);
+        
+        const transacoes = await PixModel.find({ data: { $gte: inicioMes } });
+        
+        // Busca TODAS as transações da história para calcular a média do dia da semana
+        const historicoDiaSemana = await PixModel.aggregate([
+            {
+                $project: {
+                    diaSemana: { $dayOfWeek: "$data" },
+                    hora: { $hour: { date: "$data", timezone: "America/Sao_Paulo" } }, // Ajuste o Timezone se precisar
+                    valor: { 
+                        $toDouble: { 
+                            $replaceAll: { input: { $replaceAll: { input: "$valor_extraido", find: ".", replacement: "" } }, find: ",", replacement: "." } 
+                        }
+                    }
+                }
+            },
+            { $match: { diaSemana: diaSemanaHoje } }, // Filtra só as Sextas (se hoje for sexta)
+            { $group: { _id: "$hora", total: { $sum: "$valor" }, count: { $sum: 1 } } }
+        ]);
 
         let faturamentoTotal = 0;
         let totalPix = 0;
         let totalDinheiro = 0;
+        let vendasPorHoraHoje = Array(24).fill(0);
+        let vendasPorHoraMedia = Array(24).fill(0);
+
+        // Preenche a média histórica
+        historicoDiaSemana.forEach(h => {
+            // Divide o total histórico pelo número estimado de semanas (simplificação: média bruta)
+            // Para ser exato, precisaríamos contar quantas sextas-feiras existiram, mas vamos usar o total absoluto para comparar "Pico"
+            if(h._id >= 0 && h._id < 24) vendasPorHoraMedia[h._id] = h.total;
+        });
+
+        // Processa as transações DO MÊS ATUAL
         let statsProdutos = {}; 
         let statsVendedores = {};
-        
-        // Inicializa array de 24 horas (0 a 23)
-        let vendasPorHora = Array(24).fill(0); 
 
         transacoes.forEach(pix => {
-            // Tratamento de Valor
             let valorFloat = 0;
             if (pix.valor_extraido) {
-                // Remove R$, pontos de milhar e troca virgula por ponto
                 const limpo = pix.valor_extraido.toString().replace(/[^\d,]/g, '').replace(',', '.');
                 valorFloat = parseFloat(limpo) || 0;
                 faturamentoTotal += valorFloat;
 
-                // Separação Pix vs Dinheiro
                 if (pix.tipo === 'DINHEIRO') totalDinheiro += valorFloat;
                 else totalPix += valorFloat;
 
-                // --- LÓGICA DO HEATMAP ---
-                // Pega a hora da transação (0 a 23) e soma o valor nela
-                const hora = new Date(pix.data).getHours(); // Importante: O servidor deve estar no fuso certo ou use UTC
-                vendasPorHora[hora] += valorFloat;
+                // Se a transação for DE HOJE, soma no heatmap de hoje
+                const dataTransacao = new Date(pix.data);
+                if (dataTransacao.getDate() === hoje.getDate() && dataTransacao.getMonth() === hoje.getMonth()) {
+                    const hora = dataTransacao.getHours();
+                    vendasPorHoraHoje[hora] += valorFloat;
+                }
             }
 
-            // Stats de Produtos e Vendedores
+            // ... (Lógica de Ranking igual a anterior) ...
             if (pix.item_vendido) {
                 const item = pix.item_vendido.toUpperCase();
                 const qtd = pix.quantidade || 1;
@@ -273,13 +301,13 @@ app.get('/api/stats', async (req, res) => {
             }
         });
 
-        // Formata o Heatmap para o Recharts
-        const heatmapData = vendasPorHora.map((total, hora) => ({
+        // Monta o objeto final
+        const heatmapData = vendasPorHoraHoje.map((total, hora) => ({
             hora: `${hora}h`,
-            total: total
+            hoje: total,
+            historico: vendasPorHoraMedia[hora] / 4 // Divide por 4 para estimar uma média semanal (aprox)
         }));
 
-        // Rankings (Igual antes)
         const ranking = Object.entries(statsProdutos)
             .map(([nome, dados]) => ({ nome, qtd: dados.qtd, total: dados.total }))
             .sort((a, b) => b.total - a.total).slice(0, 10);
@@ -288,22 +316,17 @@ app.get('/api/stats', async (req, res) => {
         const topVendedor = rankingVendedores.length > 0 
             ? { nome: rankingVendedores[0][0], total: rankingVendedores[0][1] }
             : { nome: "--", total: 0 };
-            
-        const ticketMedio = transacoes.length > 0 ? faturamentoTotal / transacoes.length : 0;
 
         res.json({
             faturamento_mes: faturamentoTotal.toFixed(2),
             total_transacoes: transacoes.length,
-            ticket_medio: ticketMedio.toFixed(2),
+            ticket_medio: (transacoes.length ? faturamentoTotal / transacoes.length : 0).toFixed(2),
             top_vendedor: topVendedor,
             ranking: ranking,
-            // NOVOS DADOS:
-            distribuicao: [
-                { name: 'Pix', value: totalPix },
-                { name: 'Dinheiro', value: totalDinheiro }
-            ],
-            heatmap: heatmapData
+            heatmap: heatmapData, // Agora tem 'hoje' e 'historico'
+            distribuicao: [ { name: 'Pix', value: totalPix }, { name: 'Dinheiro', value: totalDinheiro } ]
         });
+
     } catch (error) { 
         console.error(error);
         res.status(500).json({ error: "Erro stats" }); 
