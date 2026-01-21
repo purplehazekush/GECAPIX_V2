@@ -244,12 +244,22 @@ app.get('/api/admin/usuarios', async (req, res) => {
 
 app.put('/api/admin/usuarios', async (req, res) => {
     try {
-        const { email, novoStatus } = req.body;
+        // AGORA ACEITA novoRole TAMBÉM
+        const { email, novoStatus, novoRole } = req.body;
+        
+        const dadosParaAtualizar = {};
+        if (novoStatus) dadosParaAtualizar.status = novoStatus;
+        if (novoRole) dadosParaAtualizar.role = novoRole;
+
         const user = await UsuarioModel.findOneAndUpdate(
-            { email }, { status: novoStatus }, { new: true }
+            { email }, 
+            dadosParaAtualizar, 
+            { new: true }
         );
         res.json({ success: true, user });
-    } catch (error) { res.status(500).json({ error: "Erro atualizar usuário" }); }
+    } catch (error) { 
+        res.status(500).json({ error: "Erro atualizar usuário" }); 
+    }
 });
 
 // --- 6. STATS ---
