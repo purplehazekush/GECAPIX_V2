@@ -3,7 +3,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, 
   Button, TextField, InputAdornment, MenuItem 
 } from '@mui/material';
-import { AttachMoney, ShoppingCart } from '@mui/icons-material';
+import { AttachMoney } from '@mui/icons-material';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 

@@ -24,7 +24,8 @@ export default function PaymentMethodChart({ data }: { data: any[] }) {
           <Tooltip 
             contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px' }}
             itemStyle={{ color: '#fff' }}
-            formatter={(value: number) => `R$ ${value.toFixed(2)}`}
+            // CORREÇÃO AQUI: Usar 'any'
+            formatter={(value: any) => `R$ ${Number(value).toFixed(2)}`}
           />
           <Legend verticalAlign="bottom" height={36}/>
         </PieChart>

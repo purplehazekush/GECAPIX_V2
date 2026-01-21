@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
 import type { Pix } from '../types';
-import { Refresh, ShoppingBag, Add, AttachMoney, Pix as PixIcon } from '@mui/icons-material';
+import { Refresh, ShoppingBag, Add, Pix as PixIcon } from '@mui/icons-material';
 import { Fab, Tooltip } from '@mui/material'; // Botão Flutuante do Material UI
 import { api } from "../lib/api";
 import NewSaleModal from '../components/NewSaleModal'; // <--- Importando seu componente novo
+
+// --- SUB-COMPONENTE CARD (Atualizado com visual Dinheiro vs Pix) ---
+import { Save } from '@mui/icons-material';
+import { useAuth } from '../context/AuthContext'; // Importando Auth
+// ... imports (mantenha os mesmos)
 
 export default function Feed() {
   const [transacoes, setTransacoes] = useState<Pix[]>([]);
@@ -97,17 +102,21 @@ export default function Feed() {
   );
 }
 
-// --- SUB-COMPONENTE CARD (Atualizado com visual Dinheiro vs Pix) ---
-import { Save, CheckCircle } from '@mui/icons-material';
-import { useAuth } from '../context/AuthContext'; // Importando Auth
 
 function CardItem({ pix, onUpdate }: { pix: Pix, onUpdate: () => void }) {
-  const { user } = useAuth(); // Pegando usuário real para o log
+  const { user } = useAuth();
   const [produto, setProduto] = useState("");
   const [loadingSave, setLoadingSave] = useState(false);
   
   const isVendido = !!pix.item_vendido;
-  const isDinheiro = pix.tipo === 'DINHEIRO'; // Verifica se é dinheiro
+  const isDinheiro = pix.tipo === 'DINHEIRO';
+
+  // Formata o nome do vendedor para não ficar gigante (ex: "joaovictor...")
+  const formatVendedor = (email: string) => {
+    if (!email) return 'Sistema';
+    // Pega só a primeira parte do email e limita a 12 caracteres
+    return email.split('@')[0].substring(0, 12);
+  };
 
   const salvar = async () => {
     if (!produto) return;
@@ -116,7 +125,7 @@ function CardItem({ pix, onUpdate }: { pix: Pix, onUpdate: () => void }) {
         await api.put(`/pix/${pix._id}`, {
             item: produto,
             quantidade: 1,
-            editor_email: user?.email || "anonimo" // Usa o email real agora
+            editor_email: user?.email // Agora envia o seu email real!
         });
         onUpdate();
     } catch (e) {
@@ -127,78 +136,80 @@ function CardItem({ pix, onUpdate }: { pix: Pix, onUpdate: () => void }) {
   };
 
   return (
-    <div className={`glass-panel rounded-xl p-5 border-l-4 ${isDinheiro ? 'border-l-emerald-500' : 'border-l-cyan-500'} hover:bg-white/5 transition-all relative`}>
+    <div className={`
+        relative flex items-center justify-between p-3 rounded-lg border-l-4 transition-all
+        ${isDinheiro ? 'bg-emerald-900/10 border-emerald-500 hover:bg-emerald-900/20' : 'bg-white/5 border-cyan-500 hover:bg-white/10'}
+        mb-2
+    `}>
         
-        {/* Cabeçalho do Card */}
-        <div className="flex justify-between items-start mb-4 mt-2">
-            <div className="flex gap-3">
-                {/* Ícone Dinâmico: $ para Dinheiro, P para Pix */}
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg font-bold text-white text-lg ${
-                    isDinheiro ? 'bg-emerald-600' : 'bg-gradient-to-tr from-cyan-500 to-blue-600'
-                }`}>
-                    {isDinheiro ? <AttachMoney /> : <PixIcon />}
-                </div>
-                
-                <div>
-                    <div className="text-white font-bold leading-tight text-lg">
-                        {pix.remetente_extraido}
-                    </div>
-                    <div className="text-slate-400 text-xs mt-1 font-mono flex items-center gap-2">
-                        <span>{new Date(pix.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-                        {/* Se foi dinheiro, mostra quem lançou */}
-                        {isDinheiro && pix.vendedor_nome && (
-                            <span className="bg-emerald-500/20 text-emerald-300 px-1.5 rounded text-[10px] border border-emerald-500/30">
-                                Por: {pix.vendedor_nome.split(' ')[0]}
-                            </span>
-                        )}
-                    </div>
-                </div>
+        {/* ESQUERDA: Avatar + Infos Principais */}
+        <div className="flex items-center gap-3 overflow-hidden">
+            {/* Avatar Menor */}
+            <div className={`
+                w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-sm shadow-md
+                ${isDinheiro ? 'bg-emerald-600 text-white' : 'bg-cyan-600 text-white'}
+            `}>
+                {isDinheiro ? '$' : pix.remetente_extraido.charAt(0).toUpperCase()}
             </div>
-            
-            <div className="text-right">
-                <div className={`font-mono font-bold text-xl ${isDinheiro ? 'text-emerald-400' : 'text-cyan-400'}`}>
-                    R$ {pix.valor_extraido}
+
+            <div className="flex flex-col min-w-0">
+                {/* Linha 1: Nome + Hora */}
+                <div className="flex items-baseline gap-2">
+                    <span className="font-bold text-white truncate max-w-[120px] md:max-w-[200px]">
+                        {pix.remetente_extraido}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                        {new Date(pix.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
                 </div>
-                <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-                    {pix.tipo || 'PIX'}
+
+                {/* Linha 2: Status / Vendedor */}
+                <div className="text-xs text-slate-400 truncate">
+                   {isVendido ? (
+                       <span className="flex items-center gap-1">
+                           <span className={isDinheiro ? "text-emerald-400" : "text-cyan-400"}>✔ Vendido por:</span>
+                           {formatVendedor(pix.vendedor_email || pix.vendedor_nome || "")}
+                       </span>
+                   ) : (
+                       <span className="text-yellow-500/80 animate-pulse">⚠ Aguardando identificação...</span>
+                   )}
                 </div>
             </div>
         </div>
 
-        {/* Área de Ação */}
-        <div className="mt-4 pt-4 border-t border-slate-700/50">
+        {/* DIREITA: Preço + Ação */}
+        <div className="flex flex-col items-end gap-1">
+            {/* Preço */}
+            <div className={`font-mono font-bold text-lg ${isDinheiro ? 'text-emerald-400' : 'text-cyan-400'}`}>
+                R$ {pix.valor_extraido}
+            </div>
+
+            {/* Seletor Compacto */}
             {isVendido ? (
-                <div className={`flex flex-col gap-1 text-sm px-3 py-2 rounded-lg border ${
-                    isDinheiro ? 'bg-emerald-900/10 border-emerald-500/20' : 'bg-cyan-900/10 border-cyan-500/20'
-                }`}>
-                    <div className={`flex items-center gap-2 ${isDinheiro ? 'text-emerald-300' : 'text-cyan-300'}`}>
-                        <CheckCircle sx={{ fontSize: 16 }} />
-                        <span className="font-bold text-base">
-                            {pix.quantidade && pix.quantidade > 1 ? `${pix.quantidade}x ` : ''}
-                            {pix.item_vendido?.toUpperCase()}
-                        </span>
-                    </div>
+                <div className="text-sm font-bold text-white bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                    {(pix.quantidade || 1) > 1 ? `${pix.quantidade}x ` : ''}
+                    {pix.item_vendido?.toUpperCase()}
                 </div>
             ) : (
-                <div className="flex gap-2">
+                <div className="flex gap-1">
                     <select 
                         value={produto}
                         onChange={(e) => setProduto(e.target.value)}
-                        className="flex-[2] bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-cyan-500 outline-none appearance-none"
+                        className="w-32 bg-slate-900 border border-slate-700 rounded text-xs text-white px-2 py-1 focus:border-cyan-500 outline-none"
                     >
-                        <option value="" disabled>Identificar Pagamento...</option>
+                        <option value="" disabled>Selecione...</option>
                         <option value="Cerveja">Cerveja</option>
                         <option value="Água">Água</option>
-                        <option value="Refrigerante">Refrigerante</option>
+                        <option value="Refrigerante">Refri</option>
+                        <option value="Dose">Dose</option>
                         <option value="Combo">Combo</option>
                     </select>
-                    
                     <button 
                         onClick={salvar}
                         disabled={loadingSave || !produto}
-                        className="bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 text-white p-2 rounded-lg w-12 flex items-center justify-center"
+                        className="bg-cyan-600 text-white rounded px-2 hover:bg-cyan-500 disabled:opacity-50 flex items-center"
                     >
-                        {loadingSave ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/> : <Save fontSize="small" />}
+                        {loadingSave ? '...' : <Save sx={{ fontSize: 16 }} />}
                     </button>
                 </div>
             )}

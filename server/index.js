@@ -224,33 +224,62 @@ app.put('/api/admin/usuarios', async (req, res) => {
 // --- 6. STATS ---
 app.get('/api/stats', async (req, res) => {
     try {
+        // Pega do início do mês (ou mude para Date() de hoje para ver só o dia)
         const dataInicio = new Date();
         dataInicio.setDate(1); dataInicio.setHours(0,0,0,0);
+        
         const transacoes = await PixModel.find({ data: { $gte: dataInicio } });
 
         let faturamentoTotal = 0;
+        let totalPix = 0;
+        let totalDinheiro = 0;
         let statsProdutos = {}; 
         let statsVendedores = {};
+        
+        // Inicializa array de 24 horas (0 a 23)
+        let vendasPorHora = Array(24).fill(0); 
 
         transacoes.forEach(pix => {
+            // Tratamento de Valor
             let valorFloat = 0;
             if (pix.valor_extraido) {
-                valorFloat = parseFloat(pix.valor_extraido.replace(/\./g, '').replace(',', '.')) || 0;
+                // Remove R$, pontos de milhar e troca virgula por ponto
+                const limpo = pix.valor_extraido.toString().replace(/[^\d,]/g, '').replace(',', '.');
+                valorFloat = parseFloat(limpo) || 0;
                 faturamentoTotal += valorFloat;
+
+                // Separação Pix vs Dinheiro
+                if (pix.tipo === 'DINHEIRO') totalDinheiro += valorFloat;
+                else totalPix += valorFloat;
+
+                // --- LÓGICA DO HEATMAP ---
+                // Pega a hora da transação (0 a 23) e soma o valor nela
+                const hora = new Date(pix.data).getHours(); // Importante: O servidor deve estar no fuso certo ou use UTC
+                vendasPorHora[hora] += valorFloat;
             }
+
+            // Stats de Produtos e Vendedores
             if (pix.item_vendido) {
                 const item = pix.item_vendido.toUpperCase();
                 const qtd = pix.quantidade || 1;
+                
                 if (!statsProdutos[item]) statsProdutos[item] = { qtd: 0, total: 0 };
                 statsProdutos[item].qtd += qtd;
                 statsProdutos[item].total += valorFloat; 
                 
-                const vendedor = pix.vendedor_email ? pix.vendedor_email.split('@')[0] : 'Sistema';
+                const vendedor = pix.vendedor_email ? pix.vendedor_email.split('@')[0] : (pix.vendedor_nome || 'Sistema');
                 if (!statsVendedores[vendedor]) statsVendedores[vendedor] = 0;
                 statsVendedores[vendedor] += valorFloat;
             }
         });
 
+        // Formata o Heatmap para o Recharts
+        const heatmapData = vendasPorHora.map((total, hora) => ({
+            hora: `${hora}h`,
+            total: total
+        }));
+
+        // Rankings (Igual antes)
         const ranking = Object.entries(statsProdutos)
             .map(([nome, dados]) => ({ nome, qtd: dados.qtd, total: dados.total }))
             .sort((a, b) => b.total - a.total).slice(0, 10);
@@ -259,6 +288,7 @@ app.get('/api/stats', async (req, res) => {
         const topVendedor = rankingVendedores.length > 0 
             ? { nome: rankingVendedores[0][0], total: rankingVendedores[0][1] }
             : { nome: "--", total: 0 };
+            
         const ticketMedio = transacoes.length > 0 ? faturamentoTotal / transacoes.length : 0;
 
         res.json({
@@ -266,9 +296,18 @@ app.get('/api/stats', async (req, res) => {
             total_transacoes: transacoes.length,
             ticket_medio: ticketMedio.toFixed(2),
             top_vendedor: topVendedor,
-            ranking: ranking
+            ranking: ranking,
+            // NOVOS DADOS:
+            distribuicao: [
+                { name: 'Pix', value: totalPix },
+                { name: 'Dinheiro', value: totalDinheiro }
+            ],
+            heatmap: heatmapData
         });
-    } catch (error) { res.status(500).json({ error: "Erro stats" }); }
+    } catch (error) { 
+        console.error(error);
+        res.status(500).json({ error: "Erro stats" }); 
+    }
 });
 
 // Rota para registrar venda manual (Dinheiro)

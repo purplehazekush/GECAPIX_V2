@@ -4,6 +4,11 @@ export interface Pix {
   valor_extraido: string;
   mensagem_texto: string;
   data: string;
+  
+  // Campos novos que adicionamos
+  tipo?: 'PIX' | 'DINHEIRO';
+  vendedor_nome?: string;
+  
   // Campos de gestão
   item_vendido?: string;
   quantidade?: number;
