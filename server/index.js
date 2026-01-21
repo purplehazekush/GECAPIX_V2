@@ -20,7 +20,9 @@ const PixSchema = new mongoose.Schema({
         item_antigo: String,
         data_alteracao: { type: Date, default: Date.now }
     }],
-    data: { type: Date, default: Date.now }
+    data: { type: Date, default: Date.now },
+    tipo: { type: String, default: 'PIX' }, // 'PIX' ou 'DINHEIRO'
+    vendedor_nome: String, // Quem lançou a venda no sistema
 });
 const PixModel = mongoose.models.Pix || mongoose.model('Pix', PixSchema);
 
@@ -269,7 +271,36 @@ app.get('/api/stats', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Erro stats" }); }
 });
 
+// Rota para registrar venda manual (Dinheiro)
+app.post('/api/vendas/manual', async (req, res) => {
+    try {
+        const { item, valor, quantidade, vendedor_nome } = req.body;
+        
+        // Formata o valor para string "00,00" para manter compatibilidade com o regex do Pix
+        // (Ou idealmente, migre tudo para Number no futuro, mas vamos manter o padrão atual)
+        const valorFormatado = parseFloat(valor).toFixed(2).replace('.', ',');
+
+        await PixModel.create({
+            tipo: 'DINHEIRO',
+            remetente_extraido: "Venda Balcão (Dinheiro)",
+            valor_extraido: valorFormatado,
+            mensagem_texto: `Venda manual: ${quantidade}x ${item}`,
+            item_vendido: item,
+            quantidade: quantidade,
+            vendedor_nome: vendedor_nome,
+            data: new Date()
+        });
+
+        res.status(201).json({ success: true });
+    } catch (error) {
+        console.error("Erro venda manual:", error);
+        res.status(500).json({ error: "Erro ao registrar venda" });
+    }
+});
+
 const PORT = process.env.PORT || 3001;
+
+
 
 // Mude a linha do listen para garantir que ele aceite conexões externas na VPS
 app.listen(PORT, '0.0.0.0', () => {

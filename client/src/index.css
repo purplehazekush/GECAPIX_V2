@@ -1,11 +1,12 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* RESET GLOBAL */
 body {
+  font-family: 'Inter', sans-serif; /* Adicione isso aqui */
   @apply bg-slate-900 text-white antialiased selection:bg-cyan-500 selection:text-white;
-  /* Fundo sutil para dar profundidade (opcional) */
   background-image: radial-gradient(circle at 50% 0%, rgba(34, 211, 238, 0.1) 0%, transparent 50%);
   background-attachment: fixed;
 }
