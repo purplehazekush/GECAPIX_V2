@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Pix } from '../types';
 import { Refresh, ShoppingBag, Add, Save, LocalAtm, Pix as PixIcon, CheckCircle } from '@mui/icons-material';
-import { Fab, Tooltip, Chip } from '@mui/material'; 
+import { Fab, Tooltip } from '@mui/material'; 
 import { api } from "../lib/api";
 import { useAuth } from '../context/AuthContext';
 import NewSaleModal from '../components/NewSaleModal';
