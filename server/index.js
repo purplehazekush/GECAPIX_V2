@@ -143,9 +143,40 @@ app.post('/api/auth/login', async (req, res) => {
 // --- 3. FEED PIX ---
 app.get('/api/pix', async (req, res) => {
     try {
-        const ultimos = await PixModel.find().sort({ data: -1 }).limit(50);
-        res.json(ultimos);
-    } catch (error) { res.status(500).json({ error: "Erro ao buscar pix" }); }
+        const { page = 1, limit = 20, status = 'todos' } = req.query;
+        const skip = (page - 1) * limit;
+
+        // Monta o filtro
+        let query = {};
+        if (status === 'pendentes') {
+            // Busca itens onde item_vendido é null, vazio ou não existe
+            query.$or = [{ item_vendido: { $exists: false } }, { item_vendido: "" }, { item_vendido: null }];
+        } else if (status === 'registrados') {
+            // Busca itens que TEM texto no item_vendido
+            query.item_vendido = { $ne: "", $exists: true };
+        }
+
+        // Busca com Paginação
+        const pixList = await PixModel.find(query)
+            .sort({ data: -1 }) // Mais recentes primeiro
+            .skip(skip)
+            .limit(parseInt(limit));
+
+        // Conta total para saber se tem mais páginas
+        const total = await PixModel.countDocuments(query);
+
+        res.json({
+            data: pixList,
+            meta: {
+                total,
+                page: parseInt(page),
+                pages: Math.ceil(total / limit)
+            }
+        });
+    } catch (error) { 
+        console.error(error);
+        res.status(500).json({ error: "Erro ao buscar feed" }); 
+    }
 });
 
 app.post('/api/pix', async (req, res) => {
