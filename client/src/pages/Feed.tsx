@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Pix } from '../types';
-import { Refresh, ShoppingBag, Add, Save } from '@mui/icons-material'; // <--- Imports organizados e sem PixIcon
-import { Fab, Tooltip } from '@mui/material'; 
+import { Refresh, ShoppingBag, Add, Save, LocalAtm, Pix as PixIcon, CheckCircle } from '@mui/icons-material';
+import { Fab, Tooltip, Chip } from '@mui/material'; 
 import { api } from "../lib/api";
 import { useAuth } from '../context/AuthContext';
 import NewSaleModal from '../components/NewSaleModal';
@@ -9,21 +9,16 @@ import NewSaleModal from '../components/NewSaleModal';
 export default function Feed() {
   const [transacoes, setTransacoes] = useState<Pix[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  // Estados para o Modal de Venda Manual
   const [modalOpen, setModalOpen] = useState(false);
-  const [produtos, setProdutos] = useState<any[]>([]); // <--- Tipagem segura
+  const [produtos, setProdutos] = useState<any[]>([]);
 
   const fetchFeed = async () => {
     setLoading(true);
     try {
       const res = await api.get('/pix');
       setTransacoes(res.data);
-    } catch (error) {
-      console.error("Erro", error);
-    } finally {
-      setLoading(false);
-    }
+    } catch (error) { console.error("Erro", error); } 
+    finally { setLoading(false); }
   };
 
   const fetchProdutos = async () => {
@@ -33,173 +28,161 @@ export default function Feed() {
     } catch (error) { console.error("Erro produtos", error); }
   };
 
-  useEffect(() => {
-    fetchFeed();
-    fetchProdutos(); 
-  }, []);
+  useEffect(() => { fetchFeed(); fetchProdutos(); }, []);
 
   return (
-    <div className="max-w-3xl mx-auto pb-24 animate-fade-in relative">
+    <div className="max-w-2xl mx-auto pb-32 animate-fade-in px-4">
       
-      {/* Cabeçalho */}
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold neon-text">FEED AO VIVO</h2>
+      {/* Cabeçalho Compacto e Fixo */}
+      <div className="sticky top-0 z-10 bg-slate-900/80 backdrop-blur-md py-4 border-b border-white/5 mb-6 flex justify-between items-center -mx-4 px-4">
+        <div>
+            <h2 className="text-xl font-bold text-white tracking-tight">Fluxo de Caixa</h2>
+            <p className="text-xs text-slate-400 font-mono">
+                {transacoes.length} vendas hoje
+            </p>
+        </div>
         <button 
           onClick={fetchFeed}
           disabled={loading}
-          className="p-2 rounded-full hover:bg-white/10 text-cyan-400 transition-all"
-          title="Atualizar Feed"
+          className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-cyan-400 transition-all border border-slate-700"
         >
-          <Refresh className={loading ? "animate-spin" : ""} />
+          <Refresh className={loading ? "animate-spin" : ""} fontSize="small" />
         </button>
       </div>
 
-      {/* Lista */}
-      <div className="space-y-4">
+      {/* Container da Timeline */}
+      <div className="relative border-l-2 border-slate-800 ml-4 space-y-8">
         {loading && transacoes.length === 0 ? (
-           <div className="text-center py-10 text-slate-500 font-mono animate-pulse">Carregando transações...</div>
+           <div className="pl-8 text-slate-500 font-mono text-sm animate-pulse">Sincronizando blockchain...</div>
         ) : transacoes.length === 0 ? (
-           <div className="glass-panel p-10 rounded-2xl text-center flex flex-col items-center opacity-50">
-              <ShoppingBag sx={{ fontSize: 40, mb: 2 }} />
-              <p>Caixa fechado. Nenhuma venda hoje.</p>
+           <div className="ml-[-17px] flex flex-col items-center py-10 opacity-40">
+              <ShoppingBag sx={{ fontSize: 40, mb: 2, color: '#94a3b8' }} />
+              <p className="text-slate-400 text-sm">Nenhuma movimentação.</p>
            </div>
         ) : (
-          transacoes.map((pix) => (
-            <CardItem key={pix._id} pix={pix} onUpdate={fetchFeed} />
+          transacoes.map((pix, index) => (
+            <TimelineItem key={pix._id} pix={pix} onUpdate={fetchFeed} index={index} />
           ))
         )}
       </div>
 
-      {/* FAB - Botão Flutuante */}
-      <div className="fixed bottom-24 right-6 md:right-12 z-50">
-        <Tooltip title="Registrar Venda em Dinheiro" placement="left">
-            <Fab 
-                onClick={() => setModalOpen(true)}
-                sx={{ 
-                    bgcolor: '#22c55e', 
-                    color: '#fff', 
-                    '&:hover': { bgcolor: '#16a34a' } 
-                }}
-            >
+      {/* FAB - Botão Flutuante (Mantido igual) */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <Tooltip title="Venda Dinheiro" placement="left">
+            <Fab onClick={() => setModalOpen(true)} sx={{ bgcolor: '#10b981', color: '#fff', '&:hover': { bgcolor: '#059669' } }}>
                 <Add />
             </Fab>
         </Tooltip>
       </div>
 
-      <NewSaleModal 
-        open={modalOpen} 
-        onClose={() => setModalOpen(false)} 
-        onSuccess={fetchFeed} 
-        produtos={produtos}
-      />
+      <NewSaleModal open={modalOpen} onClose={() => setModalOpen(false)} onSuccess={fetchFeed} produtos={produtos} />
     </div>
   );
 }
 
-function CardItem({ pix, onUpdate }: { pix: Pix, onUpdate: () => void }) {
+// --- NOVO COMPONENTE DE TIMELINE ---
+function TimelineItem({ pix, onUpdate, index }: { pix: Pix, onUpdate: () => void, index: number }) {
   const { user } = useAuth();
   const [produto, setProduto] = useState("");
   const [loadingSave, setLoadingSave] = useState(false);
   
   const isVendido = !!pix.item_vendido;
   const isDinheiro = pix.tipo === 'DINHEIRO';
-
-  const formatVendedor = (email: string) => {
-    if (!email) return 'Sistema';
-    return email.split('@')[0].substring(0, 12);
-  };
+  
+  // Cores Baseadas no Tipo
+  const themeColor = isDinheiro ? 'text-emerald-400' : 'text-cyan-400';
+  const themeBorder = isDinheiro ? 'border-emerald-500/30' : 'border-cyan-500/30';
+  const themeBg = isDinheiro ? 'bg-emerald-500/10' : 'bg-cyan-500/10';
 
   const salvar = async () => {
     if (!produto) return;
     setLoadingSave(true);
     try {
-        await api.put(`/pix/${pix._id}`, {
-            item: produto,
-            quantidade: 1,
-            editor_email: user?.email 
-        });
+        await api.put(`/pix/${pix._id}`, { item: produto, quantidade: 1, editor_email: user?.email });
         onUpdate();
-    } catch (e) {
-        alert("Erro ao salvar");
-    } finally {
-        setLoadingSave(false);
-    }
+    } catch (e) { alert("Erro ao salvar"); } 
+    finally { setLoadingSave(false); }
   };
 
   return (
-    <div className={`
-        relative flex items-center justify-between p-3 rounded-lg border-l-4 transition-all
-        ${isDinheiro ? 'bg-emerald-900/10 border-emerald-500 hover:bg-emerald-900/20' : 'bg-white/5 border-cyan-500 hover:bg-white/10'}
-        mb-2
-    `}>
+    <div className="relative pl-8 animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
         
-        {/* ESQUERDA */}
-        <div className="flex items-center gap-3 overflow-hidden">
-            <div className={`
-                w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-sm shadow-md
-                ${isDinheiro ? 'bg-emerald-600 text-white' : 'bg-cyan-600 text-white'}
-            `}>
-                {/* Aqui você usou CHAR e não ICONE, por isso removi o import lá em cima */}
-                {isDinheiro ? '$' : pix.remetente_extraido.charAt(0).toUpperCase()}
-            </div>
+        {/* A "BOLINHA" DA TIMELINE (O Conector Visual) */}
+        <div className={`
+            absolute -left-[9px] top-4 w-4 h-4 rounded-full border-2 border-slate-900 
+            ${isDinheiro ? 'bg-emerald-500' : 'bg-cyan-500'} 
+            shadow-[0_0_10px_rgba(0,0,0,0.5)] z-10
+        `}></div>
 
-            <div className="flex flex-col min-w-0">
-                <div className="flex items-baseline gap-2">
-                    <span className="font-bold text-white truncate max-w-[120px] md:max-w-[200px]">
+        {/* O CARD (Agora mais limpo e profissional) */}
+        <div className={`
+            group relative p-4 rounded-xl border border-slate-700/50 bg-slate-800/40 backdrop-blur-sm
+            hover:bg-slate-800/80 transition-all duration-300 hover:border-slate-600
+            ${!isVendido ? 'border-l-2 border-l-yellow-500/50' : ''}
+        `}>
+            
+            {/* Cabeçalho do Item */}
+            <div className="flex justify-between items-start mb-2">
+                <div className="flex flex-col">
+                    <span className="text-white font-bold text-sm tracking-wide">
                         {pix.remetente_extraido}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-mono">
+                    <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
+                        {isDinheiro ? <LocalAtm sx={{fontSize: 10}} className="text-emerald-500"/> : <PixIcon sx={{fontSize: 10}} className="text-cyan-500"/>}
                         {new Date(pix.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        {pix.vendedor_nome && ` • ${pix.vendedor_nome.split(' ')[0]}`}
                     </span>
                 </div>
-
-                <div className="text-xs text-slate-400 truncate">
-                   {isVendido ? (
-                       <span className="flex items-center gap-1">
-                           <span className={isDinheiro ? "text-emerald-400" : "text-cyan-400"}>✔ Vendido por:</span>
-                           {formatVendedor(pix.vendedor_email || pix.vendedor_nome || "")}
-                       </span>
-                   ) : (
-                       <span className="text-yellow-500/80 animate-pulse">⚠ Aguardando identificação...</span>
-                   )}
+                
+                <div className={`font-mono font-bold text-base ${themeColor}`}>
+                    R$ {pix.valor_extraido}
                 </div>
             </div>
-        </div>
 
-        {/* DIREITA */}
-        <div className="flex flex-col items-end gap-1">
-            <div className={`font-mono font-bold text-lg ${isDinheiro ? 'text-emerald-400' : 'text-cyan-400'}`}>
-                R$ {pix.valor_extraido}
+            {/* Conteúdo / Ação */}
+            <div className="mt-3">
+                {isVendido ? (
+                    <div className={`
+                        inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border
+                        ${themeBg} ${themeColor} ${themeBorder}
+                    `}>
+                        <CheckCircle sx={{ fontSize: 14 }} />
+                        <span className="uppercase tracking-wider">
+                            {(pix.quantidade || 1) > 1 ? `${pix.quantidade}x ` : ''}
+                            {pix.item_vendido}
+                        </span>
+                    </div>
+                ) : (
+                    // MODO EDIÇÃO (Discreto, mas funcional)
+                    <div className="flex items-center gap-2 bg-slate-900/50 p-1 rounded-lg border border-slate-700/50 focus-within:border-cyan-500/50 transition-colors">
+                        <select 
+                            value={produto}
+                            onChange={(e) => setProduto(e.target.value)}
+                            className="bg-transparent text-xs text-white w-full outline-none px-2 py-1 placeholder-slate-500 appearance-none"
+                        >
+                            <option value="" disabled className="text-slate-500">Identificar venda...</option>
+                            <option value="Cerveja" className="bg-slate-800">Cerveja</option>
+                            <option value="Água" className="bg-slate-800">Água</option>
+                            <option value="Refrigerante" className="bg-slate-800">Refrigerante</option>
+                            <option value="Dose" className="bg-slate-800">Dose</option>
+                            <option value="Combo" className="bg-slate-800">Combo</option>
+                        </select>
+                        <button 
+                            onClick={salvar}
+                            disabled={!produto || loadingSave}
+                            className="bg-cyan-600 hover:bg-cyan-500 text-white p-1 rounded-md transition-colors disabled:opacity-50"
+                        >
+                            {loadingSave ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/> : <Save sx={{ fontSize: 16 }} />}
+                        </button>
+                    </div>
+                )}
             </div>
 
-            {isVendido ? (
-                <div className="text-sm font-bold text-white bg-white/5 px-2 py-0.5 rounded border border-white/10">
-                    {(pix.quantidade || 1) > 1 ? `${pix.quantidade}x ` : ''}
-                    {pix.item_vendido?.toUpperCase()}
-                </div>
-            ) : (
-                <div className="flex gap-1">
-                    <select 
-                        value={produto}
-                        onChange={(e) => setProduto(e.target.value)}
-                        className="w-32 bg-slate-900 border border-slate-700 rounded text-xs text-white px-2 py-1 focus:border-cyan-500 outline-none"
-                    >
-                        <option value="" disabled>Selecione...</option>
-                        <option value="Cerveja">Cerveja</option>
-                        <option value="Água">Água</option>
-                        <option value="Refrigerante">Refri</option>
-                        <option value="Dose">Dose</option>
-                        <option value="Combo">Combo</option>
-                    </select>
-                    <button 
-                        onClick={salvar}
-                        disabled={loadingSave || !produto}
-                        className="bg-cyan-600 text-white rounded px-2 hover:bg-cyan-500 disabled:opacity-50 flex items-center"
-                    >
-                        {loadingSave ? '...' : <Save sx={{ fontSize: 16 }} />}
-                    </button>
-                </div>
-            )}
+            {/* Efeito Glow no Hover (Sutil) */}
+            <div className={`
+                absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none
+                bg-gradient-to-r ${isDinheiro ? 'from-emerald-500/5' : 'from-cyan-500/5'} to-transparent
+            `}/>
         </div>
     </div>
   );
