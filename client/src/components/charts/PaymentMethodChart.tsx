@@ -17,17 +17,17 @@ export default function PaymentMethodChart({ data }: { data: any[] }) {
             paddingAngle={5}
             dataKey="value"
           >
-            {data.map((entry, index) => (
+            {data.map((_, index) => (
               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
             ))}
           </Pie>
-          <Tooltip 
+          <Tooltip
             contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px' }}
             itemStyle={{ color: '#fff' }}
             // CORREÇÃO AQUI: Usar 'any'
             formatter={(value: any) => `R$ ${Number(value).toFixed(2)}`}
           />
-          <Legend verticalAlign="bottom" height={36}/>
+          <Legend verticalAlign="bottom" height={36} />
         </PieChart>
       </ResponsiveContainer>
     </div>
