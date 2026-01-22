@@ -84,12 +84,15 @@ export default function ArenaProfile() {
     const handleSave = async () => {
         setLoading(true);
         try {
+            // Transforma "DCC034, MAT001" em ["DCC034", "MAT001"]
             const arrayMaterias = formData.materias.split(',').filter(m => m.trim().length > 0);
             
+            console.log("Enviando URL:", formData.comprovante_url); // Debug no navegador
+
             const res = await api.put('arena/perfil', {
                 email: dbUser?.email,
-                ...formData,
-                materias: arrayMaterias
+                ...formData, // <--- ISSO AQUI QUE MANDA A FOTO (comprovante_url)
+                materias: arrayMaterias // <--- ISSO AQUI MANDA A LISTA
             });
             
             setDbUser(res.data);
