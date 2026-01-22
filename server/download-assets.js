@@ -1,47 +1,62 @@
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
 const unzipper = require('unzipper');
+const { Readable } = require('stream');
+const { finished } = require('stream/promises');
 
-// Onde vamos salvar
-const BASE_DIR = path.join(__dirname, 'client', 'public', 'assets', 'avatar');
+// --- CAMINHOS ---
+// __dirname é a pasta server. Subimos um nível (..) para chegar na raiz e entrar em client.
+const BASE_DIR = path.join(__dirname, '..', 'client', 'public', 'assets', 'avatar');
+const JSON_OUTPUT = path.join(__dirname, '..', 'client', 'src', 'data', 'avatarAssets.json');
 const TEMP_ZIP = path.join(__dirname, 'lpc_full.zip');
 
-// URL do Repositório Mestre (Sanderfrenken) - Tem tudo organizado
 const ZIP_URL = "https://github.com/sanderfrenken/Universal-LPC-Spritesheet-Character-Generator/archive/refs/heads/master.zip";
-
-// Filtros: Só queremos arquivos que contenham estas palavras no caminho
-const WANTED_ANIMATION = 'walk'; // Queremos apenas animações de andar
+const WANTED_ANIMATION = 'walk'; 
 
 const main = async () => {
-    console.log("🚀 Iniciando Download do MEGA PACK (Isso pode levar uns segundos)...");
+    console.log(`🚀 Iniciando Download com FETCH (Node 20+)...`);
+    console.log(`📂 Alvo: ${BASE_DIR}`);
 
-    // 1. Baixar o ZIP
-    const file = fs.createWriteStream(TEMP_ZIP);
-    await new Promise((resolve, reject) => {
-        https.get(ZIP_URL, response => {
-            response.pipe(file);
-            file.on('finish', () => {
-                file.close();
-                console.log("📦 ZIP Baixado. Extraindo e Filtrando...");
-                resolve();
-            });
-        }).on('error', err => {
-            fs.unlink(TEMP_ZIP, () => {});
-            reject(err.message);
-        });
-    });
+    // 1. Limpeza
+    if (fs.existsSync(BASE_DIR)) {
+        console.log("🧹 Limpando assets antigos...");
+        fs.rmSync(BASE_DIR, { recursive: true, force: true });
+    }
 
-    // 2. Ler o ZIP e Extrair o que interessa
+    // 2. Download Moderno (Segue redirects 302 automaticamente)
+    try {
+        const response = await fetch(ZIP_URL);
+        
+        if (!response.ok) {
+            throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
+        }
+
+        console.log("⬇️  Baixando ZIP (Isso pode levar alguns segundos)...");
+        
+        // Transforma o corpo da resposta em um stream para salvar no disco
+        const fileStream = fs.createWriteStream(TEMP_ZIP);
+        await finished(Readable.fromWeb(response.body).pipe(fileStream));
+        
+        console.log("📦 ZIP Salvo no disco!");
+
+    } catch (error) {
+        console.error("❌ Erro fatal no download:", error);
+        return;
+    }
+
+    // 3. Extração
+    let extractedCount = 0;
+    console.log("📂 Extraindo e Filtrando...");
+
     fs.createReadStream(TEMP_ZIP)
         .pipe(unzipper.Parse())
         .on('entry', function (entry) {
             const fileName = entry.path;
             
-            // Lógica de Filtro: Queremos PNGs que sejam da animação WALK
+            // FILTRO: Apenas PNGs que contenham 'walk'
             if (fileName.includes(WANTED_ANIMATION) && fileName.endsWith('.png')) {
                 
-                // Categorizar baseado no nome da pasta
+                // Categorizar
                 let category = 'misc';
                 if (fileName.includes('/body/')) category = 'body';
                 else if (fileName.includes('/hair/')) category = 'hair';
@@ -49,62 +64,64 @@ const main = async () => {
                 else if (fileName.includes('/legs/')) category = 'legs';
                 else if (fileName.includes('/feet/')) category = 'feet';
                 else if (fileName.includes('/weapons/')) category = 'hand_r';
-                else if (fileName.includes('/head/')) return entry.autodrain(); // Ignora cabeças soltas (usamos body completo)
+                else {
+                    entry.autodrain(); // Ignora arquivos que não são dessas categorias
+                    return;
+                }
 
-                // Cria pasta de destino
+                // Cria pasta
                 const targetDir = path.join(BASE_DIR, category);
-                if (!fs.existsSync(targetDir)) fs.mkdirSync(dir, { recursive: true });
+                if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
 
-                // Limpa o nome do arquivo para ficar legível
-                // Ex: "spritesheets/hair/male/messy/walk/raven.png" -> "messy_raven.png"
+                // Limpa o nome
                 const parts = fileName.split('/');
-                const cleanName = parts.slice(-3).join('_').replace('walk_', '').replace('male_', '');
-                
-                const targetPath = path.join(targetDir, cleanName);
+                const usefulParts = parts.filter(p => 
+                    !['spritesheets', 'walk', category, 'universal-lpc-spritesheet-character-generator-master'].includes(p.toLowerCase())
+                );
+                const cleanName = usefulParts.join('_').replace(/_{2,}/g, '_').toLowerCase();
 
                 // Salva
-                entry.pipe(fs.createWriteStream(targetPath));
-                // console.log(`✅ ${category}: ${cleanName}`);
+                entry.pipe(fs.createWriteStream(path.join(targetDir, cleanName)));
+                extractedCount++;
+                
+                if (extractedCount % 50 === 0) process.stdout.write('.');
             } else {
-                entry.autodrain(); // Ignora arquivos inúteis
+                entry.autodrain();
             }
         })
         .on('close', () => {
-            console.log("✨ EXTRAÇÃO CONCLUÍDA!");
-            console.log(`📂 Verifique: ${BASE_DIR}`);
-            // Limpa o zip
-            fs.unlinkSync(TEMP_ZIP);
+            console.log(`\n✨ SUCESSO! Total extraído: ${extractedCount}`);
             
-            // GERA UM ARQUIVO JSON COM TUDO QUE BAIXOU (Para o Front usar)
+            if (fs.existsSync(TEMP_ZIP)) fs.unlinkSync(TEMP_ZIP); // Apaga o lixo
             generateAssetIndex();
-        });
+        })
+        .on('error', (e) => console.error("Erro no Unzip:", e));
 };
 
 function generateAssetIndex() {
-    console.log("📝 Gerando índice para o Frontend...");
+    console.log("📝 Gerando índice JSON...");
     const index = {};
     const categories = ['body', 'hair', 'torso', 'legs', 'feet', 'hand_r'];
 
     categories.forEach(cat => {
         const dir = path.join(BASE_DIR, cat);
         if (fs.existsSync(dir)) {
-            // Pega lista de arquivos e remove a extensão .png
-            index[cat] = fs.readdirSync(dir)
+            const files = fs.readdirSync(dir)
                 .filter(f => f.endsWith('.png'))
-                .map(f => f.replace('.png', ''));
+                .map(f => f.replace('.png', ''))
+                .sort();
+            index[cat] = files;
+            console.log(`   - ${cat}: ${files.length} itens`);
         } else {
             index[cat] = [];
         }
     });
 
-    const jsonPath = path.join(__dirname, 'client', 'src', 'data', 'avatarAssets.json');
-    
-    // Garante que a pasta data existe
-    const dataDir = path.dirname(jsonPath);
+    const dataDir = path.dirname(JSON_OUTPUT);
     if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
-    fs.writeFileSync(jsonPath, JSON.stringify(index, null, 2));
-    console.log(`💾 Índice salvo em: ${jsonPath}`);
+    fs.writeFileSync(JSON_OUTPUT, JSON.stringify(index, null, 2));
+    console.log(`💾 Salvo em: ${JSON_OUTPUT}`);
 }
 
 main();
