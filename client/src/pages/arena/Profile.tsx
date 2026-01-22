@@ -37,8 +37,6 @@ export default function ArenaProfile() {
         body: 'male_light',
         hair: 'messy_raven',
         torso: 'shirt_long_white_longsleeve',
-        legs: 'pants_white_pants_male',
-        feet: 'shoes_brown_shoes_male',
         hand_r: 'none'
     });
 
@@ -61,8 +59,6 @@ export default function ArenaProfile() {
                     body: AVATAR_ASSETS.body?.[0] || 'skin_light',
                     hair: AVATAR_ASSETS.hair?.[0] || 'messy_raven',
                     torso: AVATAR_ASSETS.torso?.[0] || 'shirt_white',
-                    legs: AVATAR_ASSETS.legs?.[0] || 'pants_white',
-                    feet: AVATAR_ASSETS.feet?.[0] || 'shoes_brown',
                     hand_r: 'none'
                 });
             }

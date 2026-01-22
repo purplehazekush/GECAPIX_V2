@@ -7,21 +7,18 @@ export interface LayerConfig {
 export interface AvatarConfig {
     body?: string;
     head?: string;
+    eyes?: string;   // NOVO: Olhos
+    beard?: LayerConfig | string; // NOVO: Barba (pintável)
     hair?: LayerConfig | string;
     torso?: LayerConfig | string;
-    legs?: LayerConfig | string;
-    feet?: LayerConfig | string;
     accessory?: LayerConfig | string;
-    hand_r?: string;
+    // Removemos legs/feet/hand_r do frontend para simplificar
 }
 
 interface AvatarPixelProps {
     layers: AvatarConfig;
     size?: number; 
     className?: string;
-    // NOVAS PROPS PARA CALIBRAGEM
-    debugMode?: boolean; 
-    manualOffsetY?: number; // Para calibrar verticalmente
 }
 
 const COLOR_FILTERS: Record<string, string> = {
@@ -34,12 +31,18 @@ const COLOR_FILTERS: Record<string, string> = {
     'purple': 'sepia(1) saturate(4) hue-rotate(220deg)',
     'pink': 'sepia(1) saturate(3) hue-rotate(280deg)',
     'gold': 'sepia(1) saturate(3) hue-rotate(10deg) brightness(1.1)',
-    'brown': 'sepia(1) saturate(2) hue-rotate(-30deg) brightness(0.7)'
+    'brown': 'sepia(1) saturate(2) hue-rotate(-30deg) brightness(0.7)',
+    'orange': 'sepia(1) saturate(6) hue-rotate(-30deg)',
+    'teal': 'sepia(1) saturate(4) hue-rotate(140deg)'
 };
 
-export default function AvatarPixel({ layers, size = 200, className = '', debugMode = false, manualOffsetY = -640 }: AvatarPixelProps) {
+export default function AvatarPixel({ layers, size = 200, className = '' }: AvatarPixelProps) {
   
   const FRAME_SIZE = 64;   
+  const SHEET_WIDTH = 832; 
+  const SHEET_HEIGHT = 1344;
+  const ROW_Y = -640; // Linha 11 (Walk South)
+
   const scale = size / FRAME_SIZE;
 
   const renderLayer = (folder: string, item: LayerConfig | string | undefined, zIndex: number) => {
@@ -58,25 +61,17 @@ export default function AvatarPixel({ layers, size = 200, className = '', debugM
         style={{ zIndex }}
       >
         <div 
-            className={debugMode ? '' : 'animate-walk-x'} // Se tiver debugando, para a animação
+            className="animate-walk-x"
             style={{
                 width: `${FRAME_SIZE}px`,
                 height: `${FRAME_SIZE}px`,
                 backgroundImage: `url(/assets/avatar/${folder}/${cleanFile}.png)`,
                 backgroundRepeat: 'no-repeat',
-                
-                // MODO SEGURO: Se a imagem for pequena, isso evita esticar.
-                // Se a imagem for Full Sheet (832px), isso mantém o grid.
-                backgroundSize: '832px auto', 
-                
-                // AQUI ESTÁ O SEGREDO: Usamos a prop manualOffsetY para ajustar na tela
-                backgroundPosition: `0px ${manualOffsetY}px`,
-                
+                backgroundSize: `${SHEET_WIDTH}px ${SHEET_HEIGHT}px`,
+                backgroundPositionY: `${ROW_Y}px`,
+                backgroundPositionX: '0px',
                 imageRendering: 'pixelated',
-                filter: filterStyle,
-                
-                // Debug visual
-                outline: debugMode ? '1px solid rgba(255,0,0,0.5)' : 'none'
+                filter: filterStyle
             }}
         />
       </div>
@@ -85,47 +80,45 @@ export default function AvatarPixel({ layers, size = 200, className = '', debugM
 
   return (
     <div 
-      className={`relative bg-slate-900 rounded-xl border-4 border-slate-700 shadow-2xl ${className}`}
+      className={`relative bg-slate-900 rounded-xl border-4 border-slate-700 shadow-2xl overflow-hidden ${className}`}
       style={{ 
           width: size, 
           height: size,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          overflow: 'hidden' // Corta o excesso
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
       }}
     >
         <div className="absolute inset-0 bg-gradient-to-b from-slate-800 to-slate-950 opacity-90" />
         
-        {/* VIEWPORT: O Buraco da Fechadura de 64x64 */}
+        {/* VIEWPORT FIXO 64x64 */}
         <div 
             style={{ 
                 width: `${FRAME_SIZE}px`, 
                 height: `${FRAME_SIZE}px`, 
                 position: 'relative',
+                overflow: 'hidden',
                 transform: `scale(${scale * 0.9}) translateY(5px)`, 
                 transformOrigin: 'center center',
-                border: debugMode ? '2px solid cyan' : 'none' // Borda da Janela
             }}
         >
+            {/* 1. Base */}
             {renderLayer('body', layers.body, 10)}
-            {renderLayer('head', layers.head, 15)} 
-            {renderLayer('feet', layers.feet, 20)}
-            {renderLayer('legs', layers.legs, 30)}
+            {renderLayer('head', layers.head, 15)}
+            {renderLayer('eyes', layers.eyes, 16)} {/* OLHOS! */}
+            
+            {/* 2. Pelos Faciais (Abaixo do cabelo, acima da cabeça) */}
+            {renderLayer('beard', layers.beard, 17)} 
+
+            {/* 3. Roupas */}
             {renderLayer('torso', layers.torso, 40)}
+            
+            {/* 4. Topo */}
             {renderLayer('hair', layers.hair, 50)}
             {renderLayer('accessory', layers.accessory, 55)} 
-            {renderLayer('hand_r', layers.hand_r, 60)}
         </div>
 
         <style>{`
-            .animate-walk-x {
-                animation: walk-cycle-x 1s steps(9) infinite;
-            }
-            @keyframes walk-cycle-x {
-                from { background-position-x: 0px; }
-                to { background-position-x: -576px; } 
-            }
+            .animate-walk-x { animation: walk-cycle-x 1s steps(9) infinite; }
+            @keyframes walk-cycle-x { from { background-position-x: 0px; } to { background-position-x: -576px; } }
         `}</style>
     </div>
   );
