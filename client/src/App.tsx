@@ -1,5 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth, AuthProvider } from './context/AuthContext';
+import { Toaster } from 'react-hot-toast'; // <--- 1. IMPORT NOVO
+
+// SEUS IMPORTS ORIGINAIS (MANTIDOS)
 import Login from './components/Login';
 import Layout from './components/Layout'; 
 import Feed from './pages/Feed';
@@ -12,7 +15,7 @@ import ArenaLayout from './components/arena/ArenaLayout';
 import ArenaHome from './pages/arena/Home';
 import TransferCoins from './pages/arena/Transfer'; 
 import ArenaProfile from './pages/arena/Profile';
-import ArenaMemes from './pages/arena/Memes'; // <-- ADICIONE ESTE IMPORT
+import ArenaMemes from './pages/arena/Memes'; 
 import ArenaQuests from './pages/arena/Quests';
 import Laboratorio from './pages/arena/Laboratorio';
 import ValidationPanel from './pages/admin/ValidationPanel';
@@ -51,11 +54,12 @@ function AppRoutes() {
         <Route path="transferir" element={<TransferCoins />} />
         <Route path="ranking" element={<ArenaRanking />} />
         <Route path="perfil" element={<ArenaProfile />} />
-        <Route path="memes" element={<ArenaMemes />} /> {/* <-- ADICIONE ESTA LINHA */}
-        <Route path="quests" element={<ArenaQuests />} /> {/* <-- ADICIONE ESTA LINHA */}
+        <Route path="memes" element={<ArenaMemes />} />
+        <Route path="quests" element={<ArenaQuests />} />
         <Route path="laboratorio" element={<Laboratorio />} />
-        <Route path="admin/validacao" element={<ValidationPanel />} />
         
+        {/* Rota do Xerife */}
+        <Route path="admin/validacao" element={<ValidationPanel />} />
       </Route>
 
       <Route 
@@ -70,6 +74,23 @@ export default function App() {
   return (
     <BrowserRouter>
        <AuthProvider>
+          {/* 2. CONFIGURAÇÃO DO TOAST (GLOBAL) */}
+          <Toaster 
+            position="top-center" 
+            reverseOrder={false}
+            toastOptions={{
+              style: {
+                background: '#1e293b',
+                color: '#fff',
+                border: '1px solid #334155',
+                fontSize: '14px',
+                fontWeight: 'bold'
+              },
+              success: { iconTheme: { primary: '#4ade80', secondary: '#1e293b' } },
+              error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
+            }} 
+          />
+          
           <AppRoutes />
        </AuthProvider>
     </BrowserRouter>
