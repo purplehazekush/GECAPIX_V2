@@ -26,8 +26,8 @@ async function run() {
             case 'admin':
                 if (!param) return console.log("Erro: Informe o email.");
                 const adm = await Usuario.findOneAndUpdate(
-                    { email: param }, 
-                    { role: 'admin', status: 'ativo' }, 
+                    { email: param },
+                    { role: 'admin', status: 'ativo' },
                     { new: true }
                 );
                 console.log(adm ? `Usuário ${param} agora é ADMIN e ATIVO.` : "Usuário não encontrado.");
@@ -36,8 +36,8 @@ async function run() {
             case 'reset':
                 if (!param) return console.log("Erro: Informe o email.");
                 const res = await Usuario.findOneAndUpdate(
-                    { email: param }, 
-                    { saldo_coins: 100, xp: 0, nivel: 1, sequencia_login: 0, badges: [] }, 
+                    { email: param },
+                    { saldo_coins: 100, xp: 0, nivel: 1, sequencia_login: 0, badges: [] },
                     { new: true }
                 );
                 console.log(res ? `Status de ${param} RESETADO para o padrão inicial.` : "Usuário não encontrado.");
@@ -46,8 +46,8 @@ async function run() {
             case 'set-coins':
                 if (!param || !value) return console.log("Uso: node manage.js set-coins <email> <valor>");
                 const coins = await Usuario.findOneAndUpdate(
-                    { email: param }, 
-                    { saldo_coins: parseInt(value) }, 
+                    { email: param },
+                    { saldo_coins: parseInt(value) },
                     { new: true }
                 );
                 console.log(coins ? `${param} agora tem ${value} GecaCoins.` : "Usuário não encontrado.");
@@ -70,5 +70,7 @@ Comandos Disponíveis:
         process.exit();
     }
 }
+
+
 
 run();
