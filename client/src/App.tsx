@@ -15,7 +15,7 @@ import ArenaProfile from './pages/arena/Profile';
 import ArenaMemes from './pages/arena/Memes'; // <-- ADICIONE ESTE IMPORT
 import ArenaQuests from './pages/arena/Quests';
 import Laboratorio from './pages/arena/Laboratorio';
-
+import ValidationPanel from './pages/admin/ValidationPanel';
 
 function AppRoutes() {
   const { user, dbUser, loading } = useAuth();
@@ -42,6 +42,7 @@ function AppRoutes() {
           <Route index element={<Feed />} />
           <Route path="stats" element={<Stats />} />
           <Route path="admin" element={<Admin />} />
+          <Route path="admin/validacao" element={<ValidationPanel />} />
         </Route>
       )}
 
@@ -54,6 +55,7 @@ function AppRoutes() {
         <Route path="memes" element={<ArenaMemes />} /> {/* <-- ADICIONE ESTA LINHA */}
         <Route path="quests" element={<ArenaQuests />} /> {/* <-- ADICIONE ESTA LINHA */}
         <Route path="laboratorio" element={<Laboratorio />} />
+        
       </Route>
 
       <Route 

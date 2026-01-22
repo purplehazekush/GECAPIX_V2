@@ -18,6 +18,7 @@ const memeController = require('./controllers/memeController');
 const questController = require('./controllers/questController'); // 1. ADICIONE ESTE
 const cron = require('node-cron'); // 2. ADICIONE O CRON (npm install node-cron)
 const chatController = require('./controllers/chatController');
+const adminController = require('./controllers/adminController');
 
 
 // --- CONFIGURAÇÃO DO APP ---
@@ -75,6 +76,9 @@ app.put('/api/arena/perfil', arenaController.updatePerfil);
 
 app.get('/api/chat/:materia', chatController.getMensagens);
 app.post('/api/chat', chatController.enviarMensagem);
+
+app.get('/api/admin/validacao', adminController.getFilaValidacao);
+app.post('/api/admin/validacao', adminController.moderarUsuario);
 
 // 5. O AGENDADOR DAS 21H (O ENCERRAMENTO DIÁRIO)
 // '0 21 * * *' significa: todo dia, minuto 0, hora 21.
