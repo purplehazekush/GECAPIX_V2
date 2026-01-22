@@ -4,4 +4,5 @@ build/
 .env
 .DS_Store
 coverage/
-.vscode/
+.vscode/lpc_full.zip
+server/lpc_full.zip
