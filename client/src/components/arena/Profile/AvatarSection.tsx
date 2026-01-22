@@ -15,11 +15,12 @@ interface Props {
 // Mapeamento amigável para o usuário
 const CATEGORIES = [
     { id: 'body', label: 'Corpo' },
+    { id: 'head', label: 'Cabeça' }, // NOVO
     { id: 'hair', label: 'Cabelo' },
     { id: 'torso', label: 'Roupa' },
     { id: 'legs', label: 'Calça' },
-    { id: 'feet', label: 'Botas' },
-    { id: 'hand_r', label: 'Arma' }
+    { id: 'feet', label: 'Pés' },
+    { id: 'accessory', label: 'Extra' } // NOVO (Cadeiras, etc)
 ];
 
 const CLASSES_COLORS: Record<string, string> = {
