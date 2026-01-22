@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
 import toast from 'react-hot-toast'; // <--- Adeus Alert!
 import { 
-    Logout, Save, School, AccountBalanceWallet, 
+    Logout, School, AccountBalanceWallet, 
     VerifiedUser, Groups, CloudUpload 
 } from '@mui/icons-material';
 import { CircularProgress } from '@mui/material';
