@@ -1,10 +1,11 @@
 import { useAuth } from '../../context/AuthContext';
 import UserAvatar from '../../components/arena/UserAvatar';
 import { Chip } from '@mui/material';
-import { EmojiEvents, History, Edit } from '@mui/icons-material';
+import { EmojiEvents, History, Logout } from '@mui/icons-material'; // Importe o Logout
+
 
 export default function ArenaProfile() {
-    const { dbUser, user } = useAuth();
+    const { dbUser, user, logout } = useAuth();
 
     // Dicionário de Badges (No futuro isso vem do banco)
     const badgeDetails: Record<string, { nome: string, desc: string, icon: string }> = {
@@ -16,17 +17,9 @@ export default function ArenaProfile() {
 
     return (
         <div className="pb-24 animate-fade-in">
-            
             {/* CAPA + INFO PESSOAL */}
             <div className="bg-slate-900 border-b border-slate-800 pb-6 pt-10 px-4 flex flex-col items-center relative">
-                <div className="absolute top-4 right-4">
-                     <button className="text-slate-500 hover:text-white p-2 bg-slate-800 rounded-full">
-                        <Edit fontSize="small" />
-                     </button>
-                </div>
-
                 <UserAvatar user={dbUser} googlePhoto={user?.photoURL} size="xl" showLevel={true} className="mb-4" />
-                
                 <h1 className="text-2xl font-black text-white">{dbUser?.nome}</h1>
                 <p className="text-xs text-slate-400 font-mono mt-1">{dbUser?.email}</p>
                 
@@ -79,6 +72,19 @@ export default function ArenaProfile() {
                     </div>
                     {/* Mais itens virão do backend futuramente */}
                 </div>
+            </div>
+            {/* BOTÃO DE LOGOUT (DESTACADO) */}
+            <div className="p-6">
+                <button 
+                    onClick={logout}
+                    className="w-full flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 py-4 rounded-2xl text-sm font-black transition-all active:scale-95"
+                >
+                    <Logout fontSize="small" />
+                    ENCERRAR SESSÃO
+                </button>
+                <p className="text-[10px] text-slate-600 text-center mt-4 uppercase tracking-widest font-bold">
+                    GECAPIX v2.0 - 2026
+                </p>
             </div>
         </div>
     );
