@@ -70,6 +70,8 @@ app.get('/api/arena/perfil/:id', arenaController.getPerfilPublico);
 // 4. ROTA DE MISSÕES (O QUE ESTAVA FALTANDO!)
 app.get('/api/arena/quests', questController.getQuests);
 
+app.put('/api/arena/perfil', arenaController.updatePerfil);
+
 // 5. O AGENDADOR DAS 21H (O ENCERRAMENTO DIÁRIO)
 // '0 21 * * *' significa: todo dia, minuto 0, hora 21.
 cron.schedule('0 21 * * *', () => {

@@ -50,3 +50,33 @@ exports.patchUsuariosSemCodigo = async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 };
+
+exports.updatePerfil = async (req, res) => {
+    try {
+        const { email, classe, materias, bio } = req.body;
+        
+        // Formata as matérias (remove espaços, tudo maiúsculo)
+        const materiasFormatadas = materias 
+            ? materias.map(m => m.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')) 
+            : [];
+
+        // Gera a semente do avatar para garantir que ele seja sempre o mesmo para essa escolha
+        const avatar_seed = `${classe}-${email}`; 
+
+        const user = await UsuarioModel.findOneAndUpdate(
+            { email },
+            { 
+                classe, 
+                materias: materiasFormatadas, 
+                bio,
+                avatar_seed
+            },
+            { new: true }
+        );
+
+        res.json(user);
+    } catch (error) {
+        console.error("Erro update perfil:", error);
+        res.status(500).json({ error: "Erro ao atualizar perfil" });
+    }
+};
