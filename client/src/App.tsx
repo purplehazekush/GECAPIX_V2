@@ -45,7 +45,7 @@ function AppRoutes() {
           <Route index element={<Feed />} />
           <Route path="stats" element={<Stats />} />
           <Route path="admin" element={<Admin />} />
-          <Route path="ranking" element={<ArenaRanking />} />
+          
         </Route>
       )}
 
@@ -57,6 +57,7 @@ function AppRoutes() {
       <Route path="/arena" element={<ArenaLayout />}>
         <Route index element={<ArenaHome />} />
         <Route path="transferir" element={<TransferCoins />} />
+        <Route path="ranking" element={<ArenaRanking />} />
         {/* Futuras rotas como /arena/ranking ou /arena/memes entram aqui */}
       </Route>
 
