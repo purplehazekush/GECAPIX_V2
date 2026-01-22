@@ -13,6 +13,8 @@ import ArenaHome from './pages/arena/Home';
 import TransferCoins from './pages/arena/Transfer'; 
 import ArenaProfile from './pages/arena/Profile';
 import ArenaMemes from './pages/arena/Memes'; // <-- ADICIONE ESTE IMPORT
+import ArenaQuests from './pages/arena/Quests';
+
 
 function AppRoutes() {
   const { user, dbUser, loading } = useAuth();
@@ -49,6 +51,7 @@ function AppRoutes() {
         <Route path="ranking" element={<ArenaRanking />} />
         <Route path="perfil" element={<ArenaProfile />} />
         <Route path="memes" element={<ArenaMemes />} /> {/* <-- ADICIONE ESTA LINHA */}
+        <Route path="missoes" element={<ArenaQuests />} /> {/* <-- ADICIONE ESTA LINHA */}
       </Route>
 
       <Route 
