@@ -51,7 +51,7 @@ function AppRoutes() {
         <Route path="ranking" element={<ArenaRanking />} />
         <Route path="perfil" element={<ArenaProfile />} />
         <Route path="memes" element={<ArenaMemes />} /> {/* <-- ADICIONE ESTA LINHA */}
-        <Route path="missoes" element={<ArenaQuests />} /> {/* <-- ADICIONE ESTA LINHA */}
+        <Route path="quests" element={<ArenaQuests />} /> {/* <-- ADICIONE ESTA LINHA */}
       </Route>
 
       <Route 
