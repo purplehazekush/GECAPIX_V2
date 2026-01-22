@@ -199,23 +199,38 @@ app.post('/api/pix', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
+// ATUALIZE ESTA ROTA
 app.put('/api/pix/:id', async (req, res) => {
     try {
-        const { item, quantidade, editor_email } = req.body;
+        // Agora aceitamos vendedor_nome também
+        const { item, quantidade, editor_email, vendedor_nome } = req.body;
+        
         const pixAtual = await PixModel.findById(req.params.id);
         if (!pixAtual) return res.status(404).json({ error: "Não encontrado" });
 
+        // Histórico de alterações
         pixAtual.historico_edicoes.push({
             alterado_por: editor_email,
             valor_antigo: pixAtual.valor_extraido,
-            item_antigo: pixAtual.item_vendido
+            item_antigo: pixAtual.item_vendido,
+            data_alteracao: new Date()
         });
+
         pixAtual.item_vendido = item;
         pixAtual.quantidade = quantidade || 1;
+        
+        // ATUALIZAÇÃO CRÍTICA: Salva quem editou como o "Vendedor" daquela transação
         pixAtual.vendedor_email = editor_email;
+        if (vendedor_nome) {
+            pixAtual.vendedor_nome = vendedor_nome; 
+        }
+
         await pixAtual.save();
         res.json({ success: true });
-    } catch (error) { res.status(500).json({ error: "Erro ao salvar venda" }); }
+    } catch (error) { 
+        console.error("Erro update pix:", error);
+        res.status(500).json({ error: "Erro ao salvar venda" }); 
+    }
 });
 
 // --- 4. PRODUTOS ---
