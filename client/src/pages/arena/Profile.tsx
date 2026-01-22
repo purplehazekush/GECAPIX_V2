@@ -34,13 +34,13 @@ export default function ArenaProfile() {
 
     // Estado Específico do Avatar Pixel
     const [avatarConfig, setAvatarConfig] = useState<any>({
-    body: 'male_light', 
-    hair: 'messy_raven', 
-    torso: 'shirt_long_white_longsleeve',
-    legs: 'pants_white_pants_male', 
-    feet: 'shoes_brown_shoes_male', 
-    hand_r: 'none'
-});
+        body: 'male_light',
+        hair: 'messy_raven',
+        torso: 'shirt_long_white_longsleeve',
+        legs: 'pants_white_pants_male',
+        feet: 'shoes_brown_shoes_male',
+        hand_r: 'none'
+    });
 
     useEffect(() => {
         if (dbUser) {
@@ -73,7 +73,7 @@ export default function ArenaProfile() {
         setLoading(true);
         try {
             const arrayMaterias = formData.materias.split(',').filter(m => m.trim().length > 0);
-            
+
             const payload = {
                 email: dbUser?.email,
                 ...formData,
@@ -82,7 +82,7 @@ export default function ArenaProfile() {
             };
 
             const res = await api.put('arena/perfil', payload);
-            
+
             setDbUser(res.data);
             setIsAvatarEditing(false);
             toast.success("Perfil atualizado! 🔥");
@@ -95,9 +95,9 @@ export default function ArenaProfile() {
 
     return (
         <div className="pb-32 animate-fade-in p-4 space-y-6 max-w-md mx-auto">
-            
+
             {/* 1. SEÇÃO DE AVATAR */}
-            <AvatarSection 
+            <AvatarSection
                 user={dbUser}
                 avatarConfig={avatarConfig}
                 setAvatarConfig={setAvatarConfig}
@@ -112,16 +112,16 @@ export default function ArenaProfile() {
                     <FinancialSection formData={formData} setFormData={setFormData} />
                     <SocialSection formData={formData} setFormData={setFormData} />
 
-                    <button 
+                    <button
                         onClick={handleSave}
                         disabled={loading}
                         className="w-full bg-green-500 hover:bg-green-600 text-white py-4 rounded-2xl font-black text-sm shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2"
                     >
-                        {loading ? <CircularProgress size={20} color="inherit"/> : <><Save /> SALVAR ALTERAÇÕES</>}
+                        {loading ? <CircularProgress size={20} color="inherit" /> : <><Save /> SALVAR ALTERAÇÕES</>}
                     </button>
 
                     {dbUser?.role === 'admin' && (
-                        <button 
+                        <button
                             onClick={() => navigate('/arena/admin/validacao')}
                             className="w-full bg-slate-800 border border-yellow-500/30 text-yellow-500 py-3 rounded-xl font-black text-xs uppercase flex items-center justify-center gap-2 active:scale-95"
                         >
