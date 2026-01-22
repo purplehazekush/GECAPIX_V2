@@ -1,31 +1,63 @@
 
-interface AvatarLayers {
-  body?: string;
-  head?: string; // NOVO: Cabeça separada
-  hair?: string;
-  torso?: string;
-  legs?: string;
-  feet?: string;
-  accessory?: string; // NOVO: Acessórios/Cadeira
-  hand_r?: string;
-  [key: string]: string | undefined;
+
+// Agora cada camada pode ter um ID e uma COR
+// Ex: torso: { id: 'm_shirt', color: 'red' }
+export interface LayerConfig {
+    id: string;
+    color?: string; // hex ou nome da cor
+}
+
+export interface AvatarConfig {
+    body?: string; // Corpo geralmente não muda de cor via CSS
+    head?: string;
+    hair?: LayerConfig | string;
+    torso?: LayerConfig | string;
+    legs?: LayerConfig | string;
+    feet?: LayerConfig | string;
+    accessory?: LayerConfig | string;
+    hand_r?: string;
 }
 
 interface AvatarPixelProps {
-  layers: AvatarLayers;
-  size?: number; 
-  className?: string;
+    layers: AvatarConfig;
+    size?: number; 
+    className?: string;
 }
+
+// Mapa de Cores para Filtros CSS
+// "Tintar" branco para colorido exige: sepia(1) + saturate + hue-rotate
+const COLOR_FILTERS: Record<string, string> = {
+    'white': 'none',
+    'black': 'brightness(0.2)', // Escurece
+    'red': 'sepia(1) saturate(5) hue-rotate(-50deg)',
+    'blue': 'sepia(1) saturate(5) hue-rotate(180deg)',
+    'green': 'sepia(1) saturate(5) hue-rotate(70deg)',
+    'yellow': 'sepia(1) saturate(10) hue-rotate(0deg) brightness(1.2)',
+    'purple': 'sepia(1) saturate(4) hue-rotate(220deg)',
+    'pink': 'sepia(1) saturate(3) hue-rotate(280deg)',
+    'gold': 'sepia(1) saturate(3) hue-rotate(10deg) brightness(1.1)',
+    'brown': 'sepia(1) saturate(2) hue-rotate(-30deg) brightness(0.7)'
+};
 
 export default function AvatarPixel({ layers, size = 200, className = '' }: AvatarPixelProps) {
   
-  // FATOR DE ESCALA: Transforma os 64px originais no tamanho desejado
   const scale = size / 64;
 
-  const renderLayer = (folder: string, file: string | undefined, zIndex: number) => {
-    if (!file || file === 'none') return null;
-    const cleanFile = file.replace('.png', '');
+  const renderLayer = (folder: string, item: LayerConfig | string | undefined, zIndex: number) => {
+    if (!item) return null;
+
+    // Normaliza: Se for string, vira objeto sem cor. Se for objeto, usa ele.
+    const layerId = typeof item === 'string' ? item : item.id;
+    const layerColor = typeof item === 'string' ? 'white' : (item.color || 'white');
+
+    if (!layerId || layerId === 'none') return null;
+
+    // Remove extensão se tiver
+    const cleanFile = layerId.replace('.png', '');
     
+    // Pega o filtro da cor
+    const filterStyle = COLOR_FILTERS[layerColor] || 'none';
+
     return (
       <div 
         key={folder}
@@ -39,16 +71,12 @@ export default function AvatarPixel({ layers, size = 200, className = '' }: Avat
                 height: '64px',
                 backgroundImage: `url(/assets/avatar/${folder}/${cleanFile}.png)`,
                 backgroundRepeat: 'no-repeat',
-                
-                // CALIBRAÇÃO CIENTÍFICA (LPC STANDARD)
-                // Folha Completa = 832x1344
                 backgroundSize: '832px 1344px',
+                backgroundPosition: '0px -640px', // Walk South
+                imageRendering: 'pixelated',
                 
-                // Posição: Movemos a imagem para mostrar a Linha 11 (Walk Cycle - South)
-                // Y = -640px (10 linhas * 64px)
-                backgroundPosition: '0px -640px',
-                
-                imageRendering: 'pixelated'
+                // APLICA A COR AQUI!
+                filter: filterStyle
             }}
         />
       </div>
@@ -58,60 +86,31 @@ export default function AvatarPixel({ layers, size = 200, className = '' }: Avat
   return (
     <div 
       className={`relative bg-slate-800 rounded-xl overflow-hidden border-4 border-slate-700 shadow-2xl ${className}`}
-      style={{ 
-          width: size, 
-          height: size,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-      }}
+      style={{ width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
     >
-        {/* Cenário */}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-800 to-slate-700 opacity-90" />
         
-        {/* VIEWPORT (A janela de 64x64) */}
-        <div 
-            style={{ 
-                width: '64px', 
-                height: '64px', 
-                position: 'relative',
-                transform: `scale(${scale * 0.8}) translateY(5px)`, // Zoom de 80% do box pra caber folga
-                transformOrigin: 'center center',
-                
-                // DEBUG: Descomente para ver o quadrado vermelho de alinhamento
-                // border: '1px solid red' 
-            }}
-        >
-            {/* ORDEM DAS CAMADAS (Importante para não ficar roupa atrás do corpo) */}
-            
-            {/* 1. Corpo Base e Cadeira de Rodas (Geralmente atrás) */}
+        <div style={{ 
+                width: '64px', height: '64px', position: 'relative',
+                transform: `scale(${scale * 0.8}) translateY(5px)`,
+                transformOrigin: 'center center'
+        }}>
+            {/* Camadas Corrigidas */}
             {renderLayer('body', layers.body, 10)}
-            
-            {/* 2. Cabeça (Obrigatório se o corpo for modular) */}
-            {renderLayer('head', layers.head, 15)} 
-
-            {/* 3. Olhos e Rosto (Se tivermos assets separados no futuro) */}
-            
-            {/* 4. Roupas de Baixo */}
+            {renderLayer('head', layers.head, 15)} {/* AQUI ESTÁ A CABEÇA! */}
             {renderLayer('feet', layers.feet, 20)}
             {renderLayer('legs', layers.legs, 30)}
             {renderLayer('torso', layers.torso, 40)}
-            
-            {/* 5. Cabelo e Acessórios */}
             {renderLayer('hair', layers.hair, 50)}
             {renderLayer('accessory', layers.accessory, 55)} 
-            
-            {/* 6. Mãos/Armas */}
             {renderLayer('hand_r', layers.hand_r, 60)}
         </div>
 
         <style>{`
-            .animate-walk {
-                animation: walk-cycle 1s steps(9) infinite;
-            }
+            .animate-walk { animation: walk-cycle 1s steps(9) infinite; }
             @keyframes walk-cycle {
                 from { background-position-x: 0px; }
-                to { background-position-x: -576px; } /* 9 frames */
+                to { background-position-x: -576px; }
             }
         `}</style>
     </div>
