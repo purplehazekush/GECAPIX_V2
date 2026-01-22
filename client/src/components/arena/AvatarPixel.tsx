@@ -1,13 +1,13 @@
 
-// Definição das camadas e configurações
+// Tipos
 export interface LayerConfig {
-    id: string;      // Nome do arquivo (ex: 'm_shirt')
-    color?: string;  // Cor para pintar (ex: 'red')
+    id: string;      
+    color?: string;  
 }
 
 export interface AvatarConfig {
     body?: string;
-    head?: string;   // A cabeça é separada do corpo!
+    head?: string;
     hair?: LayerConfig | string;
     torso?: LayerConfig | string;
     legs?: LayerConfig | string;
@@ -22,7 +22,7 @@ interface AvatarPixelProps {
     className?: string;
 }
 
-// Filtros de Cor (Tintura CSS)
+// Filtros de Cor (Tintura)
 const COLOR_FILTERS: Record<string, string> = {
     'white': 'none',
     'black': 'brightness(0.2)',
@@ -38,54 +38,51 @@ const COLOR_FILTERS: Record<string, string> = {
 
 export default function AvatarPixel({ layers, size = 200, className = '' }: AvatarPixelProps) {
   
-  // --- A MATEMÁTICA SAGRADA DO LPC ---
-  const FRAME_SIZE = 64;   // Cada quadro tem 64x64
-  const SHEET_WIDTH = 832; // Largura total da folha (13 colunas)
-  const SHEET_HEIGHT = 1344; // Altura total da folha (21 linhas)
+  // --- A CIÊNCIA EXATA DO LPC ---
+  const FRAME_SIZE = 64;   
+  const SHEET_WIDTH = 832; 
+  const SHEET_HEIGHT = 1344;
   
-  // Qual animação mostrar? (Linha 11 = Andar para o Sul/Frente)
-  // 10 linhas * 64px = 640px de deslocamento
-  const ROW_OFFSET = -640; 
+  // Linha 10 (Começando do 0) = Walk South (Frente)
+  // 10 * 64px = 640px. Negativo porque o background sobe.
+  const ROW_Y = -640; 
 
-  // Calcula o Zoom necessário para preencher o tamanho que você quer na tela
   const scale = size / FRAME_SIZE;
 
   const renderLayer = (folder: string, item: LayerConfig | string | undefined, zIndex: number) => {
     if (!item) return null;
 
-    // Normaliza input (string ou objeto)
     const layerId = typeof item === 'string' ? item : item.id;
     const layerColor = typeof item === 'string' ? 'white' : (item.color || 'white');
 
     if (!layerId || layerId === 'none') return null;
 
-    // Remove extensão caso venha do JSON
     const cleanFile = layerId.replace('.png', '');
     const filterStyle = COLOR_FILTERS[layerColor] || 'none';
 
     return (
       <div 
         key={folder}
-        className="absolute inset-0"
+        className="absolute inset-0 pointer-events-none" // Garante que não interfere no clique
         style={{ zIndex }}
       >
         <div 
-            className="animate-walk"
+            className="animate-walk-x"
             style={{
-                // 1. TAMANHO RÍGIDO (Evita triplicar)
                 width: `${FRAME_SIZE}px`,
                 height: `${FRAME_SIZE}px`,
-                
-                // 2. IMAGEM
                 backgroundImage: `url(/assets/avatar/${folder}/${cleanFile}.png)`,
-                backgroundRepeat: 'no-repeat', // CRUCIAL: Não deixa repetir!
+                backgroundRepeat: 'no-repeat',
                 
-                // 3. POSICIONAMENTO NO MAPA (Sprite Sheet)
+                // Mapeamento
                 backgroundSize: `${SHEET_WIDTH}px ${SHEET_HEIGHT}px`,
-                backgroundPosition: `0px ${ROW_OFFSET}px`, 
                 
-                // 4. ESTILO
-                imageRendering: 'pixelated', // Mantém o pixel art nítido
+                // Posição Y FIXA (Não animamos o Y, só o X)
+                backgroundPositionY: `${ROW_Y}px`,
+                // Posição X INICIAL
+                backgroundPositionX: '0px',
+                
+                imageRendering: 'pixelated',
                 filter: filterStyle
             }}
         />
@@ -95,7 +92,7 @@ export default function AvatarPixel({ layers, size = 200, className = '' }: Avat
 
   return (
     <div 
-      className={`relative bg-slate-800 rounded-xl border-4 border-slate-700 shadow-2xl overflow-hidden ${className}`}
+      className={`relative bg-slate-900 rounded-xl border-4 border-slate-700 shadow-2xl overflow-hidden ${className}`}
       style={{ 
           width: size, 
           height: size,
@@ -104,48 +101,37 @@ export default function AvatarPixel({ layers, size = 200, className = '' }: Avat
           justifyContent: 'center'
       }}
     >
-        {/* Fundo Decorativo */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-800 to-slate-700" />
+        {/* Fundo (Cenário) */}
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-800 to-slate-950 opacity-90" />
         
-        {/* CONTAINER "JANELA" (Viewport)
-            Aqui acontece a mágica. É uma janela de 64x64 que damos zoom.
-        */}
+        {/* MÁSCARA RÍGIDA DE 64x64 */}
         <div 
             style={{ 
                 width: `${FRAME_SIZE}px`, 
                 height: `${FRAME_SIZE}px`, 
                 position: 'relative',
-                // Damos zoom e jogamos um pouco pra baixo pra centralizar visualmente
-                transform: `scale(${scale * 0.85}) translateY(5px)`, 
+                overflow: 'hidden', // ISSO MATA O CORPO TRIPLICADO
+                transform: `scale(${scale * 0.9}) translateY(5px)`, 
                 transformOrigin: 'center center',
             }}
         >
-            {/* --- ORDEM DAS CAMADAS (Quem fica em cima de quem) --- */}
-            
-            {/* 1. Base */}
+            {/* Ordem de Camadas (Corrigida) */}
             {renderLayer('body', layers.body, 10)}
-            {renderLayer('head', layers.head, 11)} {/* A CABEÇA ESTÁ AQUI! */}
-
-            {/* 2. Roupas de Baixo */}
+            {renderLayer('head', layers.head, 15)} 
             {renderLayer('feet', layers.feet, 20)}
             {renderLayer('legs', layers.legs, 30)}
             {renderLayer('torso', layers.torso, 40)}
-            
-            {/* 3. Cabelo e Topo */}
             {renderLayer('hair', layers.hair, 50)}
             {renderLayer('accessory', layers.accessory, 55)} 
-            
-            {/* 4. Mãos */}
             {renderLayer('hand_r', layers.hand_r, 60)}
         </div>
 
-        {/* Animação CSS Injetada */}
+        {/* Animação: Move APENAS o Eixo X */}
         <style>{`
-            .animate-walk {
-                /* 9 frames de 64px = 576px total de deslocamento X */
-                animation: walk-cycle 1s steps(9) infinite;
+            .animate-walk-x {
+                animation: walk-cycle-x 1s steps(9) infinite;
             }
-            @keyframes walk-cycle {
+            @keyframes walk-cycle-x {
                 from { background-position-x: 0px; }
                 to { background-position-x: -576px; } 
             }
