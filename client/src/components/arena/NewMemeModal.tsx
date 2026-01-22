@@ -13,8 +13,9 @@ export default function NewMemeModal({ open, onClose, onRefresh }: Props) {
     const [loading, setLoading] = useState(false);
 
     // --- CONFIGURAÇÃO CLOUDINARY ---
-    const CLOUD_NAME = "SEU_CLOUD_NAME_AQUI"; 
-    const UPLOAD_PRESET = "gecapix_preset";
+    // --- CONFIGURAÇÃO CLOUDINARY ---
+    const CLOUD_NAME = "dcetrqazm"; // Seu Cloud Name atualizado
+    const UPLOAD_PRESET = "gecapix_preset"; // O nome que você deu ao criar o preset "Unsigned"
 
     const handleUpload = async () => {
         if (!image || !legenda) return alert("Preencha tudo!");
@@ -57,7 +58,7 @@ export default function NewMemeModal({ open, onClose, onRefresh }: Props) {
         <Modal open={open} onClose={onClose}>
             <Box className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl">
                 <h2 className="text-xl font-black text-white italic mb-4 uppercase">Nova Pérola</h2>
-                
+
                 <div className="space-y-4">
                     {/* Preview / Seleção de Imagem */}
                     <label className="block w-full aspect-video bg-slate-950 border-2 border-dashed border-slate-800 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-purple-500 transition-colors overflow-hidden">
@@ -72,14 +73,14 @@ export default function NewMemeModal({ open, onClose, onRefresh }: Props) {
                         <input type="file" hidden onChange={e => setImage(e.target.files?.[0] || null)} accept="image/*" />
                     </label>
 
-                    <input 
+                    <input
                         placeholder="Escreva uma legenda engraçada..."
                         value={legenda}
                         onChange={e => setLegenda(e.target.value)}
                         className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm outline-none focus:border-purple-500"
                     />
 
-                    <button 
+                    <button
                         onClick={handleUpload}
                         disabled={loading}
                         className="w-full bg-purple-600 py-4 rounded-xl text-white font-black text-xs flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
