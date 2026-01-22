@@ -2,21 +2,26 @@ const fs = require('fs');
 const path = require('path');
 const unzipper = require('unzipper');
 
+// --- CONFIGURAÇÃO ---
 const BASE_DIR = path.join(__dirname, '..', 'client', 'public', 'assets', 'avatar');
 const JSON_OUTPUT = path.join(__dirname, '..', 'client', 'src', 'data', 'avatarAssets.json');
 const TEMP_ZIP = path.join(__dirname, 'lpc_full.zip');
 
-// WHITELIST: Só aceitamos arquivos com esses termos para roupas/cabelos
-const ALLOWED_COLORS = ['white', 'gray', 'silver', 'light', 'blonde', 'platinum'];
+// LIMITE RÍGIDO (Para não travar o navegador)
+const MAX_PER_CATEGORY = 30;
 
-// EXCEÇÕES: Coisas que DEVEMOS baixar mesmo que tenham cor
-const ALWAYS_KEEP = ['body', 'head', 'wheelchair', 'prosthes', 'crutch', 'cane'];
+// CORES PERMITIDAS PARA ROUPAS (Para pintar via CSS)
+const PAINTABLE_COLORS = ['white', 'gray', 'silver', 'light', 'blonde', 'platinum'];
 
-// BLACKLIST: Coisas que quebram o layout
-const BLACKLIST = ['slash', 'thrust', 'cast', 'shoot', 'bow', 'climb', 'hurt', 'jump', 'sit', 'emote', 'run', 'spear', 'dagger', 'combat', 'walking', 'oversize'];
+// PALAVRAS PROIBIDAS (Lixo, grids errados, crianças, monstros)
+const BLACKLIST = [
+    'teen', 'child', 'pregnant', 'muscular', 'zombie', 'skeleton', 'orc', 
+    'slash', 'thrust', 'cast', 'shoot', 'bow', 'climb', 'hurt', 'jump', 'sit', 'emote', 
+    'run', 'spear', 'dagger', 'combat', 'walking', 'oversize', 'preview', 'guide'
+];
 
 const main = async () => {
-    console.log(`🚀 Iniciando 'O Alvejante' (Filtro Radical de Cores)...`);
+    console.log(`🚀 Iniciando Download 'ELITE' (Filtro Humano Adulto)...`);
 
     if (fs.existsSync(BASE_DIR)) fs.rmSync(BASE_DIR, { recursive: true, force: true });
     
@@ -25,14 +30,14 @@ const main = async () => {
         return;
     }
 
-    const counts = { body: 0, head: 0, hair: 0, torso: 0, legs: 0, feet: 0, accessory: 0 };
+    const counts = { body: 0, head: 0, hair: 0, torso: 0, legs: 0, feet: 0, accessory: 0, hand_r: 0 };
 
     fs.createReadStream(TEMP_ZIP)
         .pipe(unzipper.Parse())
         .on('entry', function (entry) {
             let fileName = entry.path.toLowerCase();
             
-            // 1. Filtro Básico de Arquivo
+            // 1. Validação Básica
             if (!fileName.includes('spritesheets/') || !fileName.endsWith('.png')) {
                 entry.autodrain(); return;
             }
@@ -40,40 +45,46 @@ const main = async () => {
                 entry.autodrain(); return;
             }
 
-            // 2. Categorização Precisa
+            // 2. Categorização
             let category = '';
-            if (fileName.includes('/body/') || fileName.includes('bodies/')) category = 'body';
+            // Ordem importa: acessórios específicos primeiro
+            if (fileName.includes('wheelchair') || fileName.includes('prosthes') || fileName.includes('crutch')) category = 'accessory';
+            else if (fileName.includes('weapon') || fileName.includes('sword') || fileName.includes('staff')) category = 'hand_r';
+            else if (fileName.includes('/body/') || fileName.includes('bodies/')) category = 'body';
             else if (fileName.includes('/head/') || fileName.includes('/heads/')) category = 'head';
             else if (fileName.includes('/hair/')) category = 'hair';
             else if (fileName.includes('/torso/')) category = 'torso';
             else if (fileName.includes('/legs/')) category = 'legs';
             else if (fileName.includes('/feet/')) category = 'feet';
-            else if (fileName.includes('wheelchair') || fileName.includes('prosthes')) category = 'accessory';
             
             if (!category) {
                 entry.autodrain(); return;
             }
 
-            // 3. O FILTRO DE COR RADICAL
-            let keep = false;
+            // 3. Limite de Quantidade (Otimização)
+            if (counts[category] >= MAX_PER_CATEGORY) {
+                entry.autodrain(); return;
+            }
 
-            // Se for corpo, cabeça ou acessório médico, mantemos as variações originais
-            if (ALWAYS_KEEP.includes(category) || ALWAYS_KEEP.some(k => fileName.includes(k))) {
+            // 4. Filtro de Cor (Alvejante)
+            let keep = false;
+            // Corpos, Cabeças e Acessórios Médicos: Mantemos cores originais (peles variadas)
+            if (['body', 'head', 'accessory', 'hand_r'].includes(category)) {
                 keep = true;
             } else {
-                // Se for roupa/cabelo, SÓ baixa se for branco/cinza
-                keep = ALLOWED_COLORS.some(c => fileName.includes(c));
+                // Roupas e Cabelo: SÓ baixar se for neutro (para pintar)
+                keep = PAINTABLE_COLORS.some(c => fileName.includes(c));
             }
 
             if (!keep) {
                 entry.autodrain(); return;
             }
 
-            // 4. Preparação do Destino
+            // 5. Preparar Destino
             const targetDir = path.join(BASE_DIR, category);
             if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
 
-            // 5. Limpeza do Nome (Remove a cor do nome do arquivo!)
+            // 6. Limpeza do Nome
             const parts = fileName.split('/');
             const usefulParts = parts.filter(p => 
                 !['universal-lpc-spritesheet-character-generator-master', 'spritesheets', category, 'walk', 'male', 'female', 'human'].includes(p)
@@ -82,31 +93,28 @@ const main = async () => {
             let prefix = '';
             if (fileName.includes('female')) prefix = 'f';
             else if (fileName.includes('male')) prefix = 'm';
-            if (fileName.includes('child')) prefix = 'child';
-            if (fileName.includes('teen')) prefix = 'teen';
-
-            // Removemos as palavras de cor do nome final para evitar duplicatas
-            // Ex: "apron_white.png" vira "apron.png"
+            
+            // Remove indicação de cor do nome do arquivo
             let finalNamePart = usefulParts.join('_')
-                .replace(/_white|_gray|_silver|_blonde|_light/g, '') 
+                .replace(/_white|_gray|_silver|_blonde|_light|_dark|_tanned|_pale/g, '') 
                 .replace(/_{2,}/g, '_'); 
 
-            const cleanName = `${prefix}_${finalNamePart}`.replace(/^_/, ''); // Remove underline inicial se não tiver prefixo
+            const cleanName = `${prefix}_${finalNamePart}`.replace(/^_/, '').replace('.png', '');
 
             // Salva
-            entry.pipe(fs.createWriteStream(path.join(targetDir, cleanName)));
+            entry.pipe(fs.createWriteStream(path.join(targetDir, `${cleanName}.png`)));
             counts[category]++;
         })
         .on('close', () => {
-            console.log(`\n✨ LIMPEZA COMPLETA!`);
-            Object.keys(counts).forEach(k => console.log(`   - ${k}: ${counts[k]}`));
+            console.log(`\n✨ COLEÇÃO 'ELITE' PRONTA!`);
+            Object.keys(counts).forEach(k => console.log(`   - ${k}: ${counts[k]} arquivos`));
             generateAssetIndex();
         });
 };
 
 function generateAssetIndex() {
     const index = {};
-    const categories = ['body', 'head', 'hair', 'torso', 'legs', 'feet', 'accessory'];
+    const categories = ['body', 'head', 'hair', 'torso', 'legs', 'feet', 'accessory', 'hand_r'];
 
     categories.forEach(cat => {
         const dir = path.join(BASE_DIR, cat);
@@ -124,7 +132,7 @@ function generateAssetIndex() {
     if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
     fs.writeFileSync(JSON_OUTPUT, JSON.stringify(index, null, 2));
-    console.log(`💾 JSON Gerado em: ${JSON_OUTPUT}`);
+    console.log(`💾 JSON salvo.`);
 }
 
 main();
