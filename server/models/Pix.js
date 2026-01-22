@@ -1,27 +1,22 @@
 const mongoose = require('mongoose');
 
 const PixSchema = new mongoose.Schema({
-    raw_body: Object,      // O JSON bruto que vem do banco
-    mensagem_texto: String, // O texto da notificação
-    
-    // Dados extraídos via Regex
+    raw_body: Object,
+    mensagem_texto: String,
     valor_extraido: String,
     remetente_extraido: String,
-    
-    // Dados de Gestão (O que vamos editar no Front)
     item_vendido: { type: String, default: "" },
     quantidade: { type: Number, default: 1 },
-    vendedor_email: String, // Quem marcou a venda
-    
-    // Auditoria
+    vendedor_email: String,
+    vendedor_nome: String, 
+    tipo: { type: String, default: 'PIX' }, // 'PIX' ou 'DINHEIRO'
+    data: { type: Date, default: Date.now },
     historico_edicoes: [{
         alterado_por: String,
         valor_antigo: String,
         item_antigo: String,
         data_alteracao: { type: Date, default: Date.now }
     }],
-    
-    data: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model('Pix', PixSchema);
+module.exports = mongoose.models.Pix || mongoose.model('Pix', PixSchema);
