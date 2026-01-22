@@ -1,5 +1,4 @@
 
-// Tipos
 export interface LayerConfig {
     id: string;      
     color?: string;  
@@ -20,9 +19,11 @@ interface AvatarPixelProps {
     layers: AvatarConfig;
     size?: number; 
     className?: string;
+    // NOVAS PROPS PARA CALIBRAGEM
+    debugMode?: boolean; 
+    manualOffsetY?: number; // Para calibrar verticalmente
 }
 
-// Filtros de Cor (Tintura)
 const COLOR_FILTERS: Record<string, string> = {
     'white': 'none',
     'black': 'brightness(0.2)',
@@ -36,25 +37,15 @@ const COLOR_FILTERS: Record<string, string> = {
     'brown': 'sepia(1) saturate(2) hue-rotate(-30deg) brightness(0.7)'
 };
 
-export default function AvatarPixel({ layers, size = 200, className = '' }: AvatarPixelProps) {
+export default function AvatarPixel({ layers, size = 200, className = '', debugMode = false, manualOffsetY = -640 }: AvatarPixelProps) {
   
-  // --- A CIÊNCIA EXATA DO LPC ---
   const FRAME_SIZE = 64;   
-  const SHEET_WIDTH = 832; 
-  const SHEET_HEIGHT = 1344;
-  
-  // Linha 10 (Começando do 0) = Walk South (Frente)
-  // 10 * 64px = 640px. Negativo porque o background sobe.
-  const ROW_Y = -640; 
-
   const scale = size / FRAME_SIZE;
 
   const renderLayer = (folder: string, item: LayerConfig | string | undefined, zIndex: number) => {
     if (!item) return null;
-
     const layerId = typeof item === 'string' ? item : item.id;
     const layerColor = typeof item === 'string' ? 'white' : (item.color || 'white');
-
     if (!layerId || layerId === 'none') return null;
 
     const cleanFile = layerId.replace('.png', '');
@@ -63,27 +54,29 @@ export default function AvatarPixel({ layers, size = 200, className = '' }: Avat
     return (
       <div 
         key={folder}
-        className="absolute inset-0 pointer-events-none" // Garante que não interfere no clique
+        className="absolute inset-0 pointer-events-none"
         style={{ zIndex }}
       >
         <div 
-            className="animate-walk-x"
+            className={debugMode ? '' : 'animate-walk-x'} // Se tiver debugando, para a animação
             style={{
                 width: `${FRAME_SIZE}px`,
                 height: `${FRAME_SIZE}px`,
                 backgroundImage: `url(/assets/avatar/${folder}/${cleanFile}.png)`,
                 backgroundRepeat: 'no-repeat',
                 
-                // Mapeamento
-                backgroundSize: `${SHEET_WIDTH}px ${SHEET_HEIGHT}px`,
+                // MODO SEGURO: Se a imagem for pequena, isso evita esticar.
+                // Se a imagem for Full Sheet (832px), isso mantém o grid.
+                backgroundSize: '832px auto', 
                 
-                // Posição Y FIXA (Não animamos o Y, só o X)
-                backgroundPositionY: `${ROW_Y}px`,
-                // Posição X INICIAL
-                backgroundPositionX: '0px',
+                // AQUI ESTÁ O SEGREDO: Usamos a prop manualOffsetY para ajustar na tela
+                backgroundPosition: `0px ${manualOffsetY}px`,
                 
                 imageRendering: 'pixelated',
-                filter: filterStyle
+                filter: filterStyle,
+                
+                // Debug visual
+                outline: debugMode ? '1px solid rgba(255,0,0,0.5)' : 'none'
             }}
         />
       </div>
@@ -92,30 +85,29 @@ export default function AvatarPixel({ layers, size = 200, className = '' }: Avat
 
   return (
     <div 
-      className={`relative bg-slate-900 rounded-xl border-4 border-slate-700 shadow-2xl overflow-hidden ${className}`}
+      className={`relative bg-slate-900 rounded-xl border-4 border-slate-700 shadow-2xl ${className}`}
       style={{ 
           width: size, 
           height: size,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          overflow: 'hidden' // Corta o excesso
       }}
     >
-        {/* Fundo (Cenário) */}
         <div className="absolute inset-0 bg-gradient-to-b from-slate-800 to-slate-950 opacity-90" />
         
-        {/* MÁSCARA RÍGIDA DE 64x64 */}
+        {/* VIEWPORT: O Buraco da Fechadura de 64x64 */}
         <div 
             style={{ 
                 width: `${FRAME_SIZE}px`, 
                 height: `${FRAME_SIZE}px`, 
                 position: 'relative',
-                overflow: 'hidden', // ISSO MATA O CORPO TRIPLICADO
                 transform: `scale(${scale * 0.9}) translateY(5px)`, 
                 transformOrigin: 'center center',
+                border: debugMode ? '2px solid cyan' : 'none' // Borda da Janela
             }}
         >
-            {/* Ordem de Camadas (Corrigida) */}
             {renderLayer('body', layers.body, 10)}
             {renderLayer('head', layers.head, 15)} 
             {renderLayer('feet', layers.feet, 20)}
@@ -126,7 +118,6 @@ export default function AvatarPixel({ layers, size = 200, className = '' }: Avat
             {renderLayer('hand_r', layers.hand_r, 60)}
         </div>
 
-        {/* Animação: Move APENAS o Eixo X */}
         <style>{`
             .animate-walk-x {
                 animation: walk-cycle-x 1s steps(9) infinite;
