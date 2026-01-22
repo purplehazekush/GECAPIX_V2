@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
-import { RocketLaunch, AddPhotoAlternate, MonetizationOn } from '@mui/icons-material';
+import { AddPhotoAlternate, MonetizationOn } from '@mui/icons-material';
 import UserAvatar from '../../components/arena/UserAvatar';
 
 export default function ArenaMemes() {
