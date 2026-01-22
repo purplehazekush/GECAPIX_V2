@@ -11,6 +11,7 @@ import ArenaRanking from './pages/arena/Ranking';
 import ArenaLayout from './components/arena/ArenaLayout';
 import ArenaHome from './pages/arena/Home';
 import TransferCoins from './pages/arena/Transfer'; // Certifique-se de ter criado este arquivo
+import ArenaProfile from './pages/arena/Profile';
 
 function AppRoutes() {
   const { user, dbUser, loading } = useAuth();
@@ -58,6 +59,7 @@ function AppRoutes() {
         <Route index element={<ArenaHome />} />
         <Route path="transferir" element={<TransferCoins />} />
         <Route path="ranking" element={<ArenaRanking />} />
+        <Route path="perfil" element={<ArenaProfile />} />
         {/* Futuras rotas como /arena/ranking ou /arena/memes entram aqui */}
       </Route>
 
