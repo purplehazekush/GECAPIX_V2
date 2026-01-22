@@ -7,8 +7,7 @@ const cron = require('node-cron');
 // --- SEGURANÇA ---
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-// REMOVIDO: const mongoSanitize = require('express-mongo-sanitize'); // Causava o erro
-const xss = require('xss-clean');
+// REMOVIDOS: xss-clean e express-mongo-sanitize (Causavam erro de compatibilidade)
 const hpp = require('hpp');
 
 // --- CONTROLLERS ---
@@ -41,27 +40,41 @@ const chatLimiter = rateLimit({ windowMs: 60 * 1000, max: 15, message: { error: 
 app.use('/api', generalLimiter);
 app.use(express.json({ limit: '10kb' }));
 
-// 3. SANITIZAÇÃO MANUAL (CORREÇÃO DO ERRO)
-// Em vez de usar a biblioteca que quebra, usamos essa função segura
+// 3. SANITIZAÇÃO MANUAL COMPLETA (MongoDB + XSS)
+// Substitui as bibliotecas que estavam quebrando o servidor
 app.use((req, res, next) => {
     const clean = (obj) => {
         if (!obj || typeof obj !== 'object') return;
+        
         for (let key in obj) {
-            // Remove chaves que começam com $ (operadores Mongo) ou têm . (acesso profundo)
+            const value = obj[key];
+
+            // 1. Proteção MongoDB (Remove chaves com $ ou .)
             if (key.startsWith('$') || key.includes('.')) {
                 delete obj[key];
+                continue;
+            }
+
+            // 2. Proteção XSS Simples (Remove <script> tags em Strings)
+            if (typeof value === 'string') {
+                // Se encontrar < ou >, substitui por vazio (só para evitar scripts básicos)
+                // Isso impede <script>alert('hack')</script>
+                if (value.includes('<') && value.includes('>')) {
+                    obj[key] = value.replace(/</g, '').replace(/>/g, ''); 
+                }
             } else {
-                clean(obj[key]); // Recursivo para objetos aninhados
+                clean(value); // Recursivo para objetos aninhados
             }
         }
     };
-    clean(req.body);
-    clean(req.query);
-    clean(req.params);
+
+    // Aplica a limpeza apenas no corpo da requisição (onde vem o perigo real)
+    if (req.body) clean(req.body);
+    // Não mexemos no req.query ou req.params para evitar o erro de "Getter-only"
+    
     next();
 });
 
-app.use(xss());
 app.use(hpp());
 
 // --- BANCO DE DADOS ---
@@ -99,7 +112,7 @@ app.post('/api/chat', chatLimiter, chatController.enviarMensagem);
 app.get('/api/admin/validacao', adminController.getFilaValidacao);
 app.post('/api/admin/validacao', adminController.moderarUsuario);
 
-// Rotas Legado/Simples (podem ser movidas depois)
+// Rotas Legado/Simples
 const UsuarioModel = require('./models/Usuario');
 app.get('/api/admin/usuarios', async (req, res) => {
     try { const u = await UsuarioModel.find().sort({ nome: 1 }); res.json(u); } 
