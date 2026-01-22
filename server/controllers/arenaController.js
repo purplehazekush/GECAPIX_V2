@@ -1,38 +1,34 @@
 const UsuarioModel = require('../models/Usuario');
 
-// --- 1. BUSCAR RANKING (XP e COINS) ---
 exports.getRanking = async (req, res) => {
     try {
-        // Top 50 por XP (Patente)
-        const rankingXP = await UsuarioModel.find({ status: 'ativo', role: { $ne: 'admin' } }) // Opcional: esconder admins?
-            .select('nome email xp nivel badges')
+        // Buscamos todos os ativos para o ranking ter volume
+        // Removi o filtro de 'membro' para que você (Admin) apareça no topo se for o caso
+        const rankingXP = await UsuarioModel.find({ status: 'ativo' })
+            .select('nome email xp nivel badges saldo_coins')
             .sort({ xp: -1 })
             .limit(50);
 
-        // Top 50 por Coins (Riqueza)
-        const rankingCoins = await UsuarioModel.find({ status: 'ativo', role: { $ne: 'admin' } })
-            .select('nome email saldo_coins nivel')
+        const rankingCoins = await UsuarioModel.find({ status: 'ativo' })
+            .select('nome email saldo_coins nivel xp')
             .sort({ saldo_coins: -1 })
             .limit(50);
 
         res.json({ xp: rankingXP, coins: rankingCoins });
     } catch (error) {
-        console.error("Erro ranking:", error);
+        console.error("Erro ao gerar ranking:", error);
         res.status(500).json({ error: "Erro ao buscar ranking" });
     }
 };
 
-// --- 2. PERFIL PÚBLICO (Para ver detalhes de outro usuário) ---
 exports.getPerfilPublico = async (req, res) => {
     try {
         const { id } = req.params;
-        // Busca pelo ID ou pelo Código de Referência (para ficar bonito na URL)
         const user = await UsuarioModel.findOne({ 
-            $or: [{ _id: id }, { codigo_referencia: id }] 
-        }).select('-senha -__v'); // Esconde campos sensíveis se existissem
+            $or: [{ _id: id.length === 24 ? id : null }, { codigo_referencia: id.toUpperCase() }] 
+        }).select('-__v');
 
-        if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
-
+        if (!user) return res.status(404).json({ error: "Membro não encontrado" });
         res.json(user);
     } catch (error) {
         res.status(500).json({ error: "Erro ao buscar perfil" });

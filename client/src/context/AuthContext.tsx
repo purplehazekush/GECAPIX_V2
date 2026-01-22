@@ -25,7 +25,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: firebaseUser.email,
         nome: firebaseUser.displayName
       });
+
       setDbUser(res.data);
+
+      // --- NOVO: Notificar bônus ---
+      if (res.data.mensagem_bonus) {
+        // Pequeno delay para a página carregar
+        setTimeout(() => {
+          alert(`🔥 BÔNUS DIÁRIO: ${res.data.mensagem_bonus}`);
+        }, 1000);
+      }
     } catch (error) {
       console.error("Erro ao sincronizar:", error);
     }

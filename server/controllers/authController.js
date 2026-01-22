@@ -1,4 +1,5 @@
 const UsuarioModel = require('../models/Usuario');
+const TOKEN = require('../config/tokenomics'); 
 
 const EMAILS_ADMINS = ["joaovictorrabelo95@gmail.com", "caiogcosta03@gmail.com"];
 
@@ -18,19 +19,19 @@ exports.login = async (req, res) => {
                 email, nome,
                 role: isAdmin ? 'admin' : 'membro',
                 status: isAdmin ? 'ativo' : 'pendente',
-                saldo_coins: 100, // Começa com troco
+                saldo_coins: TOKEN.COINS.WELCOME_BONUS, // 100
                 xp: 0
             });
 
             // Lógica de Convite (Referral)
             if (codigo_convite) {
-                const padrinho = await UsuarioModel.findOne({ codigo_referencia: codigo_convite });
+                const padrinho = await UsuarioModel.findOne({ codigo_referencia: codigo_convite.toUpperCase() });
                 if (padrinho) {
                     user.indicado_por = padrinho.email;
-                    user.saldo_coins += 200; // Bônus pra quem entrou
+                    user.saldo_coins += TOKEN.COINS.REFERRAL_WELCOME; // +200
                     
-                    padrino.saldo_coins += 500; // Bônus pro padrinho
-                    padrino.xp += 100;
+                    padrinho.saldo_coins += TOKEN.COINS.REFERRAL_BONUS; // +500
+                    padrinho.xp += TOKEN.XP.REFERRAL; // +100
                     await padrinho.save();
                 }
             }
@@ -42,10 +43,8 @@ exports.login = async (req, res) => {
         const ultimo = user.ultimo_login ? new Date(user.ultimo_login).setHours(0,0,0,0) : 0;
 
         if (hoje > ultimo) {
-            // É um novo dia!
             user.ultimo_login = new Date();
             
-            // Verifica se foi ontem (para manter sequência)
             const ontem = new Date();
             ontem.setDate(ontem.getDate() - 1);
             ontem.setHours(0,0,0,0);
@@ -53,12 +52,12 @@ exports.login = async (req, res) => {
             if (ultimo === ontem.getTime()) {
                 user.sequencia_login += 1;
             } else {
-                user.sequencia_login = 1; // Quebrou a sequência
+                user.sequencia_login = 1;
             }
 
-            // Recompensa Progressiva
-            const coinsBonus = 50 + (user.sequencia_login * 5); // Maximize o vício
-            const xpBonus = 20;
+            // Usando as fórmulas do Tokenomics
+            const coinsBonus = TOKEN.COINS.DAILY_LOGIN_BASE + (user.sequencia_login * TOKEN.COINS.DAILY_LOGIN_STEP);
+            const xpBonus = TOKEN.XP.DAILY_LOGIN;
 
             user.saldo_coins += coinsBonus;
             user.xp += xpBonus;
@@ -67,7 +66,7 @@ exports.login = async (req, res) => {
             await user.save();
         }
 
-        // Atualiza Admins antigos se necessário
+        // Sincroniza Admin
         if (EMAILS_ADMINS.includes(email) && user.role !== 'admin') {
             user.role = 'admin';
             user.status = 'ativo';
@@ -75,9 +74,9 @@ exports.login = async (req, res) => {
         }
 
         const userData = user.toObject();
-        userData.mensagem_bonus = mensagem_bonus;
-
+        userData.mensagem_bonus = mensagem_bonus; 
         res.json(userData);
+
     } catch (error) {
         console.error("Erro login:", error);
         res.status(500).json({ error: "Erro no login" });
