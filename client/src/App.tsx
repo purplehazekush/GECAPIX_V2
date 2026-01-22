@@ -5,6 +5,7 @@ import Layout from './components/Layout'; // Layout da Gestão (Desktop/Admin)
 import Feed from './pages/Feed';
 import Stats from './pages/Stats';
 import Admin from './pages/Admin';
+import ArenaRanking from './pages/arena/Ranking';
 
 // IMPORTS DA ARENA
 import ArenaLayout from './components/arena/ArenaLayout';
@@ -44,6 +45,7 @@ function AppRoutes() {
           <Route index element={<Feed />} />
           <Route path="stats" element={<Stats />} />
           <Route path="admin" element={<Admin />} />
+          <Route path="ranking" element={<ArenaRanking />} />
         </Route>
       )}
 
