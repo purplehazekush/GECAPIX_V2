@@ -32,3 +32,21 @@ exports.getPerfilPublico = async (req, res) => {
         res.status(500).json({ error: "Erro ao buscar perfil" });
     }
 };
+
+// Adicione no arenaController.js
+exports.patchUsuariosSemCodigo = async (req, res) => {
+    try {
+        const usuarios = await UsuarioModel.find({ codigo_referencia: { $exists: false } });
+        let alterados = 0;
+
+        for (let user of usuarios) {
+            // O save() vai disparar o hook pre('save') que criamos no Model
+            await user.save();
+            alterados++;
+        }
+
+        res.json({ message: `Sucesso! ${alterados} usuários agora têm código.` });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+};

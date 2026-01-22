@@ -2,7 +2,7 @@ import { useAuth } from '../../context/AuthContext';
 import UserAvatar from '../../components/arena/UserAvatar';
 import { 
     MonetizationOn, LocalFireDepartment, EmojiEvents, 
-    Campaign, QrCodeScanner, ArrowForward 
+    Campaign, QrCodeScanner, ArrowForward , WhatsApp, Share
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -155,7 +155,55 @@ export default function ArenaHome() {
                     <ArrowForward sx={{ fontSize: 16, color: '#475569' }} />
                 </div>
              </div>
+            {/* SEÇÃO DE CONVITE (ENGENHARIA SOCIAL) */}
+<div className="px-4">
+    <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-3xl p-6 shadow-xl shadow-indigo-900/40 relative overflow-hidden group">
+        
+        {/* Enfeite de fundo */}
+        <div className="absolute -right-6 -bottom-6 opacity-20 group-hover:scale-110 transition-transform">
+            <Share sx={{ fontSize: 120, color: 'white' }} />
+        </div>
 
+        <div className="relative z-10">
+            <h3 className="text-white font-black text-lg italic leading-none uppercase">
+                Convoque sua Guilda
+            </h3>
+            <p className="text-indigo-100 text-[10px] mt-2 mb-4 font-bold uppercase tracking-wider">
+                Ganhe <span className="text-yellow-300">500 GecaCoins</span> por cada calouro indicado!
+            </p>
+            
+            <div className="flex gap-2">
+                {/* O CÓDIGO */}
+                <div 
+                    onClick={() => {
+                        navigator.clipboard.writeText(dbUser?.codigo_referencia || "");
+                        alert("Código copiado! Mande no grupo da sala.");
+                    }}
+                    className="flex-1 bg-slate-950/40 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/20 text-white font-mono font-black text-center text-lg tracking-widest cursor-pointer active:scale-95 transition-all"
+                >
+                    {dbUser?.codigo_referencia || 'GERANDO...'}
+                </div>
+
+                {/* BOTÃO WHATSAPP */}
+                <button 
+                    onClick={() => {
+                        const texto = window.encodeURIComponent(
+                            `Vem pra Arena GECAPIX! 🏟️\nUse meu código: *${dbUser?.codigo_referencia}* e já comece com bônus de moedas!\n\nEntre aqui: https://gecapix-v2.vercel.app`
+                        );
+                        window.open(`https://wa.me/?text=${texto}`, '_blank');
+                    }}
+                    className="bg-green-500 hover:bg-green-400 text-white p-3 rounded-2xl shadow-lg transition-all active:scale-95"
+                >
+                    <WhatsApp />
+                </button>
+            </div>
+            
+            <p className="text-[9px] text-indigo-200 mt-4 text-center font-medium">
+                O bônus cai na conta assim que o indicado fizer o primeiro login.
+            </p>
+        </div>
+    </div>
+</div>
         </div>
     );
 }
