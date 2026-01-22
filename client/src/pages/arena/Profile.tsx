@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
-import UserAvatar from '../../components/arena/UserAvatar';
 import { 
     Logout, 
     Save, 
@@ -21,7 +20,7 @@ const CLASSES = [
 ];
 
 export default function ArenaProfile() {
-    const { dbUser, user, setDbUser, logout } = useAuth();
+    const { dbUser, setDbUser, logout } = useAuth();
     
     // Estados do Formulário
     const [classe, setClasse] = useState('Mago');
