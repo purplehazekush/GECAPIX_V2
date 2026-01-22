@@ -113,7 +113,7 @@ export default function ArenaLayout() {
                     <BottomNavigationAction
                         label="Memes"
                         icon={<RocketLaunch />}
-                        onClick={() => navigate('/arena/memes')}
+                        onClick={() => navigate('/arena/memes')} // <-- Verifique se o caminho é este
                         sx={{ color: '#64748b', '&.Mui-selected': { color: '#a855f7' } }}
                     />
                 </BottomNavigation>
