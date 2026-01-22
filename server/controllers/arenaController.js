@@ -84,7 +84,7 @@ exports.updatePerfil = async (req, res) => {
             updateData.comprovante_url = comprovante_url;
         }
 
-        if (classe) updateData.avatar_seed = `${classe}-${email}`;
+        //if (classe) updateData.avatar_seed = `${classe}-${email}`;
 
         const user = await UsuarioModel.findOneAndUpdate(
             { email },

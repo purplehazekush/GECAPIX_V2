@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { api } from '../../lib/api';
 import toast from 'react-hot-toast'; // <--- O Toast bonito
 import { Send, QrCode, AttachMoney, PersonSearch } from '@mui/icons-material';
 import { CircularProgress } from '@mui/material';
@@ -30,11 +29,6 @@ export default function TransferCoins() {
 
         try {
             // 2. A Chamada para a API (AGORA COM O EMAIL DO REMETENTE)
-            const res = await api.post('/arena/transferir', {
-                remetenteEmail: dbUser?.email, // <--- O QUE FALTAVA
-                destinatarioChave: destinatario, // Pode ser email ou código de convite
-                valor: Number(valor)
-            });
 
             // 3. Atualiza o saldo visualmente na hora (sem precisar de F5)
             if (dbUser) {
