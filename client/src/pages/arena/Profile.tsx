@@ -5,6 +5,7 @@ import {
     School, AccountBalanceWallet, Groups, CloudUpload, VerifiedUser
 } from '@mui/icons-material';
 import { CircularProgress } from '@mui/material';
+import { useNavigate } from 'react-router-dom'; // <--- 1. Importe isso
 
 // --- CONFIGURAÇÃO FÁCIL ---
 const CLOUD_NAME = "dcetrqazm"; // Seu Cloud Name
@@ -28,6 +29,7 @@ const CLASSES = [
 ];
 
 export default function ArenaProfile() {
+    const navigate = useNavigate()
     const { dbUser, setDbUser, logout } = useAuth();
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
@@ -221,10 +223,10 @@ export default function ArenaProfile() {
             {dbUser?.role === 'admin' && (
                 <div className="mt-6 mb-2">
                     <button
-                        onClick={() => window.location.href = '/arena/admin/validacao'}
-                        className="w-full bg-slate-800 border border-yellow-500/30 text-yellow-500 py-3 rounded-xl font-black text-xs uppercase flex items-center justify-center gap-2"
+                        onClick={() => navigate('/arena/admin/validacao')} // <--- 3. Use navigate assim
+                        className="w-full bg-slate-800 border border-yellow-500/30 text-yellow-500 py-3 rounded-xl font-black text-xs uppercase flex items-center justify-center gap-2 active:scale-95 transition-transform"
                     >
-                        <VerifiedUser fontSize="small" /> Painel de Validação ({dbUser.role})
+                        <VerifiedUser fontSize="small" /> Painel de Validação
                     </button>
                 </div>
             )}

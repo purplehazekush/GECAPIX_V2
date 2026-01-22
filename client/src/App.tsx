@@ -42,7 +42,6 @@ function AppRoutes() {
           <Route index element={<Feed />} />
           <Route path="stats" element={<Stats />} />
           <Route path="admin" element={<Admin />} />
-          <Route path="admin/validacao" element={<ValidationPanel />} />
         </Route>
       )}
 
@@ -55,6 +54,7 @@ function AppRoutes() {
         <Route path="memes" element={<ArenaMemes />} /> {/* <-- ADICIONE ESTA LINHA */}
         <Route path="quests" element={<ArenaQuests />} /> {/* <-- ADICIONE ESTA LINHA */}
         <Route path="laboratorio" element={<Laboratorio />} />
+        <Route path="admin/validacao" element={<ValidationPanel />} />
         
       </Route>
 
