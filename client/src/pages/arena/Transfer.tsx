@@ -1,90 +1,130 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
-import { SwapHorizontalCircle, MonetizationOn, Send } from '@mui/icons-material';
+import toast from 'react-hot-toast'; // <--- O Toast bonito
+import { Send, QrCode, AttachMoney, PersonSearch } from '@mui/icons-material';
 import { CircularProgress } from '@mui/material';
 
 export default function TransferCoins() {
-  const { dbUser } = useAuth();
-  const [destinatario, setDestinatario] = useState('');
-  const [valor, setValor] = useState('');
-  const [loading, setLoading] = useState(false);
+    const { dbUser, setDbUser } = useAuth();
+    const [loading, setLoading] = useState(false);
+    
+    // Estados do Formulário
+    const [destinatario, setDestinatario] = useState('');
+    const [valor, setValor] = useState('');
 
-  const handleTransfer = async () => {
-    if (!destinatario || !valor) return;
-    if (parseInt(valor) > (dbUser?.saldo_coins || 0)) return alert("Saldo insuficiente!");
+    const handleTransfer = async () => {
+        // 1. Validações prévias
+        if (!destinatario || !valor) {
+            return toast.error("Preencha todos os campos!");
+        }
+        if (Number(valor) <= 0) {
+            return toast.error("O valor deve ser maior que zero.");
+        }
+        if (Number(valor) > (dbUser?.saldo_coins || 0)) {
+            return toast.error("Saldo insuficiente!");
+        }
 
-    setLoading(true);
-    try {
-      await api.post('/arena/transferir', {
-        remetente_email: dbUser?.email,
-        codigo_destino: destinatario,
-        valor: valor
-      });
-      alert("GecaCoins enviadas com sucesso! 💸");
-      window.location.href = '/arena';
-    } catch (e: any) {
-      alert(e.response?.data?.error || "Erro na transferência");
-    } finally {
-      setLoading(false);
-    }
-  };
+        setLoading(true);
+        const toastId = toast.loading("Processando transferência...");
 
-  return (
-    <div className="max-w-md mx-auto p-4 space-y-6">
-      <div className="text-center py-6">
-        <SwapHorizontalCircle sx={{ fontSize: 60, color: '#22d3ee' }} />
-        <h2 className="text-2xl font-black text-white italic mt-2 uppercase tracking-tighter">GecaBank</h2>
-        <p className="text-slate-500 text-xs uppercase font-bold tracking-widest">Mercado Paralelo</p>
-      </div>
+        try {
+            // 2. A Chamada para a API (AGORA COM O EMAIL DO REMETENTE)
+            const res = await api.post('/arena/transferir', {
+                remetenteEmail: dbUser?.email, // <--- O QUE FALTAVA
+                destinatarioChave: destinatario, // Pode ser email ou código de convite
+                valor: Number(valor)
+            });
 
-      <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 space-y-6 shadow-2xl">
-        {/* SALDO ATUAL */}
-        <div className="text-center bg-slate-950/50 p-4 rounded-2xl border border-white/5">
-            <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Seu Saldo Disponível</p>
-            <div className="flex items-center justify-center gap-2 text-yellow-400 font-mono font-black text-3xl">
-                <MonetizationOn fontSize="large" />
-                <span>{dbUser?.saldo_coins || 0}</span>
+            // 3. Atualiza o saldo visualmente na hora (sem precisar de F5)
+            if (dbUser) {
+                setDbUser({
+                    ...dbUser,
+                    saldo_coins: dbUser.saldo_coins - Number(valor)
+                });
+            }
+
+            // 4. Sucesso
+            toast.success(`Enviado ${valor} coins com sucesso! 💸`, { id: toastId });
+            setDestinatario('');
+            setValor('');
+
+        } catch (error: any) {
+            // Tratamento de erro melhorado
+            const msgErro = error.response?.data?.error || "Erro ao realizar transferência.";
+            toast.error(msgErro, { id: toastId });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="p-4 pb-24 animate-fade-in space-y-6">
+            <header>
+                <h2 className="text-3xl font-black italic text-white uppercase tracking-tighter">Transferir</h2>
+                <p className="text-[10px] text-slate-500 font-bold uppercase">Envie GecaCoins para amigos</p>
+            </header>
+
+            {/* CARD DE SALDO */}
+            <div className="bg-gradient-to-r from-purple-900 to-slate-900 p-6 rounded-3xl border border-purple-500/30 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                    <AttachMoney sx={{ fontSize: 100 }} />
+                </div>
+                <p className="text-slate-400 text-xs font-bold uppercase mb-1">Seu Saldo Disponível</p>
+                <h3 className="text-4xl font-black text-white flex items-center gap-2">
+                    {dbUser?.saldo_coins} <span className="text-lg text-yellow-400">Coins</span>
+                </h3>
+            </div>
+
+            {/* FORMULÁRIO */}
+            <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 space-y-4">
+                
+                {/* Input Destinatário */}
+                <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
+                        <PersonSearch fontSize="small" /> Quem recebe?
+                    </label>
+                    <input 
+                        value={destinatario}
+                        onChange={e => setDestinatario(e.target.value)}
+                        placeholder="Email ou Código de Convite"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white outline-none focus:border-cyan-500 transition-colors"
+                    />
+                    <p className="text-[9px] text-slate-600">Dica: Use o código de convite (ex: JOAO1234) para ser mais rápido.</p>
+                </div>
+
+                {/* Input Valor */}
+                <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
+                        <AttachMoney fontSize="small" /> Quantidade
+                    </label>
+                    <input 
+                        type="number"
+                        value={valor}
+                        onChange={e => setValor(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white font-mono text-xl outline-none focus:border-yellow-500 transition-colors"
+                    />
+                </div>
+
+                {/* Botão Enviar */}
+                <button 
+                    onClick={handleTransfer}
+                    disabled={loading}
+                    className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 py-4 rounded-2xl text-white font-black text-sm shadow-lg shadow-cyan-900/20 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                    {loading ? <CircularProgress size={20} color="inherit" /> : <><Send fontSize="small" /> CONFIRMAR ENVIO</>}
+                </button>
+
+            </div>
+
+            {/* DICA DE QR CODE (Futuro) */}
+            <div className="text-center opacity-50 mt-8">
+                <button className="bg-slate-800 p-4 rounded-full text-slate-400 hover:text-white transition-colors">
+                    <QrCode />
+                </button>
+                <p className="text-[9px] mt-2 uppercase font-bold text-slate-600">Ler QR Code (Em breve)</p>
             </div>
         </div>
-
-        {/* INPUTS */}
-        <div className="space-y-4">
-            <div>
-                <label className="text-[10px] text-slate-400 font-bold ml-1 uppercase">Código do Amigo</label>
-                <input 
-                    type="text" 
-                    placeholder="Ex: JOAO1234"
-                    value={destinatario}
-                    onChange={e => setDestinatario(e.target.value.toUpperCase())}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-2xl p-4 text-white font-mono focus:border-cyan-500 outline-none"
-                />
-            </div>
-
-            <div>
-                <label className="text-[10px] text-slate-400 font-bold ml-1 uppercase">Quantia de GecaCoins</label>
-                <input 
-                    type="number" 
-                    placeholder="0"
-                    value={valor}
-                    onChange={e => setValor(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-2xl p-4 text-white font-mono text-2xl focus:border-yellow-500 outline-none"
-                />
-            </div>
-        </div>
-
-        <button 
-            onClick={handleTransfer}
-            disabled={loading || !destinatario || !valor}
-            className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black py-4 rounded-2xl shadow-lg shadow-cyan-900/20 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
-        >
-            {loading ? <CircularProgress size={20} color="inherit" /> : <><Send /> ENVIAR COINS AGORA</>}
-        </button>
-      </div>
-
-      <p className="text-[10px] text-slate-600 text-center px-6">
-        Atenção: Transferências de moedas são permanentes e não podem ser desfeitas pelo sistema. Use com responsabilidade.
-      </p>
-    </div>
-  );
+    );
 }
