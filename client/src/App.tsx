@@ -14,6 +14,7 @@ import TransferCoins from './pages/arena/Transfer';
 import ArenaProfile from './pages/arena/Profile';
 import ArenaMemes from './pages/arena/Memes'; // <-- ADICIONE ESTE IMPORT
 import ArenaQuests from './pages/arena/Quests';
+import Laboratorio from './pages/arena/Laboratorio';
 
 
 function AppRoutes() {
@@ -52,6 +53,7 @@ function AppRoutes() {
         <Route path="perfil" element={<ArenaProfile />} />
         <Route path="memes" element={<ArenaMemes />} /> {/* <-- ADICIONE ESTA LINHA */}
         <Route path="quests" element={<ArenaQuests />} /> {/* <-- ADICIONE ESTA LINHA */}
+        <Route path="laboratorio" element={<Laboratorio />} />
       </Route>
 
       <Route 

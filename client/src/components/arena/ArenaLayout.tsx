@@ -5,7 +5,7 @@ import {
     EmojiEvents,
     SwapHorizontalCircle,
     MonetizationOn,
-    Star, RocketLaunch, Assignment
+    Star, RocketLaunch, Assignment, Biotech
 } from '@mui/icons-material';
 import { Paper, BottomNavigation, BottomNavigationAction } from '@mui/material';
 import UserAvatar from './UserAvatar';
@@ -120,6 +120,12 @@ export default function ArenaLayout() {
                         label="Missões"
                         icon={<Assignment />}
                         onClick={() => navigate('/arena/quests')}
+                        sx={{ color: '#64748b', '&.Mui-selected': { color: '#facc15' } }}
+                    />
+                    <BottomNavigationAction
+                        label="Fórum"
+                        icon={<Assignment />}
+                        onClick={() => navigate('/arena/laboratorio')}
                         sx={{ color: '#64748b', '&.Mui-selected': { color: '#facc15' } }}
                     />
                 </BottomNavigation>
