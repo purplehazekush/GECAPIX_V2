@@ -13,6 +13,7 @@ const ProdutoModel = require('./models/Produto');
 const UsuarioModel = require('./models/Usuario');
 const ConfigModel = require('./models/Config');
 const PixModel = require('./models/Pix'); // Necessário para Stats inline
+const arenaController = require('./controllers/arenaController');
 
 // --- CONFIGURAÇÃO DO APP ---
 const app = express();
@@ -48,9 +49,13 @@ app.post('/api/pix', pixController.createWebhook);
 app.put('/api/pix/:id', pixController.updatePix);
 app.post('/api/vendas/manual', pixController.createManual);
 
+
 // ------------------------------------------------------
 // ROTAS ABAIXO: AINDA INLINE (Mova para controllers futuramente)
 // ------------------------------------------------------
+
+app.get('/api/arena/ranking', arenaController.getRanking);
+app.get('/api/arena/perfil/:id', arenaController.getPerfilPublico);
 
 // 3. PRODUTOS
 app.get('/api/produtos', async (req, res) => {
