@@ -15,6 +15,8 @@ const ConfigModel = require('./models/Config');
 const PixModel = require('./models/Pix'); // Necessário para Stats inline
 const arenaController = require('./controllers/arenaController');
 const memeController = require('./controllers/memeController');
+const questController = require('./controllers/questController'); // 1. ADICIONE ESTE
+const cron = require('node-cron'); // 2. ADICIONE O CRON (npm install node-cron)
 
 
 // --- CONFIGURAÇÃO DO APP ---
@@ -64,6 +66,17 @@ app.post('/api/arena/memes/votar', memeController.votarMeme);
 
 app.get('/api/arena/ranking', arenaController.getRanking);
 app.get('/api/arena/perfil/:id', arenaController.getPerfilPublico);
+
+// 4. ROTA DE MISSÕES (O QUE ESTAVA FALTANDO!)
+app.get('/api/arena/quests', questController.getQuests);
+
+// 5. O AGENDADOR DAS 21H (O ENCERRAMENTO DIÁRIO)
+// '0 21 * * *' significa: todo dia, minuto 0, hora 21.
+cron.schedule('0 21 * * *', () => {
+    memeController.finalizarDiaArena();
+}, {
+    timezone: "America/Sao_Paulo"
+});
 
 // 3. PRODUTOS
 app.get('/api/produtos', async (req, res) => {
