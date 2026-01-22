@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 
 // Definição das camadas e configurações
 export interface LayerConfig {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import AvatarPixel from '../AvatarPixel'; 
 import AVATAR_ASSETS from '../../../data/avatarAssets.json'; // O JSON Elite
-import { Edit, KeyboardArrowLeft, KeyboardArrowRight, Check, Shuffle, Male, Female } from '@mui/icons-material';
+import { Edit, KeyboardArrowLeft, KeyboardArrowRight, Check, Male, Female } from '@mui/icons-material';
 import type { User } from '../../../context/AuthContext';
 
 interface Props {
