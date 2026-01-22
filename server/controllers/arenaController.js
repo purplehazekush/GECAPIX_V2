@@ -2,21 +2,19 @@ const UsuarioModel = require('../models/Usuario');
 
 exports.getRanking = async (req, res) => {
     try {
-        // Buscamos todos os ativos para o ranking ter volume
-        // Removi o filtro de 'membro' para que você (Admin) apareça no topo se for o caso
-        const rankingXP = await UsuarioModel.find({ status: 'ativo' })
-            .select('nome email xp nivel badges saldo_coins')
+        // Removendo todos os filtros (status e role) para garantir que TODOS apareçam
+        const rankingXP = await UsuarioModel.find({})
+            .select('nome email xp nivel saldo_coins')
             .sort({ xp: -1 })
             .limit(50);
 
-        const rankingCoins = await UsuarioModel.find({ status: 'ativo' })
+        const rankingCoins = await UsuarioModel.find({})
             .select('nome email saldo_coins nivel xp')
             .sort({ saldo_coins: -1 })
             .limit(50);
 
         res.json({ xp: rankingXP, coins: rankingCoins });
     } catch (error) {
-        console.error("Erro ao gerar ranking:", error);
         res.status(500).json({ error: "Erro ao buscar ranking" });
     }
 };
