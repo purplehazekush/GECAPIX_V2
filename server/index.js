@@ -14,6 +14,8 @@ const UsuarioModel = require('./models/Usuario');
 const ConfigModel = require('./models/Config');
 const PixModel = require('./models/Pix'); // Necessário para Stats inline
 const arenaController = require('./controllers/arenaController');
+const memeController = require('./controllers/memeController');
+
 
 // --- CONFIGURAÇÃO DO APP ---
 const app = express();
@@ -50,9 +52,15 @@ app.put('/api/pix/:id', pixController.updatePix);
 app.post('/api/vendas/manual', pixController.createManual);
 
 
+
+
 // ------------------------------------------------------
 // ROTAS ABAIXO: AINDA INLINE (Mova para controllers futuramente)
 // ------------------------------------------------------
+
+app.get('/api/arena/memes', memeController.getMemes);
+app.post('/api/arena/memes', memeController.postMeme);
+app.post('/api/arena/memes/votar', memeController.votarMeme);
 
 app.get('/api/arena/ranking', arenaController.getRanking);
 app.get('/api/arena/perfil/:id', arenaController.getPerfilPublico);

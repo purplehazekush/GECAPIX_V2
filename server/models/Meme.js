@@ -4,8 +4,8 @@ const MemeSchema = new mongoose.Schema({
     autor_email: String,
     autor_nome: String,
     legenda: String,
-    imagem_url: String, // Pode ser Base64 ou URL (Imgur/Cloudinary)
-    investimento_total: { type: Number, default: 0 }, // Quantas coins foram "apostadas" nele
+    imagem_url: String,
+    investimento_total: { type: Number, default: 0 },
     votos_count: { type: Number, default: 0 },
     data: { type: Date, default: Date.now }
 });
