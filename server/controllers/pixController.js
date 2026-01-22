@@ -169,3 +169,30 @@ exports.updatePix = async (req, res) => {
         res.status(500).json({ error: "Erro ao salvar venda" });
     }
 };
+
+exports.transferirCoins = async (req, res) => {
+    try {
+        const { remetente_email, codigo_destino, valor } = req.body;
+        const quantia = parseInt(valor);
+
+        if (quantia <= 0) return res.status(400).json({ error: "Valor inválido" });
+
+        const remetente = await UsuarioModel.findOne({ email: remetente_email });
+        const destino = await UsuarioModel.findOne({ codigo_referencia: codigo_destino.toUpperCase() });
+
+        if (!destino) return res.status(404).json({ error: "Código de destino não encontrado" });
+        if (remetente.saldo_coins < quantia) return res.status(400).json({ error: "Saldo insuficiente" });
+        if (remetente.codigo_referencia === codigo_destino.toUpperCase()) return res.status(400).json({ error: "Não pode transferir para si mesmo" });
+
+        // Executa a transferência
+        remetente.saldo_coins -= quantia;
+        destino.saldo_coins += quantia;
+
+        await remetente.save();
+        await destino.save();
+
+        res.json({ success: true, novo_saldo: remetente.saldo_coins });
+    } catch (error) {
+        res.status(500).json({ error: "Erro na transação" });
+    }
+};

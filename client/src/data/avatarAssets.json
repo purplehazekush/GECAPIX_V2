@@ -1,0 +1,8 @@
+{
+  "body": ["skin_light", "skin_dark", "skin_orc", "skeleton"],
+  "hair": ["messy_raven", "long_raven", "mohawk_raven", "bedhead_raven"],
+  "torso": ["shirt_white", "sleeveless_white", "tunic_brown", "chainmail_gray"],
+  "legs": ["pants_white", "robe_skirt", "armor_legs"],
+  "feet": ["shoes_brown", "boots_black"],
+  "hand_r": ["dagger", "spear", "sword"]
+}

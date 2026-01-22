@@ -31,6 +31,7 @@ export interface User {
   validado?: boolean;
   status_profissional?: string;
   equipe_competicao?: string;
+  avatar_layers?: Record<string, string>;
 }
 
 // 2. ATUALIZANDO O TIPO DO CONTEXTO
