@@ -100,3 +100,64 @@ exports.updatePerfil = async (req, res) => {
         res.status(500).json({ error: "Erro ao atualizar perfil" });
     }
 };
+
+
+// ... (seus outros códigos de ranking, perfil, etc)
+
+exports.transferirCoins = async (req, res) => {
+    try {
+        const { remetenteEmail, destinatarioChave, valor } = req.body;
+        
+        // 1. Validações Básicas
+        if (!remetenteEmail || !destinatarioChave || !valor) {
+            return res.status(400).json({ error: "Dados incompletos." });
+        }
+        
+        const valorNumerico = parseInt(valor);
+        if (valorNumerico <= 0) {
+            return res.status(400).json({ error: "O valor deve ser positivo." });
+        }
+
+        // 2. Busca o Remetente
+        const remetente = await UsuarioModel.findOne({ email: remetenteEmail });
+        if (!remetente) return res.status(404).json({ error: "Remetente não encontrado." });
+
+        if (remetente.saldo_coins < valorNumerico) {
+            return res.status(400).json({ error: "Saldo insuficiente." });
+        }
+
+        // 3. Busca o Destinatário (Pode ser Email ou Código de Referência/Convite)
+        // Tentamos achar por email OU pelo código de convite
+        const destinatario = await UsuarioModel.findOne({
+            $or: [
+                { email: destinatarioChave },
+                { codigo_referencia: destinatarioChave.toUpperCase() }
+            ]
+        });
+
+        if (!destinatario) return res.status(404).json({ error: "Destinatário não encontrado." });
+
+        if (remetente.email === destinatario.email) {
+            return res.status(400).json({ error: "Você não pode transferir para si mesmo." });
+        }
+
+        // 4. Executa a Transferência (Atômica)
+        // Tira de um
+        await UsuarioModel.updateOne(
+            { _id: remetente._id }, 
+            { $inc: { saldo_coins: -valorNumerico } }
+        );
+        
+        // Põe no outro
+        await UsuarioModel.updateOne(
+            { _id: destinatario._id }, 
+            { $inc: { saldo_coins: valorNumerico } }
+        );
+
+        res.json({ success: true, novoSaldo: remetente.saldo_coins - valorNumerico });
+
+    } catch (error) {
+        console.error("Erro na transferência:", error);
+        res.status(500).json({ error: "Erro ao processar transferência." });
+    }
+};
