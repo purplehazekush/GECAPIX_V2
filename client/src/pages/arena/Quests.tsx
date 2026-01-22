@@ -1,33 +1,64 @@
-import { Assignment, CheckCircle, Lock } from '@mui/icons-material';
+import { useEffect, useState } from 'react';
+import { api } from '../../lib/api';
+import { useAuth } from '../../context/AuthContext';
+import { CheckCircle, RadioButtonUnchecked, Stars, MonetizationOn } from '@mui/icons-material';
 
 export default function ArenaQuests() {
-    const quests = [
-        { id: 1, titulo: 'Check-in Diário', desc: 'Logue hoje no GECAPIX', premio: '50 Coins', status: 'concluido' },
-        { id: 2, titulo: 'Mestre do Pix', desc: 'Identifique 3 compras no bar', premio: '200 Coins', status: 'disponivel' },
-        { id: 3, titulo: 'O Infiltrado', desc: 'Indique alguém da Civil', premio: '500 Coins', status: 'bloqueado' },
-    ];
+    const { dbUser } = useAuth();
+    const [quests, setQuests] = useState<any[]>([]);
+
+    useEffect(() => {
+        api.get(`arena/quests?email=${dbUser?.email}`).then(res => setQuests(res.data));
+    }, [dbUser]);
 
     return (
-        <div className="p-4 space-y-4">
-            <h2 className="text-xl font-black italic text-white mb-6 uppercase tracking-tighter">Missões Disponíveis</h2>
-            
-            {quests.map(q => (
-                <div key={q.id} className={`p-4 rounded-2xl border ${q.status === 'concluido' ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-slate-900 border-slate-800'} flex items-center justify-between`}>
-                    <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${q.status === 'concluido' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-500'}`}>
-                            {q.status === 'concluido' ? <CheckCircle /> : q.status === 'bloqueado' ? <Lock /> : <Assignment />}
+        <div className="p-4 space-y-6 pb-24 animate-fade-in">
+            <header>
+                <h2 className="text-2xl font-black italic text-white uppercase tracking-tighter italic">Missões</h2>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Complete desafios e fique rico</p>
+            </header>
+
+            <div className="space-y-3">
+                {quests.map(q => (
+                    <div 
+                        key={q.id} 
+                        className={`p-5 rounded-3xl border transition-all ${
+                            q.concluida 
+                            ? 'bg-emerald-500/10 border-emerald-500/20 opacity-80' 
+                            : 'bg-slate-900 border-slate-800'
+                        }`}
+                    >
+                        <div className="flex justify-between items-start">
+                            <div className="space-y-1">
+                                <h3 className={`font-black text-sm uppercase ${q.concluida ? 'text-emerald-400 line-through' : 'text-white'}`}>
+                                    {q.titulo}
+                                </h3>
+                                <p className="text-xs text-slate-500 font-medium leading-tight">{q.desc}</p>
+                            </div>
+                            {q.concluida ? (
+                                <CheckCircle className="text-emerald-500" />
+                            ) : (
+                                <RadioButtonUnchecked className="text-slate-700" />
+                            )}
                         </div>
-                        <div>
-                            <h4 className={`text-sm font-bold ${q.status === 'concluido' ? 'text-emerald-400' : 'text-white'}`}>{q.titulo}</h4>
-                            <p className="text-[10px] text-slate-500">{q.desc}</p>
+
+                        <div className="mt-4 flex items-center gap-4">
+                            <div className="flex items-center gap-1 text-[10px] font-black text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded-lg">
+                                <MonetizationOn sx={{ fontSize: 12 }} /> +{q.premio}
+                            </div>
+                            <div className="flex items-center gap-1 text-[10px] font-black text-purple-400 bg-purple-500/10 px-2 py-1 rounded-lg">
+                                <Stars sx={{ fontSize: 12 }} /> +{q.xp} XP
+                            </div>
                         </div>
                     </div>
-                    <div className="text-right">
-                        <span className="text-[10px] font-black text-yellow-500 block uppercase">{q.premio}</span>
-                        {q.status === 'disponivel' && <button className="mt-1 text-[9px] bg-slate-800 px-2 py-1 rounded text-white font-bold">FAZER</button>}
-                    </div>
-                </div>
-            ))}
+                ))}
+            </div>
+
+            {/* Teaser de Temporada */}
+            <div className="bg-gradient-to-r from-purple-900/40 to-slate-900 p-6 rounded-3xl border border-purple-500/20 text-center">
+                <p className="text-[10px] text-purple-300 font-bold uppercase tracking-widest mb-1">Próxima Temporada</p>
+                <h4 className="text-white font-black text-xs uppercase">Skins exclusivas para o TOP 10 do Ranking</h4>
+            </div>
         </div>
     );
 }

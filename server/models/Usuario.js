@@ -15,7 +15,9 @@ const UsuarioSchema = new mongoose.Schema({
     indicado_por: String,
 
     ultimo_login: { type: Date },
-    sequencia_login: { type: Number, default: 0 }
+    sequencia_login: { type: Number, default: 0 },
+
+    missoes_concluidas: { type: [String], default: [] },
 });
 
 UsuarioSchema.pre('save', async function() {

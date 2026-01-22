@@ -5,7 +5,7 @@ import {
     EmojiEvents,
     SwapHorizontalCircle,
     MonetizationOn,
-    Star, RocketLaunch
+    Star, RocketLaunch, Assignment
 } from '@mui/icons-material';
 import { Paper, BottomNavigation, BottomNavigationAction } from '@mui/material';
 import UserAvatar from './UserAvatar';
@@ -115,6 +115,12 @@ export default function ArenaLayout() {
                         icon={<RocketLaunch />}
                         onClick={() => navigate('/arena/memes')} // <-- Verifique se o caminho é este
                         sx={{ color: '#64748b', '&.Mui-selected': { color: '#a855f7' } }}
+                    />
+                    <BottomNavigationAction
+                        label="Missões"
+                        icon={<Assignment />}
+                        onClick={() => navigate('/arena/quests')}
+                        sx={{ color: '#64748b', '&.Mui-selected': { color: '#facc15' } }}
                     />
                 </BottomNavigation>
             </Paper>

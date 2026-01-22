@@ -7,6 +7,12 @@ const MemeSchema = new mongoose.Schema({
     imagem_url: String,
     investimento_total: { type: Number, default: 0 },
     votos_count: { type: Number, default: 0 },
+    // Registro de quem investiu e quanto
+    investidores: [{
+        email_eleitor: String,
+        quantia: Number
+    }],
+    status: { type: String, default: 'ativo' }, // 'ativo', 'vencedor', 'arquivado'
     data: { type: Date, default: Date.now }
 });
 

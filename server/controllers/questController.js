@@ -1,14 +1,24 @@
-const QuestModel = require('../models/Quest');
 const UsuarioModel = require('../models/Usuario');
+const TOKEN = require('../config/tokenomics');
 
-exports.getQuestsDisponiveis = async (req, res) => {
+// Lista de definições das missões (Poderia estar no banco, mas aqui é mais rápido p/ o MVP)
+const MISSOES_ATIVAS = [
+    { id: 'm1', titulo: 'Primeira Pérola', desc: 'Poste seu primeiro meme', premio: 100, xp: 50, chave: 'POSTAR_MEME' },
+    { id: 'm2', titulo: 'Investidor Anjo', desc: 'Impulsione 3 memes de colegas', premio: 150, xp: 80, chave: 'VOTAR_MEME' },
+    { id: 'm3', titulo: 'Networking', desc: 'Indique um amigo para a Arena', premio: 500, xp: 200, chave: 'INDICAR' }
+];
+
+exports.getQuests = async (req, res) => {
     try {
-        // Por enquanto, retorna uma lista fixa de missões para o MVP
-        const quests = [
-            { id: 'q1', titulo: 'Primeiro Gole', desc: 'Realize sua primeira compra no bar.', coins: 100, xp: 50, tipo: 'conquista' },
-            { id: 'q2', titulo: 'Influenciador', desc: 'Indique 1 amigo para a Arena.', coins: 500, xp: 200, tipo: 'semanal' },
-            { id: 'q3', titulo: 'Pérola do Dia', desc: 'Poste um meme no mural.', coins: 50, xp: 30, tipo: 'diaria' }
-        ];
-        res.json(quests);
-    } catch (e) { res.status(500).send(e); }
+        const { email } = req.query;
+        const user = await UsuarioModel.findOne({ email });
+
+        // Mapeia as missões marcando quais o usuário já fez
+        const statusQuests = MISSOES_ATIVAS.map(q => ({
+            ...q,
+            concluida: user.missoes_concluidas.includes(q.id)
+        }));
+
+        res.json(statusQuests);
+    } catch (e) { res.status(500).json({ error: "Erro ao buscar missões" }); }
 };
