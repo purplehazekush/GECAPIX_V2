@@ -124,7 +124,7 @@ export default function ArenaLayout() {
                     />
                     <BottomNavigationAction
                         label="Fórum"
-                        icon={<Assignment />}
+                        icon={<Biotech />}
                         onClick={() => navigate('/arena/laboratorio')}
                         sx={{ color: '#64748b', '&.Mui-selected': { color: '#facc15' } }}
                     />
