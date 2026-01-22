@@ -6,30 +6,41 @@ const UsuarioSchema = new mongoose.Schema({
     role: { type: String, default: 'membro' },
     status: { type: String, default: 'pendente' },
     
+    // --- GAMIFICATION ---
     saldo_coins: { type: Number, default: 0 },
     xp: { type: Number, default: 0 },
     nivel: { type: Number, default: 1 },
     badges: [String],
 
+    // --- ENGENHARIA SOCIAL ---
     codigo_referencia: { type: String, unique: true },
     indicado_por: String,
 
+    // --- DAILY LOGIN ---
     ultimo_login: { type: Date },
     sequencia_login: { type: Number, default: 0 },
 
-    missoes_concluidas: { type: [String], default: [] },
-    chave_pix: { type: String, default: '' }, // CPF, Email ou Aleatória
+    // --- IDENTIDADE & LAB ---
+    classe: { type: String, default: 'Novato' },
+    avatar_seed: String,
+    bio: String,
+    
+    // O IMPORTANTE TÁ AQUI 👇
+    materias: { type: [String], default: [] }, // Array de Strings
+    hobbies: [String],
 
-    // --- VALIDAÇÃO ACADÊMICA ---
-    curso: { type: String, default: '' }, // Ex: Eng. Metalúrgica
-    comprovante_url: { type: String }, // Foto da carteirinha/SIGA (Cloudinary)
-    validado: { type: Boolean, default: false }, // Admin aprova depois
-
-    // --- STATUS E EXTRAS ---
-    status_profissional: { type: String }, // Estagiando, IC, Procurando...
-    equipe_competicao: { type: String }, // Baja, Fórmula, etc.
+    // --- NOVOS DADOS ---
+    chave_pix: { type: String, default: '' },
+    curso: { type: String, default: '' },
+    comprovante_url: { type: String },
+    validado: { type: Boolean, default: false },
+    status_profissional: { type: String },
+    equipe_competicao: { type: String },
+    
+    missoes_concluidas: { type: [String], default: [] }
 });
 
+// Hook para gerar código de convite
 UsuarioSchema.pre('save', async function() {
     if (!this.codigo_referencia && this.nome) {
         const nomeLimpo = this.nome.split(' ')[0].replace(/[^a-zA-Z]/g, '');

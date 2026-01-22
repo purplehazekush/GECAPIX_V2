@@ -53,19 +53,26 @@ exports.patchUsuariosSemCodigo = async (req, res) => {
 
 exports.updatePerfil = async (req, res) => {
     try {
-        // Agora desestruturamos TUDO que vem do formulário
+        console.log("--> RECEBIDO NO BACKEND:", req.body); // LOG 1
+
         const { 
             email, classe, materias, bio, 
             chave_pix, curso, status_profissional, equipe_competicao, comprovante_url 
         } = req.body;
         
-        const materiasFormatadas = materias 
-            ? materias.map(m => m.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')) 
-            : [];
+        // Tratamento de Matérias
+        let materiasFormatadas = [];
+        if (Array.isArray(materias)) {
+            materiasFormatadas = materias.map(m => m.trim().toUpperCase().replace(/[^A-Z0-9]/g, ''));
+        } else if (typeof materias === 'string') {
+            materiasFormatadas = materias.split(',').map(m => m.trim().toUpperCase().replace(/[^A-Z0-9]/g, ''));
+        }
+
+        console.log("--> MATÉRIAS FORMATADAS:", materiasFormatadas); // LOG 2
 
         const updateData = {
             classe,
-            materias: materiasFormatadas,
+            materias: materiasFormatadas, // Tem que ser um Array de Strings
             bio,
             chave_pix,
             curso,
@@ -73,21 +80,23 @@ exports.updatePerfil = async (req, res) => {
             equipe_competicao
         };
 
-        // Só atualiza a URL do comprovante se o usuário enviou uma nova
-        if (comprovante_url) updateData.comprovante_url = comprovante_url;
+        if (comprovante_url && comprovante_url.length > 5) {
+            updateData.comprovante_url = comprovante_url;
+        }
 
-        // Se mudar de classe, atualiza a seed do avatar
         if (classe) updateData.avatar_seed = `${classe}-${email}`;
 
         const user = await UsuarioModel.findOneAndUpdate(
             { email },
-            updateData,
-            { new: true }
+            { $set: updateData }, // Usando $set para ser explícito
+            { new: true } 
         );
+
+        console.log("--> USUÁRIO SALVO:", user.materias); // LOG 3
 
         res.json(user);
     } catch (error) {
-        console.error("Erro update perfil:", error);
+        console.error("Erro CRÍTICO no update perfil:", error);
         res.status(500).json({ error: "Erro ao atualizar perfil" });
     }
 };
