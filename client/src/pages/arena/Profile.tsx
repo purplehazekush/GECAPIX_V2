@@ -2,53 +2,98 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
 import { 
-    Logout, 
-    Save, 
-    School, 
-    Science, 
-    SportsGymnastics, 
-    AutoFixHigh, 
-    Nightlife 
+    School, AccountBalanceWallet, Groups, CloudUpload 
 } from '@mui/icons-material';
-import { Chip, CircularProgress } from '@mui/material';
+import { CircularProgress } from '@mui/material';
+
+// --- CONFIGURAÇÃO FÁCIL ---
+const CLOUD_NAME = "dcetrqazm"; // Seu Cloud Name
+const UPLOAD_PRESET = "gecapix_preset"; // Seu Preset
+
+const EQUIPES = [
+    "Nenhuma", "Baja UFMG", "Fórmula Tesla", "Céu Azul", "Cheerleading", 
+    "Atlética Eng", "Minas Racing", "Uai Sô Fly"
+];
+
+const STATUS_PROFISSIONAL = [
+    "Apenas Estudante", "Procurando Estágio", "Estagiando", 
+    "Iniciação Científica (IC)", "Monitoria", "Trabalhando CLT/PJ"
+];
 
 const CLASSES = [
-  { id: 'Mago', nome: 'Mago dos Scripts', emoji: '🧙‍♂️', icon: <AutoFixHigh />, desc: 'Automação é vida' },
-  { id: 'Vampiro', nome: 'Vampiro da Madruga', emoji: '🧛', icon: <Nightlife />, desc: 'Só codae à noite' },
-  { id: 'Atleta', nome: 'Atleta do CEU', emoji: '🏋️‍♂️', icon: <SportsGymnastics />, desc: 'Shape em dia' },
-  { id: 'Cientista', nome: 'Cientista Louco', emoji: '🧪', icon: <Science />, desc: 'Pesquisa pura' }
+    { id: 'Mago', nome: 'Mago', emoji: '🧙‍♂️' },
+    { id: 'Vampiro', nome: 'Vampiro', emoji: '🧛' },
+    { id: 'Atleta', nome: 'Atleta', emoji: '🏋️‍♂️' },
+    { id: 'Cientista', nome: 'Cientista', emoji: '🧪' }
 ];
 
 export default function ArenaProfile() {
     const { dbUser, setDbUser, logout } = useAuth();
-    
-    // Estados do Formulário
-    const [classe, setClasse] = useState('Mago');
-    const [materiasInput, setMateriasInput] = useState('');
     const [loading, setLoading] = useState(false);
+    const [uploading, setUploading] = useState(false);
 
-    // Carrega dados iniciais
+    // Estados
+    const [formData, setFormData] = useState({
+        classe: 'Mago',
+        curso: '',
+        materias: '',
+        chave_pix: '',
+        status_profissional: 'Apenas Estudante',
+        equipe_competicao: 'Nenhuma',
+        comprovante_url: ''
+    });
+
     useEffect(() => {
         if (dbUser) {
-            setClasse(dbUser.classe || 'Mago');
-            setMateriasInput(dbUser.materias?.join(', ') || '');
+            setFormData({
+                classe: dbUser.classe || 'Mago',
+                curso: dbUser.curso || '',
+                materias: dbUser.materias?.join(', ') || '',
+                chave_pix: dbUser.chave_pix || '',
+                status_profissional: dbUser.status_profissional || 'Apenas Estudante',
+                equipe_competicao: dbUser.equipe_competicao || 'Nenhuma',
+                comprovante_url: dbUser.comprovante_url || ''
+            });
         }
     }, [dbUser]);
+
+    const handleUploadComprovante = async (e: any) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploading(true);
+        try {
+            const data = new FormData();
+            data.append('file', file);
+            data.append('upload_preset', UPLOAD_PRESET);
+
+            const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+                method: 'POST',
+                body: data
+            });
+            const fileData = await res.json();
+            setFormData(prev => ({ ...prev, comprovante_url: fileData.secure_url }));
+            alert("Comprovante enviado! Não esqueça de Salvar no final.");
+        } catch (err) {
+            alert("Erro no upload.");
+        } finally {
+            setUploading(false);
+        }
+    };
 
     const handleSave = async () => {
         setLoading(true);
         try {
-            // Converte string "DCC034, mat001" em array ["DCC034", "MAT001"]
-            const arrayMaterias = materiasInput.split(',').filter(m => m.trim().length > 0);
-
+            const arrayMaterias = formData.materias.split(',').filter(m => m.trim().length > 0);
+            
             const res = await api.put('arena/perfil', {
                 email: dbUser?.email,
-                classe,
+                ...formData,
                 materias: arrayMaterias
             });
             
-            setDbUser(res.data); // Atualiza o contexto global
-            alert("Identidade atualizada com sucesso! 🆔");
+            setDbUser(res.data);
+            alert("Perfil atualizado com sucesso! ✅");
         } catch (e) {
             alert("Erro ao salvar perfil.");
         } finally {
@@ -57,100 +102,118 @@ export default function ArenaProfile() {
     };
 
     return (
-        <div className="pb-32 animate-fade-in">
-            {/* --- CABEÇALHO DO PERSONAGEM --- */}
-            <div className="bg-slate-900 border-b border-slate-800 pb-8 pt-10 px-4 flex flex-col items-center relative overflow-hidden">
-                {/* Efeito de Fundo */}
-                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-purple-900/20 to-slate-900 z-0"></div>
-
-                <div className="z-10 relative flex flex-col items-center">
-                    {/* AVATAR DINÂMICO (DiceBear) */}
-                    <div className="relative group">
-                        <img 
-                            src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${classe}-${dbUser?.email}&backgroundColor=b6e3f4,c0aede,d1d4f9`} 
-                            className="w-32 h-32 rounded-full border-4 border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.4)] bg-slate-800 object-cover"
-                            alt="Avatar"
-                        />
-                        <div className="absolute -bottom-3 -right-2 bg-slate-950 border border-slate-700 px-3 py-1 rounded-xl flex items-center gap-1 shadow-xl">
-                            <span className="text-lg">{CLASSES.find(c => c.id === classe)?.emoji}</span>
-                            <span className="text-[10px] font-black text-white uppercase">{classe}</span>
-                        </div>
-                    </div>
-
-                    <h1 className="text-2xl font-black text-white mt-4">{dbUser?.nome}</h1>
-                    <div className="flex gap-2 mt-2">
-                        <Chip label={`Nível ${dbUser?.nivel}`} color="secondary" size="small" className="font-bold" />
-                        <Chip label={`${dbUser?.xp} XP`} variant="outlined" sx={{ color: 'white', borderColor: '#475569' }} size="small" />
-                    </div>
+        <div className="pb-32 animate-fade-in p-4 space-y-6">
+            
+            {/* 1. CABEÇALHO AVATAR */}
+            <div className="flex flex-col items-center py-6">
+                <img 
+                    src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${formData.classe}-${dbUser?.email}&backgroundColor=b6e3f4,c0aede,d1d4f9`} 
+                    className="w-28 h-28 rounded-full border-4 border-purple-500 bg-slate-800 mb-4 shadow-lg shadow-purple-900/40"
+                />
+                <div className="flex gap-2 mb-4">
+                    {CLASSES.map(c => (
+                        <button 
+                            key={c.id} 
+                            onClick={() => setFormData({...formData, classe: c.id})}
+                            className={`text-2xl p-2 rounded-xl border ${formData.classe === c.id ? 'bg-purple-600 border-white' : 'bg-slate-800 border-slate-700 opacity-50'}`}
+                        >
+                            {c.emoji}
+                        </button>
+                    ))}
                 </div>
+                <h1 className="text-xl font-black text-white">{dbUser?.nome}</h1>
+                <p className="text-xs text-slate-500 font-mono">{dbUser?.email}</p>
             </div>
 
-            <div className="p-4 space-y-8">
+            {/* 2. DADOS ACADÊMICOS */}
+            <section className="bg-slate-900 p-5 rounded-3xl border border-slate-800 space-y-4">
+                <h3 className="text-cyan-400 font-black uppercase text-xs flex items-center gap-2">
+                    <School fontSize="small" /> Vida Acadêmica
+                </h3>
                 
-                {/* --- SELETOR DE CLASSE --- */}
-                <section>
-                    <h3 className="text-white font-black italic uppercase mb-4 flex items-center gap-2">
-                        <AutoFixHigh className="text-purple-400" /> Escolha sua Classe
-                    </h3>
-                    <div className="grid grid-cols-2 gap-3">
-                        {CLASSES.map(c => (
-                            <button
-                                key={c.id}
-                                onClick={() => setClasse(c.id)}
-                                className={`p-3 rounded-2xl border-2 transition-all flex flex-col gap-1 text-left ${
-                                    classe === c.id 
-                                    ? 'border-purple-500 bg-purple-500/10 shadow-lg shadow-purple-900/20' 
-                                    : 'border-slate-800 bg-slate-900 opacity-70 hover:opacity-100'
-                                }`}
-                            >
-                                <div className="text-2xl">{c.emoji}</div>
-                                <div>
-                                    <span className={`block text-xs font-black uppercase ${classe === c.id ? 'text-white' : 'text-slate-400'}`}>
-                                        {c.nome}
-                                    </span>
-                                    <span className="text-[9px] text-slate-500 leading-none">{c.desc}</span>
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-                </section>
+                <input 
+                    placeholder="Qual seu curso? Ex: Eng. Minas"
+                    value={formData.curso}
+                    onChange={e => setFormData({...formData, curso: e.target.value})}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm"
+                />
 
-                {/* --- DADOS ACADÊMICOS --- */}
-                <section className="bg-slate-900 p-5 rounded-3xl border border-slate-800">
-                    <h3 className="text-white font-black italic uppercase mb-2 flex items-center gap-2">
-                        <School className="text-cyan-400" /> Grade Horária
-                    </h3>
-                    <p className="text-[10px] text-slate-500 mb-4">
-                        Insira os códigos das matérias para entrar nos grupos secretos (ex: DCC034, MAT001).
-                    </p>
-                    <input 
-                        value={materiasInput}
-                        onChange={e => setMateriasInput(e.target.value)}
-                        placeholder="Códigos separados por vírgula..."
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white font-mono text-sm outline-none focus:border-cyan-500 transition-colors uppercase"
-                    />
-                </section>
-
-                {/* --- BOTÃO SALVAR --- */}
-                <button 
-                    onClick={handleSave}
-                    disabled={loading}
-                    className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 py-4 rounded-2xl text-white font-black text-sm shadow-xl shadow-purple-900/30 active:scale-95 transition-all disabled:opacity-50"
-                >
-                    {loading ? <CircularProgress size={20} color="inherit" /> : <><Save fontSize="small" className="mr-2"/> SALVAR IDENTIDADE</>}
-                </button>
-
-                {/* --- LOGOUT --- */}
-                <div className="pt-8 border-t border-slate-800/50">
-                    <button 
-                        onClick={logout}
-                        className="w-full flex items-center justify-center gap-2 text-red-500/70 hover:text-red-500 py-2 text-xs font-bold uppercase tracking-widest transition-colors"
-                    >
-                        <Logout fontSize="small" /> Encerrar Sessão
-                    </button>
-                    <p className="text-[9px] text-slate-700 text-center mt-2">ID: {dbUser?._id}</p>
+                <input 
+                    placeholder="Matérias (Ex: DCC034, MAT001)"
+                    value={formData.materias}
+                    onChange={e => setFormData({...formData, materias: e.target.value})}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm uppercase"
+                />
+                
+                {/* UPLOAD COMPROVANTE */}
+                <div className="border-2 border-dashed border-slate-700 rounded-xl p-4 text-center relative hover:border-cyan-500 transition-colors">
+                    {uploading ? <CircularProgress size={20} /> : (
+                        <>
+                            <CloudUpload className={`mb-2 ${formData.comprovante_url ? 'text-green-500' : 'text-slate-500'}`} />
+                            <p className="text-[10px] text-slate-400 font-bold uppercase">
+                                {formData.comprovante_url ? "Comprovante Carregado!" : "Foto da Carteirinha / SIGA"}
+                            </p>
+                            <input type="file" onChange={handleUploadComprovante} className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" />
+                        </>
+                    )}
                 </div>
-            </div>
+            </section>
+
+            {/* 3. DADOS FINANCEIROS */}
+            <section className="bg-slate-900 p-5 rounded-3xl border border-slate-800 space-y-4">
+                <h3 className="text-emerald-400 font-black uppercase text-xs flex items-center gap-2">
+                    <AccountBalanceWallet fontSize="small" /> Financeiro (Obrigatório)
+                </h3>
+                <p className="text-[9px] text-slate-500">Para receber premiações em dinheiro real.</p>
+                <input 
+                    placeholder="Sua Chave PIX (CPF/Email/Tel)"
+                    value={formData.chave_pix}
+                    onChange={e => setFormData({...formData, chave_pix: e.target.value})}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm font-mono"
+                />
+            </section>
+
+            {/* 4. EXTRAS & STATUS */}
+            <section className="bg-slate-900 p-5 rounded-3xl border border-slate-800 space-y-4">
+                <h3 className="text-purple-400 font-black uppercase text-xs flex items-center gap-2">
+                    <Groups fontSize="small" /> Status & Guildas
+                </h3>
+                
+                <div className="space-y-2">
+                    <label className="text-[10px] text-slate-500 font-bold uppercase">Situação Atual</label>
+                    <select 
+                        value={formData.status_profissional}
+                        onChange={e => setFormData({...formData, status_profissional: e.target.value})}
+                        className="w-full bg-slate-950 text-white p-3 rounded-xl text-xs border border-slate-800 outline-none"
+                    >
+                        {STATUS_PROFISSIONAL.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-[10px] text-slate-500 font-bold uppercase">Equipe de Competição</label>
+                    <select 
+                        value={formData.equipe_competicao}
+                        onChange={e => setFormData({...formData, equipe_competicao: e.target.value})}
+                        className="w-full bg-slate-950 text-white p-3 rounded-xl text-xs border border-slate-800 outline-none"
+                    >
+                        {EQUIPES.map(e => <option key={e} value={e}>{e}</option>)}
+                    </select>
+                </div>
+            </section>
+
+            {/* BOTÃO SALVAR GERAL */}
+            <button 
+                onClick={handleSave}
+                disabled={loading}
+                className="w-full bg-white hover:bg-slate-200 text-black py-4 rounded-2xl font-black text-sm shadow-xl transition-transform active:scale-95"
+            >
+                {loading ? "SALVANDO..." : "SALVAR PERFIL COMPLETO"}
+            </button>
+
+            <button onClick={logout} className="w-full text-center text-red-500 text-xs font-bold uppercase pt-4">
+                Sair da Conta
+            </button>
         </div>
     );
 }

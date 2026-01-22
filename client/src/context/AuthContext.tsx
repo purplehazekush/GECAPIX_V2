@@ -25,6 +25,12 @@ export interface User {
   materias?: string[];
   avatar_seed?: string;
   bio?: string;
+  chave_pix?: string;
+  curso?: string;
+  comprovante_url?: string;
+  validado?: boolean;
+  status_profissional?: string;
+  equipe_competicao?: string;
 }
 
 // 2. ATUALIZANDO O TIPO DO CONTEXTO

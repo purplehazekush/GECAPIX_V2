@@ -53,24 +53,35 @@ exports.patchUsuariosSemCodigo = async (req, res) => {
 
 exports.updatePerfil = async (req, res) => {
     try {
-        const { email, classe, materias, bio } = req.body;
+        // Agora desestruturamos TUDO que vem do formulário
+        const { 
+            email, classe, materias, bio, 
+            chave_pix, curso, status_profissional, equipe_competicao, comprovante_url 
+        } = req.body;
         
-        // Formata as matérias (remove espaços, tudo maiúsculo)
         const materiasFormatadas = materias 
             ? materias.map(m => m.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')) 
             : [];
 
-        // Gera a semente do avatar para garantir que ele seja sempre o mesmo para essa escolha
-        const avatar_seed = `${classe}-${email}`; 
+        const updateData = {
+            classe,
+            materias: materiasFormatadas,
+            bio,
+            chave_pix,
+            curso,
+            status_profissional,
+            equipe_competicao
+        };
+
+        // Só atualiza a URL do comprovante se o usuário enviou uma nova
+        if (comprovante_url) updateData.comprovante_url = comprovante_url;
+
+        // Se mudar de classe, atualiza a seed do avatar
+        if (classe) updateData.avatar_seed = `${classe}-${email}`;
 
         const user = await UsuarioModel.findOneAndUpdate(
             { email },
-            { 
-                classe, 
-                materias: materiasFormatadas, 
-                bio,
-                avatar_seed
-            },
+            updateData,
             { new: true }
         );
 
