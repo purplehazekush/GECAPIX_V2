@@ -137,7 +137,7 @@ export default function Feed() {
 
 // --- O CARTÃO DE JOGO (Visual Diferente) ---
 function GameCard({ pix, produtos, onResolve, isPending }: { pix: Pix, produtos: Produto[], onResolve: () => void, isPending: boolean }) {
-  const { user } = useAuth();
+  const { user, dbUser } = useAuth(); // Pega o dbUser também
   const [produto, setProduto] = useState("");
   const [qtd, setQtd] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -154,7 +154,7 @@ function GameCard({ pix, produtos, onResolve, isPending }: { pix: Pix, produtos:
             quantidade: qtd, 
             editor_email: user?.email,
             // CORREÇÃO AQUI: O Firebase usa 'displayName', não 'nome'
-            vendedor_nome: user?.displayName 
+            vendedor_nome: dbUser?.nome || user?.displayName // Tenta o do banco, se não tiver, usa o do Google
         });
         onResolve();
     } catch (e) { alert("Erro ao salvar"); }
