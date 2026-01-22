@@ -7,7 +7,7 @@ const cron = require('node-cron');
 // --- SEGURANÇA ---
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const mongoSanitize = require('express-mongo-sanitize');
+// REMOVIDO: const mongoSanitize = require('express-mongo-sanitize'); // Causava o erro
 const xss = require('xss-clean');
 const hpp = require('hpp');
 
@@ -19,28 +19,48 @@ const memeController = require('./controllers/memeController');
 const questController = require('./controllers/questController');
 const chatController = require('./controllers/chatController');
 const adminController = require('./controllers/adminController');
-// Novos Controllers adicionados 👇
 const productController = require('./controllers/productController');
 const configController = require('./controllers/configController');
 const statsController = require('./controllers/statsController');
 
-// --- CONFIGURAÇÃO DO APP ---
 const app = express();
-app.set('trust proxy', 1); // Essencial para VPS
+
+// 1. Configurações Básicas
+app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({
     origin: ["http://localhost:5173", "https://gecapix-v2.vercel.app", /\.vercel\.app$/],
     credentials: true
 }));
 
-// --- LIMITADORES (Anti-Spam) ---
+// 2. Limitadores (Rate Limiting)
 const generalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300 });
 const authLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 20, message: { error: 'Muitas tentativas de login.' } });
 const chatLimiter = rateLimit({ windowMs: 60 * 1000, max: 15, message: { error: 'Mensagens muito rápidas.' } });
 
 app.use('/api', generalLimiter);
 app.use(express.json({ limit: '10kb' }));
-app.use(mongoSanitize());
+
+// 3. SANITIZAÇÃO MANUAL (CORREÇÃO DO ERRO)
+// Em vez de usar a biblioteca que quebra, usamos essa função segura
+app.use((req, res, next) => {
+    const clean = (obj) => {
+        if (!obj || typeof obj !== 'object') return;
+        for (let key in obj) {
+            // Remove chaves que começam com $ (operadores Mongo) ou têm . (acesso profundo)
+            if (key.startsWith('$') || key.includes('.')) {
+                delete obj[key];
+            } else {
+                clean(obj[key]); // Recursivo para objetos aninhados
+            }
+        }
+    };
+    clean(req.body);
+    clean(req.query);
+    clean(req.params);
+    next();
+});
+
 app.use(xss());
 app.use(hpp());
 
@@ -78,8 +98,9 @@ app.post('/api/chat', chatLimiter, chatController.enviarMensagem);
 // 5. ADMINISTRAÇÃO
 app.get('/api/admin/validacao', adminController.getFilaValidacao);
 app.post('/api/admin/validacao', adminController.moderarUsuario);
-// Rota de Usuários (Ainda inline por ser muito simples ou movida futuramente)
-const UsuarioModel = require('./models/Usuario'); // Import rápido só pra essa rota legada
+
+// Rotas Legado/Simples (podem ser movidas depois)
+const UsuarioModel = require('./models/Usuario');
 app.get('/api/admin/usuarios', async (req, res) => {
     try { const u = await UsuarioModel.find().sort({ nome: 1 }); res.json(u); } 
     catch (e) { res.status(500).json({ error: "Erro" }); }
@@ -91,7 +112,7 @@ app.put('/api/admin/usuarios', async (req, res) => {
     catch (e) { res.status(500).json({ error: "Erro" }); }
 });
 
-// 6. ROTAS ORGANIZADAS (As novas!)
+// 6. ROTAS ORGANIZADAS
 app.get('/api/produtos', productController.getProdutos);
 app.post('/api/produtos', productController.createProduto);
 
@@ -106,6 +127,5 @@ cron.schedule('0 21 * * *', () => {
     memeController.finalizarDiaArena();
 }, { timezone: "America/Sao_Paulo" });
 
-// --- START ---
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, '0.0.0.0', () => console.log(`🛡️  Servidor em http://0.0.0.0:${PORT}`));
