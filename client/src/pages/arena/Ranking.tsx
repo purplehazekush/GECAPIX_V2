@@ -59,7 +59,7 @@ export default function ArenaRanking() {
                     onClick={() => setTab('coins')}
                     className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${tab === 'coins' ? 'bg-yellow-600 text-white shadow-lg' : 'text-slate-500'}`}
                 >
-                    MAIS RICOS ($)
+                    GECACOINS ($)
                 </button>
             </div>
 
