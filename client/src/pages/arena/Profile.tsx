@@ -33,10 +33,14 @@ export default function ArenaProfile() {
     });
 
     // Estado Específico do Avatar Pixel
-    const [avatarConfig, setAvatarConfig] = useState({
-        body: 'male_light', hair: 'messy_raven', torso: 'shirt_long_white_longsleeve',
-        legs: 'pants_white_pants_male', feet: 'shoes_brown_shoes_male', hand_r: 'none'
-    });
+    const [avatarConfig, setAvatarConfig] = useState<any>({
+    body: 'male_light', 
+    hair: 'messy_raven', 
+    torso: 'shirt_long_white_longsleeve',
+    legs: 'pants_white_pants_male', 
+    feet: 'shoes_brown_shoes_male', 
+    hand_r: 'none'
+});
 
     useEffect(() => {
         if (dbUser) {
