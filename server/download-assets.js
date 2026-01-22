@@ -6,18 +6,17 @@ const BASE_DIR = path.join(__dirname, '..', 'client', 'public', 'assets', 'avata
 const JSON_OUTPUT = path.join(__dirname, '..', 'client', 'src', 'data', 'avatarAssets.json');
 const TEMP_ZIP = path.join(__dirname, 'lpc_full.zip');
 
-// 🎨 A REGRA DA PINTURA:
-// Roupas/Cabelos: Só queremos bases neutras para pintar via CSS.
-const NEUTRAL_COLORS = ['white', 'gray', 'silver', 'platinum', 'blonde']; 
+// WHITELIST: Só aceitamos arquivos com esses termos para roupas/cabelos
+const ALLOWED_COLORS = ['white', 'gray', 'silver', 'light', 'blonde', 'platinum'];
 
-// Peles: Baixamos as cores reais (pintar pele via CSS fica alienígena)
-const SKIN_TYPES = ['light', 'dark', 'tanned', 'orc', 'skeleton', 'zombie'];
+// EXCEÇÕES: Coisas que DEVEMOS baixar mesmo que tenham cor
+const ALWAYS_KEEP = ['body', 'head', 'wheelchair', 'prosthes', 'crutch', 'cane'];
 
-// Coisas que não queremos baixar de jeito nenhum
-const BLACKLIST = ['slash', 'thrust', 'cast', 'shoot', 'bow', 'climb', 'hurt', 'jump', 'sit', 'emote', 'run', 'spear', 'dagger', 'combat', 'walking'];
+// BLACKLIST: Coisas que quebram o layout
+const BLACKLIST = ['slash', 'thrust', 'cast', 'shoot', 'bow', 'climb', 'hurt', 'jump', 'sit', 'emote', 'run', 'spear', 'dagger', 'combat', 'walking', 'oversize'];
 
 const main = async () => {
-    console.log(`🚀 Iniciando 'The Whitewasher' (Apenas Assets Pintáveis)...`);
+    console.log(`🚀 Iniciando 'O Alvejante' (Filtro Radical de Cores)...`);
 
     if (fs.existsSync(BASE_DIR)) fs.rmSync(BASE_DIR, { recursive: true, force: true });
     
@@ -33,7 +32,7 @@ const main = async () => {
         .on('entry', function (entry) {
             let fileName = entry.path.toLowerCase();
             
-            // Filtro Básico
+            // 1. Filtro Básico de Arquivo
             if (!fileName.includes('spritesheets/') || !fileName.endsWith('.png')) {
                 entry.autodrain(); return;
             }
@@ -41,7 +40,7 @@ const main = async () => {
                 entry.autodrain(); return;
             }
 
-            // Categorização
+            // 2. Categorização Precisa
             let category = '';
             if (fileName.includes('/body/') || fileName.includes('bodies/')) category = 'body';
             else if (fileName.includes('/head/') || fileName.includes('/heads/')) category = 'head';
@@ -50,52 +49,57 @@ const main = async () => {
             else if (fileName.includes('/legs/')) category = 'legs';
             else if (fileName.includes('/feet/')) category = 'feet';
             else if (fileName.includes('wheelchair') || fileName.includes('prosthes')) category = 'accessory';
-            else {
+            
+            if (!category) {
                 entry.autodrain(); return;
             }
 
-            // --- A MÁGICA DO FILTRO DE COR ---
+            // 3. O FILTRO DE COR RADICAL
             let keep = false;
 
-            if (category === 'body' || category === 'head') {
-                // Para corpo/cabeça, aceitamos tons de pele
-                keep = SKIN_TYPES.some(c => fileName.includes(c));
+            // Se for corpo, cabeça ou acessório médico, mantemos as variações originais
+            if (ALWAYS_KEEP.includes(category) || ALWAYS_KEEP.some(k => fileName.includes(k))) {
+                keep = true;
             } else {
-                // Para roupas/cabelo, só aceitamos NEUTROS (Branco/Cinza)
-                // Exceção: Acessórios (cadeiras) podem ter cor, ou itens unicos
-                keep = NEUTRAL_COLORS.some(c => fileName.includes(c)) || category === 'accessory';
+                // Se for roupa/cabelo, SÓ baixa se for branco/cinza
+                keep = ALLOWED_COLORS.some(c => fileName.includes(c));
             }
 
             if (!keep) {
                 entry.autodrain(); return;
             }
-            // ---------------------------------
 
-            // Garante diretório
+            // 4. Preparação do Destino
             const targetDir = path.join(BASE_DIR, category);
             if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
 
-            // Limpa nome
+            // 5. Limpeza do Nome (Remove a cor do nome do arquivo!)
             const parts = fileName.split('/');
             const usefulParts = parts.filter(p => 
                 !['universal-lpc-spritesheet-character-generator-master', 'spritesheets', category, 'walk', 'male', 'female', 'human'].includes(p)
             );
             
-            let prefix = fileName.includes('female') ? 'f' : 'm';
-            if (category === 'hair') prefix = 'h'; // Cabelo as vezes é unissex
+            let prefix = '';
+            if (fileName.includes('female')) prefix = 'f';
+            else if (fileName.includes('male')) prefix = 'm';
+            if (fileName.includes('child')) prefix = 'child';
+            if (fileName.includes('teen')) prefix = 'teen';
 
-            const cleanName = `${prefix}_` + usefulParts.join('_')
-                .replace(/_{2,}/g, '_')
-                .replace('.png', '') // Remove extensão pra limpar
-                .replace(/_white|_gray|_blonde|_light|_dark/g, ''); // Remove a cor do nome (já que vamos pintar)
+            // Removemos as palavras de cor do nome final para evitar duplicatas
+            // Ex: "apron_white.png" vira "apron.png"
+            let finalNamePart = usefulParts.join('_')
+                .replace(/_white|_gray|_silver|_blonde|_light/g, '') 
+                .replace(/_{2,}/g, '_'); 
 
-            // Salva com nome limpo (ex: "m_longsleeve.png" em vez de "m_longsleeve_white.png")
-            entry.pipe(fs.createWriteStream(path.join(targetDir, `${cleanName}.png`)));
+            const cleanName = `${prefix}_${finalNamePart}`.replace(/^_/, ''); // Remove underline inicial se não tiver prefixo
+
+            // Salva
+            entry.pipe(fs.createWriteStream(path.join(targetDir, cleanName)));
             counts[category]++;
         })
         .on('close', () => {
-            console.log(`\n✨ DOWNLOAD LIMPO CONCLUÍDO!`);
-            Object.keys(counts).forEach(k => console.log(`   - ${k}: ${counts[k]} arquivos base`));
+            console.log(`\n✨ LIMPEZA COMPLETA!`);
+            Object.keys(counts).forEach(k => console.log(`   - ${k}: ${counts[k]}`));
             generateAssetIndex();
         });
 };
@@ -120,7 +124,7 @@ function generateAssetIndex() {
     if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
     fs.writeFileSync(JSON_OUTPUT, JSON.stringify(index, null, 2));
-    console.log(`💾 JSON Gerado.`);
+    console.log(`💾 JSON Gerado em: ${JSON_OUTPUT}`);
 }
 
 main();

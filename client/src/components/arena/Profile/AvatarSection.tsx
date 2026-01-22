@@ -1,92 +1,111 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AvatarPixel from '../AvatarPixel'; 
 import AVATAR_ASSETS from '../../../data/avatarAssets.json';
-import { Edit, KeyboardArrowLeft, KeyboardArrowRight, Check, Shuffle } from '@mui/icons-material';
+import { Edit, KeyboardArrowLeft, KeyboardArrowRight, Check, Shuffle, Male, Female, ChildCare } from '@mui/icons-material';
 import type { User } from '../../../context/AuthContext';
 
 interface Props {
     user: User | null;
-    avatarConfig: any; // Aceita objetos { id, color } ou strings
+    avatarConfig: any;
     setAvatarConfig: (config: any) => void;
     isEditing: boolean;
     setIsEditing: (editing: boolean) => void;
 }
 
-// Mapeamento amigável para o usuário
+// Tipos de Corpo Base
+const BODY_TYPES = [
+    { id: 'm', label: 'Masculino', icon: <Male /> },
+    { id: 'f', label: 'Feminino', icon: <Female /> },
+    // { id: 'teen', label: 'Jovem', icon: <EmojiPeople /> }, // Descomente se tiver assets teen
+];
+
 const CATEGORIES = [
-    { id: 'body', label: 'Corpo' },
-    { id: 'head', label: 'Cabeça' },
+    { id: 'body', label: 'Pele' }, // Agora selecionamos a COR da pele aqui
+    { id: 'head', label: 'Rosto' },
     { id: 'hair', label: 'Cabelo' },
     { id: 'torso', label: 'Roupa' },
     { id: 'legs', label: 'Calça' },
     { id: 'feet', label: 'Pés' },
-    { id: 'accessory', label: 'Extra' },
+    { id: 'accessory', label: 'Acessório' },
     { id: 'hand_r', label: 'Mão' }
 ];
 
-// Categorias que permitem pintura (CSS Filter)
 const COLORABLE_CATEGORIES = ['hair', 'torso', 'legs', 'feet'];
-
-// Paleta de Cores Disponíveis
-const COLORS = ['white', 'black', 'red', 'blue', 'green', 'yellow', 'purple', 'pink', 'gold', 'brown'];
-
-const CLASSES_COLORS: Record<string, string> = {
-    'Mago': 'border-purple-500 bg-purple-500/20 text-purple-300',
-    'Vampiro': 'border-red-600 bg-red-600/20 text-red-300',
-    'Atleta': 'border-yellow-500 bg-yellow-500/20 text-yellow-300',
-    'Cientista': 'border-cyan-500 bg-cyan-500/20 text-cyan-300'
-};
+const COLORS = ['white', 'black', 'red', 'blue', 'green', 'yellow', 'purple', 'pink', 'gold', 'brown', 'orange', 'teal'];
 
 export default function AvatarSection({ user, avatarConfig, setAvatarConfig, isEditing, setIsEditing }: Props) {
     const [activeTab, setActiveTab] = useState('hair');
+    const [gender, setGender] = useState('m'); // Estado local para filtrar assets
 
-    // --- HELPER FUNCTIONS (Lidam com string ou objeto {id, color}) ---
-    
+    // Inicializa o gênero baseado no corpo atual
+    useEffect(() => {
+        const currentBody = typeof avatarConfig.body === 'string' ? avatarConfig.body : avatarConfig.body?.id;
+        if (currentBody && currentBody.startsWith('f_')) setGender('f');
+        else setGender('m');
+    }, []);
+
+    // Helper Functions
     const getId = (item: any) => (typeof item === 'string' ? item : item?.id);
     const getColor = (item: any) => (typeof item === 'string' ? 'white' : item?.color || 'white');
 
-    // Atualiza uma camada específica
     const updateLayer = (key: string, newValue: any) => {
         setAvatarConfig((prev: any) => ({ ...prev, [key]: newValue }));
     };
 
-    // Formata o nome para exibição (Remove male_, female_, underlines)
     const formatName = (name: string) => {
         if (!name || name === 'none') return 'Nenhum';
         return name
             .replace(/_/g, ' ')
-            .replace('male ', '')
-            .replace('female ', '')
-            .replace('f ', '')
-            .replace('m ', '')
-            .replace(/\b\w/g, l => l.toUpperCase()); // Capitalize
+            .replace(/^f |^m /g, '') // Remove prefixo de gênero
+            .replace(/\b\w/g, l => l.toUpperCase());
     };
 
-    // --- NAVEGAÇÃO DE ITENS ---
-    const cycleItem = (direction: number) => {
+    // --- LÓGICA DE FILTRAGEM INTELIGENTE ---
+    // Só mostra itens que começam com o prefixo do gênero selecionado (ou unissex)
+    const getFilteredItems = (category: string) => {
         // @ts-ignore
-        const items = AVATAR_ASSETS[activeTab] || [];
+        const allItems: string[] = AVATAR_ASSETS[category] || [];
         
-        if (!items.length) {
-            console.warn(`Categoria vazia: ${activeTab}`);
-            return;
-        }
+        if (category === 'accessory' || category === 'hand_r') return allItems; // Acessórios são universais
 
-        // Pega o ID atual (mesmo que esteja dentro de um objeto)
+        return allItems.filter(item => {
+            if (item.startsWith(gender + '_')) return true; // Ex: m_shirt
+            if (!item.includes('_')) return true; // Itens sem prefixo
+            return false;
+        });
+    };
+
+    // Muda o tipo de corpo e reseta itens incompatíveis
+    const handleGenderChange = (newGender: string) => {
+        setGender(newGender);
+        
+        // Tenta achar um corpo equivalente no novo gênero
+        // @ts-ignore
+        const bodies = AVATAR_ASSETS.body || [];
+        const firstBody = bodies.find((b: string) => b.startsWith(newGender)) || bodies[0];
+        
+        // @ts-ignore
+        const heads = AVATAR_ASSETS.head || [];
+        const firstHead = heads.find((h: string) => h.startsWith(newGender)) || heads[0];
+
+        updateLayer('body', firstBody);
+        updateLayer('head', firstHead);
+    };
+
+    const cycleItem = (direction: number) => {
+        const items = getFilteredItems(activeTab);
+        if (!items.length) return;
+
         const currentId = getId(avatarConfig[activeTab]);
         let index = items.indexOf(currentId);
-        
         if (index === -1) index = 0;
 
         let newIndex = index + direction;
-        
-        // Loop infinito
         if (newIndex >= items.length) newIndex = 0;
         if (newIndex < 0) newIndex = items.length - 1;
 
         const newItemId = items[newIndex];
-
-        // Se a categoria for pintável, preservamos a cor atual ao trocar o item!
+        
         if (COLORABLE_CATEGORIES.includes(activeTab)) {
             const currentColor = getColor(avatarConfig[activeTab]);
             updateLayer(activeTab, { id: newItemId, color: currentColor });
@@ -95,51 +114,31 @@ export default function AvatarSection({ user, avatarConfig, setAvatarConfig, isE
         }
     };
 
-    // --- MUDANÇA DE COR ---
     const setColor = (color: string) => {
         if (!COLORABLE_CATEGORIES.includes(activeTab)) return;
-
         const currentId = getId(avatarConfig[activeTab]);
-        // Salva como objeto { id: 'shirt', color: 'red' }
         updateLayer(activeTab, { id: currentId, color });
     };
 
-    // --- GERAÇÃO ALEATÓRIA ---
     const randomize = () => {
         const newConfig: any = {};
-        
-        // 1. Corpo Aleatório
-        // @ts-ignore
-        const bodies = AVATAR_ASSETS.body || [];
-        const randomBody = bodies.length > 0 ? bodies[Math.floor(Math.random() * bodies.length)] : 'male_light';
-        newConfig.body = randomBody;
+        // Mantém o gênero atual
+        const items = getFilteredItems('body');
+        newConfig.body = items[Math.floor(Math.random() * items.length)];
 
-        // 2. Cabeça Compatível (Se corpo for f_, cabeça tem que ser f_)
-        const genderPrefix = randomBody.startsWith('f_') ? 'f_' : 'm_';
-        // @ts-ignore
-        const heads = (AVATAR_ASSETS.head || []).filter((h: string) => h.startsWith(genderPrefix));
-        // Se não achar cabeça especifica, pega qualquer uma ou a primeira
-        newConfig.head = heads.length > 0 ? heads[Math.floor(Math.random() * heads.length)] : (heads[0] || 'none');
-
-        // 3. Outros itens (com Cores Aleatórias)
-        ['hair', 'torso', 'legs', 'feet', 'accessory', 'hand_r'].forEach(cat => {
-            // @ts-ignore
-            const items = AVATAR_ASSETS[cat] || [];
-            if (items.length > 0) {
-                const item = items[Math.floor(Math.random() * items.length)];
-                
-                // Se for categoria pintável, adiciona cor aleatória
-                if (COLORABLE_CATEGORIES.includes(cat)) {
+        CATEGORIES.forEach(cat => {
+            if (cat.id === 'body') return;
+            const catItems = getFilteredItems(cat.id);
+            if (catItems.length > 0) {
+                const item = catItems[Math.floor(Math.random() * catItems.length)];
+                if (COLORABLE_CATEGORIES.includes(cat.id)) {
                     const color = COLORS[Math.floor(Math.random() * COLORS.length)];
-                    newConfig[cat] = { id: item, color };
+                    newConfig[cat.id] = { id: item, color };
                 } else {
-                    newConfig[cat] = item;
+                    newConfig[cat.id] = item;
                 }
-            } else {
-                newConfig[cat] = 'none';
             }
         });
-        
         setAvatarConfig(newConfig);
     };
 
@@ -154,52 +153,56 @@ export default function AvatarSection({ user, avatarConfig, setAvatarConfig, isE
                     className={`transition-all duration-300 ${isEditing ? 'scale-110 shadow-purple-500/40' : 'shadow-2xl border-slate-600'}`} 
                 />
                 
-                {/* Botão Flutuante de Editar */}
                 <button 
                     onClick={() => setIsEditing(!isEditing)}
                     className={`absolute -bottom-3 -right-3 p-3 rounded-full shadow-lg transition-all text-white z-10 flex items-center justify-center
-                        ${isEditing 
-                            ? 'bg-green-500 hover:bg-green-600 rotate-0' 
-                            : 'bg-cyan-600 hover:scale-110 hover:bg-cyan-500'
-                        }`}
+                        ${isEditing ? 'bg-green-500' : 'bg-cyan-600 hover:scale-110'}`}
                 >
                     {isEditing ? <Check /> : <Edit fontSize="small" />}
                 </button>
 
-                {/* Botão Randomize (Só aparece editando) */}
                 {isEditing && (
                     <button 
                         onClick={randomize}
-                        className="absolute top-2 right-2 p-2 bg-slate-900/80 rounded-full text-purple-400 hover:text-white hover:bg-purple-600 transition-all z-10"
-                        title="Gerar Aleatório"
+                        className="absolute top-2 right-2 p-2 bg-slate-900/80 rounded-full text-purple-400 hover:text-white"
+                        title="Aleatório"
                     >
                         <Shuffle fontSize="small" />
                     </button>
                 )}
             </div>
 
-            {/* INFO BÁSICA (SÓ QUANDO NÃO ESTÁ EDITANDO) */}
+            {/* NOME E LEVEL (Só visualização) */}
             {!isEditing && (
                 <div className="text-center mt-6 animate-fade-in">
-                    <h1 className="text-3xl font-black text-white uppercase tracking-tight drop-shadow-lg">{user?.nome}</h1>
-                    
-                    <div className="flex items-center justify-center gap-2 mt-3">
-                        <span className="bg-slate-900 text-slate-400 text-xs font-mono px-3 py-1 rounded-full border border-slate-700 shadow-inner">
-                            Lvl {Math.floor((user?.xp || 0) / 1000)}
-                        </span>
-                        
-                        <span className={`text-xs font-bold uppercase px-3 py-1 rounded-full border shadow-lg backdrop-blur-sm ${CLASSES_COLORS[user?.classe || 'Mago'] || 'border-slate-500 bg-slate-800'}`}>
-                            {user?.classe || 'Novato'}
-                        </span>
-                    </div>
+                    <h1 className="text-3xl font-black text-white uppercase tracking-tight">{user?.nome}</h1>
+                    <p className="text-xs text-slate-400 font-mono mt-2">Nível {Math.floor((user?.xp || 0) / 1000)}</p>
                 </div>
             )}
 
-            {/* EDITOR (SÓ QUANDO ESTÁ EDITANDO) */}
+            {/* EDITOR */}
             {isEditing && (
-                <div className="w-full mt-8 animate-slide-up">
+                <div className="w-full mt-6 animate-slide-up">
                     
-                    {/* 1. Abas de Categoria */}
+                    {/* 1. SELETOR DE GÊNERO/CORPO (NOVO!) */}
+                    <div className="flex justify-center gap-4 mb-6">
+                        {BODY_TYPES.map(type => (
+                            <button
+                                key={type.id}
+                                onClick={() => handleGenderChange(type.id)}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
+                                    gender === type.id 
+                                    ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300' 
+                                    : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500'
+                                }`}
+                            >
+                                {type.icon}
+                                <span className="text-xs font-bold uppercase">{type.label}</span>
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* 2. ABAS DE CATEGORIA */}
                     <div className="flex overflow-x-auto gap-2 pb-4 px-2 no-scrollbar mask-gradient-x">
                         {CATEGORIES.map(cat => (
                             <button
@@ -207,8 +210,8 @@ export default function AvatarSection({ user, avatarConfig, setAvatarConfig, isE
                                 onClick={() => setActiveTab(cat.id)}
                                 className={`px-4 py-2 rounded-xl text-xs font-bold uppercase whitespace-nowrap transition-all shadow-sm
                                     ${activeTab === cat.id 
-                                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white scale-105 ring-2 ring-purple-400/50' 
-                                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
+                                        ? 'bg-purple-600 text-white ring-2 ring-purple-400/50' 
+                                        : 'bg-slate-800 text-slate-400'
                                     }`}
                             >
                                 {cat.label}
@@ -216,46 +219,32 @@ export default function AvatarSection({ user, avatarConfig, setAvatarConfig, isE
                         ))}
                     </div>
 
-                    {/* 2. Controle de Seleção */}
-                    <div className="bg-slate-900/80 backdrop-blur-md rounded-2xl p-4 border border-slate-700/50 shadow-xl mt-2">
+                    {/* 3. SELETOR DE ITEM (Carrossel) */}
+                    <div className="bg-slate-900/80 rounded-2xl p-4 border border-slate-700/50 shadow-xl mt-2">
                         <div className="flex items-center justify-between gap-4">
-                            
-                            {/* Botão Anterior */}
-                            <button 
-                                onClick={() => cycleItem(-1)} 
-                                className="p-4 bg-slate-800 rounded-xl text-white hover:bg-purple-600 hover:scale-105 active:scale-95 transition-all shadow-lg"
-                            >
+                            <button onClick={() => cycleItem(-1)} className="p-4 bg-slate-800 rounded-xl text-white hover:bg-purple-600 active:scale-95">
                                 <KeyboardArrowLeft />
                             </button>
                             
-                            {/* Nome do Item */}
                             <div className="flex-1 text-center overflow-hidden">
                                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">
                                     {CATEGORIES.find(c => c.id === activeTab)?.label}
                                 </p>
                                 <p className="text-sm text-cyan-400 font-bold truncate px-2 font-mono">
-                                    {/* Exibe o nome formatado do ID atual */}
                                     {formatName(getId(avatarConfig[activeTab]))}
                                 </p>
-                                {/* Contador */}
                                 <p className="text-[9px] text-slate-600 mt-1">
-                                    {/* @ts-ignore */}
-                                    {(AVATAR_ASSETS[activeTab]?.indexOf(getId(avatarConfig[activeTab])) + 1 || 0)} / {/* @ts-ignore */}
-                                    {AVATAR_ASSETS[activeTab]?.length || 0}
+                                    {getFilteredItems(activeTab).indexOf(getId(avatarConfig[activeTab])) + 1} / {getFilteredItems(activeTab).length}
                                 </p>
                             </div>
 
-                            {/* Botão Próximo */}
-                            <button 
-                                onClick={() => cycleItem(1)} 
-                                className="p-4 bg-slate-800 rounded-xl text-white hover:bg-purple-600 hover:scale-105 active:scale-95 transition-all shadow-lg"
-                            >
+                            <button onClick={() => cycleItem(1)} className="p-4 bg-slate-800 rounded-xl text-white hover:bg-purple-600 active:scale-95">
                                 <KeyboardArrowRight />
                             </button>
                         </div>
                     </div>
 
-                    {/* 3. PALETA DE CORES (Novo!) */}
+                    {/* 4. PALETA DE CORES */}
                     {COLORABLE_CATEGORIES.includes(activeTab) && (
                         <div className="mt-4 animate-fade-in">
                             <p className="text-[10px] text-slate-500 font-bold uppercase text-center mb-2">Pintar</p>
@@ -267,7 +256,7 @@ export default function AvatarSection({ user, avatarConfig, setAvatarConfig, isE
                                         className={`w-8 h-8 rounded-full border-2 transition-transform shadow-lg
                                             ${getColor(avatarConfig[activeTab]) === color 
                                                 ? 'border-white scale-110 ring-2 ring-cyan-400' 
-                                                : 'border-slate-600 hover:scale-110 hover:border-slate-400'
+                                                : 'border-slate-600 hover:scale-110'
                                             }
                                         `}
                                         style={{ backgroundColor: color }}
@@ -277,10 +266,6 @@ export default function AvatarSection({ user, avatarConfig, setAvatarConfig, isE
                             </div>
                         </div>
                     )}
-                    
-                    <p className="text-[10px] text-center text-slate-500 mt-6 italic">
-                        Não esqueça de clicar em "Salvar Alterações" lá embaixo!
-                    </p>
                 </div>
             )}
         </div>
