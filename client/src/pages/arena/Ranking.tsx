@@ -12,7 +12,7 @@ export default function ArenaRanking() {
     const fetchRanking = async () => {
         setLoading(true);
         try {
-            const res = await api.get('/api/arena/ranking');
+            const res = await api.get('/arena/ranking');
             setRankingData(res.data);
         } catch (error) { console.error(error); }
         finally { setLoading(false); }

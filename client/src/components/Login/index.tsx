@@ -1,68 +1,59 @@
-// client/src/components/Login/index.tsx
-import { LockOutlined } from '@mui/icons-material'; // Ícone do MUI
-import { Button, Paper, Typography, Box } from '@mui/material';
+import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import GoogleIcon from '@mui/icons-material/Google'; // O MUI tem ícone do Google sim!
+import { Google, GroupAdd } from '@mui/icons-material';
 
 export default function Login() {
   const { signInGoogle } = useAuth();
+  const [codigoConvite, setCodigoConvite] = useState('');
+
+  // Precisamos ajustar o AuthContext para aceitar o código, 
+  // mas por enquanto vamos passar via localStorage para ser mais simples e rápido
+  const handleLogin = async () => {
+    if (codigoConvite) {
+        localStorage.setItem('gecapix_invite_code', codigoConvite.toUpperCase());
+    }
+    await signInGoogle();
+  };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 animate-fade-in">
-      
-      {/* Título Neon (Mantido do Tailwind pois é muito específico) */}
-      <h1 className="font-mono text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)] mb-8">
-        GECAPIX
-      </h1>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 p-6">
+      <div className="w-full max-w-sm space-y-8 text-center">
+        
+        <div>
+          <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 italic">
+            GECAPIX
+          </h1>
+          <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-2">Arena da Automação</p>
+        </div>
 
-      {/* Card usando Paper do MUI com estilização glassmorphism via sx prop ou className */}
-      <Paper 
-        elevation={10} 
-        sx={{ 
-          p: 4, 
-          borderRadius: 4, 
-          bgcolor: 'rgba(255, 255, 255, 0.05)', 
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          maxWidth: 400,
-          width: '100%',
-          textAlign: 'center',
-          color: 'white'
-        }}
-      >
-        <Box className="flex justify-center mb-6">
-             <div className="p-3 bg-cyan-500/10 rounded-full">
-                <LockOutlined sx={{ fontSize: 40, color: '#22d3ee' }} />
-             </div>
-        </Box>
+        <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-2xl space-y-6">
+          
+          {/* CAMPO DE CONVITE */}
+          <div className="space-y-2">
+            <label className="text-[10px] text-slate-500 font-black uppercase flex items-center justify-center gap-1">
+              <GroupAdd sx={{ fontSize: 12 }} /> Possui um código de convite?
+            </label>
+            <input 
+              type="text"
+              placeholder="OPCIONAL (EX: JOAO1234)"
+              value={codigoConvite}
+              onChange={(e) => setCodigoConvite(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-center font-mono focus:border-purple-500 outline-none transition-all"
+            />
+          </div>
 
-        <Typography variant="body2" sx={{ color: '#cbd5e1', fontFamily: 'monospace', mb: 4 }}>
-          Acesso restrito ao sistema de vendas
-        </Typography>
-
-        <Button 
-          variant="contained" 
-          fullWidth
-          size="large"
-          startIcon={<GoogleIcon />}
-          onClick={signInGoogle}
-          sx={{ 
-            bgcolor: 'white', 
-            color: '#0f172a', 
-            fontWeight: 'bold',
-            '&:hover': { bgcolor: '#e2e8f0' }
-          }}
-        >
-          Entrar com Google
-        </Button>
-
-        <Box sx={{ mt: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, color: '#64748b' }}>
-          <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>
-            Ambiente Seguro • GECAPIX V2.0
-          </Typography>
-        </Box>
-
-      </Paper>
+          <button 
+            onClick={handleLogin}
+            className="w-full flex items-center justify-center gap-3 bg-white text-black font-black py-4 rounded-2xl hover:bg-slate-200 transition-all active:scale-95 shadow-xl"
+          >
+            <Google /> ENTRAR COM GOOGLE
+          </button>
+          
+          <p className="text-[9px] text-slate-600 leading-relaxed">
+            Ao entrar, você concorda com as regras da Arena e o sistema de pontuação GecaCoins.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

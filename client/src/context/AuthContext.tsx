@@ -21,24 +21,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const syncWithBackend = async (firebaseUser: FirebaseUser) => {
     try {
+      // Busca o código de convite se houver
+      const inviteCode = localStorage.getItem('gecapix_invite_code');
+      
       const res = await api.post('/auth/login', {
         email: firebaseUser.email,
-        nome: firebaseUser.displayName
+        nome: firebaseUser.displayName,
+        codigo_convite: inviteCode // Enviando para o backend!
       });
 
-      setDbUser(res.data);
+      // Limpa o código para não usar de novo no próximo login
+      localStorage.removeItem('gecapix_invite_code');
 
-      // --- NOVO: Notificar bônus ---
+      setDbUser(res.data);
+      
       if (res.data.mensagem_bonus) {
-        // Pequeno delay para a página carregar
-        setTimeout(() => {
-          alert(`🔥 BÔNUS DIÁRIO: ${res.data.mensagem_bonus}`);
-        }, 1000);
+        setTimeout(() => alert(res.data.mensagem_bonus), 1000);
       }
     } catch (error) {
       console.error("Erro ao sincronizar:", error);
     }
-  };
+};
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
