@@ -1,25 +1,12 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { 
-  type User, 
-  signInWithPopup, 
-  signOut, 
-  onAuthStateChanged 
-} from "firebase/auth";
+import { type User as FirebaseUser, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
 import { auth, googleProvider } from "../lib/firebase";
-import { api } from "../lib/api"; // <--- IMPORTANTE: ADICIONE ISSO
-
-// Tipo do Usuário no MongoDB
-export interface DbUser {
-  _id: string;
-  email: string;
-  nome: string;
-  role: 'admin' | 'membro';
-  status: 'ativo' | 'pendente';
-}
+import { api } from "../lib/api";
+import { type User as DbUser } from "../types"; // <--- IMPORTANDO O TIPO QUE VOCÊ DEFINIU
 
 interface AuthContextType {
-  user: User | null;      // Usuário do Google (Firebase)
-  dbUser: DbUser | null;  // Usuário do Banco (Permissões)
+  user: FirebaseUser | null;
+  dbUser: DbUser | null; // <--- AGORA ELE TEM saldo_coins, xp, etc.
   loading: boolean;
   signInGoogle: () => Promise<void>;
   logout: () => Promise<void>;
@@ -28,21 +15,19 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const [dbUser, setDbUser] = useState<DbUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Função auxiliar para buscar/criar usuário no backend
-  const syncWithBackend = async (firebaseUser: User) => {
+  const syncWithBackend = async (firebaseUser: FirebaseUser) => {
     try {
-      // MUDANÇA AQUI: use api.post e apenas o final da rota
       const res = await api.post('/auth/login', {
         email: firebaseUser.email,
         nome: firebaseUser.displayName
       });
       setDbUser(res.data);
     } catch (error) {
-      console.error("Erro ao sincronizar com backend:", error);
+      console.error("Erro ao sincronizar:", error);
     }
   };
 
@@ -62,12 +47,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInGoogle = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
-      // A sincronização acontece automaticamente no onAuthStateChanged,
-      // mas podemos forçar aqui para garantir atualização imediata da UI
       await syncWithBackend(result.user);
-    } catch (error) {
-      console.error("Erro no login Google:", error);
-    }
+    } catch (error) { console.error(error); }
   };
 
   const logout = async () => {

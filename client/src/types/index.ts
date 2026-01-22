@@ -13,10 +13,31 @@ export interface Pix {
   item_vendido?: string;
   quantidade?: number;
   vendedor_email?: string;
+
+  
 }
 
 export interface Produto {
   _id: string;
   nome: string;
   preco: number;
+}
+
+export interface User {
+  _id: string;
+  nome: string;
+  email: string;
+  role: 'admin' | 'membro';
+  status: 'ativo' | 'pendente';
+  
+  // Campos de Gamification (Garantir que todos estão aqui)
+  saldo_coins: number;
+  xp: number;
+  nivel: number;
+  badges: string[];
+  
+  // ESTES FALTAVAM:
+  sequencia_login: number; 
+  codigo_referencia?: string;
+  indicado_por?: string;
 }
