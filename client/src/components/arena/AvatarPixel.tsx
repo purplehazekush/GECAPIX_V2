@@ -7,7 +7,7 @@ export interface LayerConfig {
 export interface AvatarConfig {
     body?: string;
     head?: string;
-    eyes?: string;   // <--- CAMADA OBRIGATÓRIA PARA TER ROSTO
+    eyes?: string;   // OBRIGATÓRIO
     hair?: LayerConfig | string;
     beard?: LayerConfig | string;
     torso?: LayerConfig | string;
@@ -21,6 +21,7 @@ interface AvatarPixelProps {
     layers: AvatarConfig;
     size?: number; 
     className?: string;
+    direction?: number; // 0=Sul, 1=Oeste, 2=Norte, 3=Leste
 }
 
 const COLOR_FILTERS: Record<string, string> = {
@@ -38,17 +39,28 @@ const COLOR_FILTERS: Record<string, string> = {
     'teal': 'sepia(1) saturate(4) hue-rotate(140deg)'
 };
 
-export default function AvatarPixel({ layers, size = 200, className = '' }: AvatarPixelProps) {
+export default function AvatarPixel({ layers, size = 200, className = '', direction = 2 }: AvatarPixelProps) {
   
-  // --- CONSTANTES RÍGIDAS (A LÓGICA DO LAB) ---
   const FRAME_SIZE = 64;   
   const SHEET_WIDTH = 832; 
   const SHEET_HEIGHT = 1344;
   
-  // A POSIÇÃO CORRETA: Linha 11 (Walk South)
-  const ROW_Y = -640; 
+  // MAPA DE DIREÇÕES DO LPC (Universal Sprite Sheet)
+  // Baseado no padrão:
+  // Linha 8 (index) = Norte (Costas)
+  // Linha 9 (index) = Oeste (Esquerda)
+  // Linha 10 (index) = Sul (Frente)
+  // Linha 11 (index) = Leste (Direita)
+  
+  const DIRECTION_OFFSETS = {
+      0: -512, // Norte (Costas)
+      1: -576, // Oeste
+      2: -640, // Sul (Frente) - PADRÃO
+      3: -704  // Leste
+  };
 
-  // Calcula o Zoom
+  // @ts-ignore
+  const currentOffsetY = DIRECTION_OFFSETS[direction] || -640;
   const scale = size / FRAME_SIZE;
 
   const renderLayer = (folder: string, item: LayerConfig | string | undefined, zIndex: number) => {
@@ -69,16 +81,16 @@ export default function AvatarPixel({ layers, size = 200, className = '' }: Avat
         <div 
             className="animate-walk-x"
             style={{
-                // TRAVA O TAMANHO EM 64px (Isso evita fantasmas)
                 width: `${FRAME_SIZE}px`,
                 height: `${FRAME_SIZE}px`,
-                
                 backgroundImage: `url(/assets/avatar/${folder}/${cleanFile}.png)`,
                 backgroundRepeat: 'no-repeat',
+                
+                // Mapeamento Rígido
                 backgroundSize: `${SHEET_WIDTH}px ${SHEET_HEIGHT}px`,
                 
-                // TRAVA A POSIÇÃO Y (Isso evita mostrar as costas)
-                backgroundPositionY: `${ROW_Y}px`,
+                // AQUI ACONTECE A MÁGICA DO GIRO
+                backgroundPositionY: `${currentOffsetY}px`,
                 backgroundPositionX: '0px',
                 
                 imageRendering: 'pixelated',
@@ -100,33 +112,26 @@ export default function AvatarPixel({ layers, size = 200, className = '' }: Avat
     >
         <div className="absolute inset-0 bg-gradient-to-b from-slate-800 to-slate-950 opacity-90" />
         
-        {/* A "MÁSCARA" DO LAB (Invisível, mas funcional) */}
         <div 
             style={{ 
                 width: `${FRAME_SIZE}px`, 
                 height: `${FRAME_SIZE}px`, 
                 position: 'relative',
-                overflow: 'hidden', // O SEGREDO: Corta tudo que sobra
+                overflow: 'hidden', // Corta os fantasmas
                 transform: `scale(${scale * 0.9}) translateY(5px)`, 
                 transformOrigin: 'center center',
             }}
         >
-            {/* 1. Base */}
+            {/* ORDEM CORRETA DAS CAMADAS */}
             {renderLayer('body', layers.body, 10)}
+            {renderLayer('head', layers.head, 15)}
+            {renderLayer('eyes', layers.eyes, 16)} {/* O ROSTO ESTÁ AQUI */}
+            {renderLayer('beard', layers.beard, 17)}
             
-            {/* 2. Rosto (ESSENCIAL PARA NÃO FICAR VAZIO) */}
-            {renderLayer('head', layers.head, 11)} 
-            {renderLayer('eyes', layers.eyes, 12)} {/* AQUI ESTÁ O ROSTO! */}
-
-            {/* 3. Barba (Opcional) */}
-            {renderLayer('beard', layers.beard, 13)}
-
-            {/* 4. Roupas */}
             {renderLayer('feet', layers.feet, 20)}
             {renderLayer('legs', layers.legs, 30)}
             {renderLayer('torso', layers.torso, 40)}
             
-            {/* 5. Topo */}
             {renderLayer('hair', layers.hair, 50)}
             {renderLayer('accessory', layers.accessory, 55)} 
         </div>
