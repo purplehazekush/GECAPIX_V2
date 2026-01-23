@@ -62,7 +62,7 @@ export default function NewMemeModal({ open, onClose, onRefresh }: Props) {
 
                 <div className="space-y-4">
                     {/* Preview / Seleção de Imagem */}
-                    <label className="block w-full aspect-video bg-slate-950 border-2 border-dashed border-slate-800 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-purple-500 transition-colors overflow-hidden">
+                    <label className="w-full aspect-video bg-slate-950 border-2 border-dashed border-slate-800 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-purple-500 transition-colors overflow-hidden">
                         {image ? (
                             <img src={URL.createObjectURL(image)} className="w-full h-full object-cover" />
                         ) : (

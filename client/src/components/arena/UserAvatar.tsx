@@ -1,5 +1,3 @@
-import { Avatar } from '@mui/material';
-
 interface UserAvatarProps {
   user?: {
     nome?: string;
