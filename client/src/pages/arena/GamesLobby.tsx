@@ -5,7 +5,7 @@ const GAMES = [
     { id: 'velha', nome: 'Jogo da Velha', icon: <Tag fontSize="large"/>, cor: 'from-blue-500 to-cyan-500', desc: 'Clássico rápido' },
     { id: 'xadrez', nome: 'Xadrez', icon: <Grid3x3 fontSize="large"/>, cor: 'from-purple-500 to-indigo-500', desc: 'Estratégia pura' },
     { id: 'damas', nome: 'Damas', icon: <Apps fontSize="large"/>, cor: 'from-red-500 to-orange-500', desc: 'Em breve', disabled: true },
-    { id: 'connect4', nome: 'Connect 4', icon: <SportsEsports fontSize="large"/>, cor: 'from-yellow-500 to-amber-500', desc: 'Em breve', disabled: true },
+    { id: 'connect4', nome: 'Connect 4', icon: <SportsEsports fontSize="large"/>, cor: 'from-yellow-500 to-amber-500', desc: 'Em breve'},
 ];
 
 export default function GamesLobby() {
