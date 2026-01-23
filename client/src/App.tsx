@@ -20,6 +20,8 @@ import ArenaMemes from './pages/arena/Memes';
 import ArenaQuests from './pages/arena/Quests';
 import Laboratorio from './pages/arena/Laboratorio';
 import ValidationPanel from './pages/admin/ValidationPanel';
+import GamesLobby from './pages/arena/GamesLobby'; // <--- IMPORTE ISSO
+import GameRoom from './pages/arena/GameRoom';     // <--- E ISSO
 
 function AppRoutes() {
   const { user, dbUser, loading } = useAuth();
@@ -58,6 +60,8 @@ function AppRoutes() {
         <Route path="memes" element={<ArenaMemes />} />
         <Route path="quests" element={<ArenaQuests />} />
         <Route path="laboratorio" element={<Laboratorio />} />
+        <Route path="games" element={<GamesLobby />} />
+        <Route path="games/:gameId" element={<GameRoom />} />
         
         {/* Rota do Xerife */}
         <Route path="admin/validacao" element={<ValidationPanel />} />

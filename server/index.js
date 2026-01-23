@@ -150,5 +150,40 @@ cron.schedule('0 21 * * *', () => {
     memeController.finalizarDiaArena();
 }, { timezone: "America/Sao_Paulo" });
 
+// --- SOCKET.IO SETUP (SUBSTITUI O app.listen) ---
+const http = require('http');
+const { Server } = require('socket.io');
+const gameController = require('./controllers/gameController'); // Vamos criar já já
+
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: ["http://localhost:5173", "https://gecapix-v2.vercel.app", "http://72.62.87.8"],
+        methods: ["GET", "POST"]
+    }
+});
+
+// Lógica do Socket (Gerenciador de Salas)
+io.on('connection', (socket) => {
+    console.log(`🎮 Jogador conectado: ${socket.id}`);
+
+    // Entrar em uma sala de jogo
+    socket.on('join_game', (data) => gameController.joinGame(io, socket, data));
+
+    // Realizar movimento
+    socket.on('make_move', (data) => gameController.makeMove(io, socket, data));
+
+    // Chat do Jogo
+    socket.on('game_chat', (data) => {
+        io.to(data.roomId).emit('game_chat', data);
+    });
+
+    socket.on('disconnect', () => {
+        console.log('❌ Jogador desconectado:', socket.id);
+        gameController.handleDisconnect(io, socket);
+    });
+});
+
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, '0.0.0.0', () => console.log(`🛡️  Servidor em http://0.0.0.0:${PORT}`));
+// MUITO IMPORTANTE: Mudar de app.listen para server.listen
+server.listen(PORT, '0.0.0.0', () => console.log(`🛡️  Servidor (HTTP + Socket) em http://0.0.0.0:${PORT}`));
