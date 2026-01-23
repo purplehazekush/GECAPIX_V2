@@ -7,7 +7,7 @@ export interface LayerConfig {
 export interface AvatarConfig {
     body?: string;
     head?: string;
-    eyes?: string;   // OBRIGATÓRIO
+    eyes?: string;   
     hair?: LayerConfig | string;
     beard?: LayerConfig | string;
     torso?: LayerConfig | string;
@@ -21,7 +21,7 @@ interface AvatarPixelProps {
     layers: AvatarConfig;
     size?: number; 
     className?: string;
-    direction?: number; // 0=Sul, 1=Oeste, 2=Norte, 3=Leste
+    direction?: number; 
 }
 
 const COLOR_FILTERS: Record<string, string> = {
@@ -45,18 +45,12 @@ export default function AvatarPixel({ layers, size = 200, className = '', direct
   const SHEET_WIDTH = 832; 
   const SHEET_HEIGHT = 1344;
   
-  // MAPA DE DIREÇÕES DO LPC (Universal Sprite Sheet)
-  // Baseado no padrão:
-  // Linha 8 (index) = Norte (Costas)
-  // Linha 9 (index) = Oeste (Esquerda)
-  // Linha 10 (index) = Sul (Frente)
-  // Linha 11 (index) = Leste (Direita)
-  
+  // MAPA DE ROTAÇÃO (Linhas do Sprite Sheet)
   const DIRECTION_OFFSETS = {
-      0: -512, // Norte (Costas)
-      1: -576, // Oeste
-      2: -640, // Sul (Frente) - PADRÃO
-      3: -704  // Leste
+      0: -512, // Costas (Norte)
+      1: -576, // Esquerda (Oeste)
+      2: -640, // Frente (Sul) - Padrão
+      3: -704  // Direita (Leste)
   };
 
   // @ts-ignore
@@ -85,11 +79,9 @@ export default function AvatarPixel({ layers, size = 200, className = '', direct
                 height: `${FRAME_SIZE}px`,
                 backgroundImage: `url(/assets/avatar/${folder}/${cleanFile}.png)`,
                 backgroundRepeat: 'no-repeat',
-                
-                // Mapeamento Rígido
                 backgroundSize: `${SHEET_WIDTH}px ${SHEET_HEIGHT}px`,
                 
-                // AQUI ACONTECE A MÁGICA DO GIRO
+                // O Segredo do Giro e do Alinhamento
                 backgroundPositionY: `${currentOffsetY}px`,
                 backgroundPositionX: '0px',
                 
@@ -117,23 +109,29 @@ export default function AvatarPixel({ layers, size = 200, className = '', direct
                 width: `${FRAME_SIZE}px`, 
                 height: `${FRAME_SIZE}px`, 
                 position: 'relative',
-                overflow: 'hidden', // Corta os fantasmas
+                overflow: 'hidden',
                 transform: `scale(${scale * 0.9}) translateY(5px)`, 
                 transformOrigin: 'center center',
             }}
         >
-            {/* ORDEM CORRETA DAS CAMADAS */}
+            {/* Camadas Essenciais */}
             {renderLayer('body', layers.body, 10)}
             {renderLayer('head', layers.head, 15)}
-            {renderLayer('eyes', layers.eyes, 16)} {/* O ROSTO ESTÁ AQUI */}
-            {renderLayer('beard', layers.beard, 17)}
             
-            {renderLayer('feet', layers.feet, 20)}
+            {/* OLHOS: Z-Index alto e sem filtro de cor para não bugar */}
+            {renderLayer('eyes', layers.eyes, 90)} 
+            
+            {/* Barba por cima do rosto, mas embaixo do cabelo */}
+            {renderLayer('beard', layers.beard, 20)}
+
+            {/* Roupas */}
+            {renderLayer('feet', layers.feet, 25)}
             {renderLayer('legs', layers.legs, 30)}
             {renderLayer('torso', layers.torso, 40)}
             
+            {/* Cabelo e Acessórios por cima de tudo */}
             {renderLayer('hair', layers.hair, 50)}
-            {renderLayer('accessory', layers.accessory, 55)} 
+            {renderLayer('accessory', layers.accessory, 100)} 
         </div>
 
         <style>{`

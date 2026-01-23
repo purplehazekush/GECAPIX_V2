@@ -97,10 +97,7 @@ export default function ArenaProfile() {
                 user={dbUser}
                 avatarConfig={avatarConfig}
                 setAvatarConfig={setAvatarConfig}
-                // ADICIONE ISTO:
-                profileData={formData}
-                setProfileData={setFormData}
-                // ...
+                // ADICIONE ISTO:                // ...
                 isEditing={isAvatarEditing}
                 setIsEditing={setIsAvatarEditing}
             />

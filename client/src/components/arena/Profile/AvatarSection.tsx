@@ -3,15 +3,14 @@ import AvatarPixel from '../AvatarPixel';
 import AVATAR_ASSETS from '../../../data/avatarAssets.json';
 import { 
     Edit, KeyboardArrowLeft, KeyboardArrowRight, Check, Shuffle, 
-    Male, Female, RotateRight, RotateLeft} from '@mui/icons-material';
+    Male, Female, RotateRight, RotateLeft 
+} from '@mui/icons-material';
 import type { User } from '../../../context/AuthContext';
 
 interface Props {
     user: User | null;
     avatarConfig: any;
     setAvatarConfig: (config: any) => void;
-    profileData: any; 
-    setProfileData: (data: any) => void;
     isEditing: boolean;
     setIsEditing: (editing: boolean) => void;
 }
@@ -21,13 +20,14 @@ const BODY_TYPES = [
     { id: 'f', label: 'Feminino', icon: <Female /> }
 ];
 
+// --- APENAS O ESSENCIAL ---
 const CATEGORIES = [
     { id: 'body', label: 'Pele' },
-    { id: 'eyes', label: 'Olhos' },
+    { id: 'eyes', label: 'Rosto' },
     { id: 'hair', label: 'Cabelo' },
     { id: 'beard', label: 'Barba' },
     { id: 'torso', label: 'Roupa' },
-    { id: 'accessory', label: 'Item' }
+    { id: 'accessory', label: 'Extra' }
 ];
 
 const COLORABLE_CATEGORIES = ['hair', 'beard', 'torso'];
@@ -36,21 +36,23 @@ const COLORS = ['white', 'black', 'red', 'blue', 'green', 'yellow', 'purple', 'p
 export default function AvatarSection({ user, avatarConfig, setAvatarConfig, isEditing, setIsEditing }: Props) {
     const [activeTab, setActiveTab] = useState('hair');
     const [gender, setGender] = useState('m');
-    const [direction, setDirection] = useState(2); // 2 = FRENTE (SUL)
+    const [direction, setDirection] = useState(2); // Começa de FRENTE
 
+    // Inicialização e Correção Automática
     useEffect(() => {
         const bodyId = typeof avatarConfig.body === 'string' ? avatarConfig.body : avatarConfig.body?.id;
         if (bodyId && bodyId.startsWith('f_')) setGender('f');
         else setGender('m');
 
-        // AUTO-FIX OLHOS: Se não tiver, coloca o padrão
+        // Garante Olhos
         if (!avatarConfig.eyes || avatarConfig.eyes === 'none') {
              // @ts-ignore
              const eyesList = AVATAR_ASSETS.eyes || [];
-             if (eyesList.length > 0) updateLayer('eyes', eyesList[0]);
+             if (eyesList.length) updateLayer('eyes', eyesList[0]);
         }
     }, [avatarConfig.body]);
 
+    // Helpers
     const getId = (item: any) => (typeof item === 'string' ? item : item?.id);
     const getColor = (item: any) => (typeof item === 'string' ? 'white' : item?.color || 'white');
     const updateLayer = (key: string, val: any) => setAvatarConfig((p: any) => ({ ...p, [key]: val }));
@@ -78,28 +80,36 @@ export default function AvatarSection({ user, avatarConfig, setAvatarConfig, isE
             head: newHead,
             eyes: prev.eyes !== 'none' ? prev.eyes : (eyes[0] || 'none'),
             beard: 'none', 
-            torso: 'none'
+            // Reseta roupa para não bugar
+            torso: 'none',
+            legs: 'none', 
+            feet: 'none'
         }));
     };
 
     const getFilteredItems = (category: string) => {
         // @ts-ignore
         const allItems: string[] = AVATAR_ASSETS[category] || [];
-        if (['accessory', 'eyes'].includes(category)) return allItems;
+        if (['accessory', 'eyes', 'hair'].includes(category)) return allItems; // Unissex
+        
+        // Filtra por gênero
         return allItems.filter(item => item.startsWith(gender + '_') || item.startsWith('u_') || !item.includes('_'));
     };
 
     const cycleItem = (dir: number) => {
         const items = getFilteredItems(activeTab);
         if (!items.length) return;
+        
         const currentId = getId(avatarConfig[activeTab]);
         let index = items.indexOf(currentId);
         if (index === -1) index = 0;
         let newIndex = index + dir;
         if (newIndex >= items.length) newIndex = 0;
         if (newIndex < 0) newIndex = items.length - 1;
+        
         const newItem = items[newIndex];
         
+        // Mantém a cor
         if (COLORABLE_CATEGORIES.includes(activeTab)) {
             updateLayer(activeTab, { id: newItem, color: getColor(avatarConfig[activeTab]) });
         } else {
@@ -116,8 +126,10 @@ export default function AvatarSection({ user, avatarConfig, setAvatarConfig, isE
         const newConfig: any = {};
         const items = getFilteredItems('body');
         newConfig.body = items[Math.floor(Math.random() * items.length)];
+
         const pfx = newConfig.body.startsWith('f_') ? 'f_' : 'm_';
         
+        // Cabeça e Olhos
         // @ts-ignore
         const heads = (AVATAR_ASSETS.head || []).filter(h => h.startsWith(pfx));
         newConfig.head = heads.length > 0 ? heads[Math.floor(Math.random() * heads.length)] : heads[0];
@@ -125,6 +137,7 @@ export default function AvatarSection({ user, avatarConfig, setAvatarConfig, isE
         const eyesList = AVATAR_ASSETS.eyes || [];
         newConfig.eyes = eyesList.length > 0 ? eyesList[Math.floor(Math.random() * eyesList.length)] : 'none';
 
+        // Categorias Visíveis
         CATEGORIES.forEach(cat => {
             if (['body', 'head', 'eyes'].includes(cat.id)) return;
             const catItems = getFilteredItems(cat.id);
@@ -139,16 +152,26 @@ export default function AvatarSection({ user, avatarConfig, setAvatarConfig, isE
                 newConfig[cat.id] = 'none';
             }
         });
+
+        // --- MAGIA OCULTA: Vestir Calças e Botas básicas ---
+        // (O usuário não vê a aba, mas o boneco ganha calças para combinar)
+        // @ts-ignore
+        const legs = AVATAR_ASSETS.legs || [];
+        // @ts-ignore
+        const feet = AVATAR_ASSETS.feet || [];
+        
+        if (legs.length) newConfig.legs = { id: legs[0], color: 'black' }; // Calça preta padrão
+        if (feet.length) newConfig.feet = { id: feet[0], color: 'brown' }; // Bota marrom padrão
+
         setAvatarConfig(newConfig);
     };
 
-    // --- LÓGICA DE ROTAÇÃO (O NOVO LAB) ---
     const rotate = (dir: number) => {
         setDirection(prev => {
-            let newDir = prev + dir;
-            if (newDir > 3) return 0;
-            if (newDir < 0) return 3;
-            return newDir;
+            let n = prev + dir;
+            if (n > 3) return 0;
+            if (n < 0) return 3;
+            return n;
         });
     };
 
@@ -159,7 +182,6 @@ export default function AvatarSection({ user, avatarConfig, setAvatarConfig, isE
                     layers={avatarConfig} 
                     size={240} 
                     className={`transition-all duration-300 ${isEditing ? 'scale-105 shadow-purple-500/30' : 'shadow-2xl border-slate-600'}`} 
-                    // PASSA A DIREÇÃO PARA O MOTOR GRÁFICO
                     direction={direction}
                 />
                 
@@ -171,27 +193,19 @@ export default function AvatarSection({ user, avatarConfig, setAvatarConfig, isE
                 </button>
                 
                 {isEditing && (
-                    <button onClick={randomize} className="absolute top-0 right-0 p-2 bg-slate-800 rounded-bl-xl text-purple-400 hover:text-white" title="Aleatório">
-                        <Shuffle />
-                    </button>
+                    <>
+                        <button onClick={randomize} className="absolute top-0 right-0 p-2 bg-slate-800 rounded-bl-xl text-purple-400 hover:text-white" title="Aleatório">
+                            <Shuffle />
+                        </button>
+                        {/* Botões de Girar */}
+                        <div className="absolute top-1/2 -left-12 -translate-y-1/2">
+                             <button onClick={() => rotate(-1)} className="p-2 bg-slate-800/80 rounded-full text-white hover:bg-cyan-600 shadow-lg"><RotateLeft /></button>
+                        </div>
+                        <div className="absolute top-1/2 -right-12 -translate-y-1/2">
+                             <button onClick={() => rotate(1)} className="p-2 bg-slate-800/80 rounded-full text-white hover:bg-cyan-600 shadow-lg"><RotateRight /></button>
+                        </div>
+                    </>
                 )}
-
-                {/* --- BOTÕES DE ROTAÇÃO (Feature Nova!) --- */}
-                <div className="absolute top-1/2 -left-12 -translate-y-1/2 flex flex-col gap-2">
-                     <button onClick={() => rotate(-1)} className="p-2 bg-slate-800/80 rounded-full text-white hover:bg-cyan-600 shadow-lg">
-                        <RotateLeft />
-                     </button>
-                </div>
-                <div className="absolute top-1/2 -right-12 -translate-y-1/2 flex flex-col gap-2">
-                     <button onClick={() => rotate(1)} className="p-2 bg-slate-800/80 rounded-full text-white hover:bg-cyan-600 shadow-lg">
-                        <RotateRight />
-                     </button>
-                </div>
-                
-                {/* Indicador de Direção */}
-                <div className="absolute top-2 left-2 px-2 py-1 bg-black/50 rounded text-[9px] text-white font-mono uppercase">
-                    {['Costas', 'Esq', 'Frente', 'Dir'][direction]}
-                </div>
             </div>
 
             {!isEditing && (
