@@ -4,8 +4,8 @@ import { SportsEsports, Grid3x3, Tag, Apps } from '@mui/icons-material';
 const GAMES = [
     { id: 'velha', nome: 'Jogo da Velha', icon: <Tag fontSize="large"/>, cor: 'from-blue-500 to-cyan-500', desc: 'Clássico rápido' },
     { id: 'xadrez', nome: 'Xadrez', icon: <Grid3x3 fontSize="large"/>, cor: 'from-purple-500 to-indigo-500', desc: 'Estratégia pura' },
-    { id: 'damas', nome: 'Damas', icon: <Apps fontSize="large"/>, cor: 'from-red-500 to-orange-500', desc: 'Em breve', disabled: true },
-    { id: 'connect4', nome: 'Connect 4', icon: <SportsEsports fontSize="large"/>, cor: 'from-yellow-500 to-amber-500', desc: 'Em breve'},
+    { id: 'damas', nome: 'Damas', icon: <Apps fontSize="large"/>, cor: 'from-red-500 to-orange-500', desc: 'Clássico Imortal' },
+    { id: 'connect4', nome: 'Connect 4', icon: <SportsEsports fontSize="large"/>, cor: 'from-yellow-500 to-amber-500', desc: 'Maior Recompensa'},
 ];
 
 export default function GamesLobby() {
@@ -22,10 +22,8 @@ export default function GamesLobby() {
                 {GAMES.map(game => (
                     <button
                         key={game.id}
-                        disabled={game.disabled}
                         onClick={() => navigate(`/arena/games/${game.id}`)}
-                        className={`relative overflow-hidden rounded-3xl p-6 text-left border border-white/10 transition-all ${
-                            game.disabled ? 'opacity-50 cursor-not-allowed bg-slate-900' : 'bg-slate-900 hover:scale-[1.02] active:scale-95 shadow-xl'
+                        className={`relative overflow-hidden rounded-3xl p-6 text-left border border-white/10 transition-all
                         }`}
                     >
                         {/* Background Gradient */}
@@ -41,8 +39,7 @@ export default function GamesLobby() {
                             </div>
                         </div>
 
-                        {!game.disabled && (
-                            <div className="mt-4 flex items-center gap-2">
+                        <div className="mt-4 flex items-center gap-2">
                                 <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 text-[10px] font-black rounded uppercase">
                                     Valendo Coins
                                 </span>
@@ -50,7 +47,6 @@ export default function GamesLobby() {
                                     +XP
                                 </span>
                             </div>
-                        )}
                     </button>
                 ))}
             </div>

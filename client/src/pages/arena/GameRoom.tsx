@@ -9,23 +9,24 @@ import toast from 'react-hot-toast';
 import TicTacToeBoard from '../../components/arena/games/TicTacToeBoard';
 import ChessBoardWrapper from '../../components/arena/games/ChessBoardWrapper';
 import Connect4Board from '../../components/arena/games/Connect4Board';
+import DamasBoard from '../../components/arena/games/DamasBoard';
 
 // URL DO SOCKET (Ajuste conforme ambiente)
-const SOCKET_URL = window.location.hostname === 'localhost' 
-    ? 'http://localhost:3001' 
+const SOCKET_URL = window.location.hostname === 'localhost'
+    ? 'http://localhost:3001'
     : 'http://72.62.87.8:3001';
 
 export default function GameRoom() {
     const { gameId } = useParams();
     const { dbUser } = useAuth();
     const navigate = useNavigate();
-    
+
     // Estados
     const [socket, setSocket] = useState<Socket | null>(null);
     const [status, setStatus] = useState<'connecting' | 'waiting' | 'playing' | 'finished'>('connecting');
     const [roomId, setRoomId] = useState<string | null>(null);
     const [opponent, setOpponent] = useState<string | null>(null);
-    
+
     const [isMyTurn, setIsMyTurn] = useState(false);
     const [mySymbol, setMySymbol] = useState<any>(null);
     const [boardState, setBoardState] = useState<any>(null);
@@ -58,7 +59,25 @@ export default function GameRoom() {
             if (gameId === 'velha') setMySymbol(souEuOPrimeiro ? 'X' : 'O');
             else if (gameId === 'xadrez') setMySymbol(souEuOPrimeiro ? 'white' : 'black');
             else if (gameId === 'connect4') setMySymbol(souEuOPrimeiro ? 'red' : 'yellow');
-            
+            else if (gameId === 'damas') {
+                // Setup Inicial Damas: 
+                // Linhas 0-2: Peças Pretas ('b')
+                // Linhas 5-7: Peças Vermelhas ('r')
+                const startBoard = Array(64).fill(null);
+                for (let i = 0; i < 24; i++) {
+                    const row = Math.floor(i / 8);
+                    const col = i % 8;
+                    if ((row + col) % 2 === 0) startBoard[i] = 'b'; // Peças Pretas (Inimigo/Topo)
+                }
+                for (let i = 40; i < 64; i++) {
+                    const row = Math.floor(i / 8);
+                    const col = i % 8;
+                    if ((row + col) % 2 === 0) startBoard[i] = 'r'; // Peças Vermelhas (Eu/Baixo)
+                }
+                setBoardState(startBoard);
+                setMySymbol(souEuOPrimeiro ? 'red' : 'black');
+            }
+
             toast.success("VALENDO! 🎮");
         });
 
@@ -107,10 +126,10 @@ export default function GameRoom() {
                         <span>{opponent || '...'}</span>
                     </div>
                     <p className="text-[10px] text-emerald-400 font-bold tracking-widest flex items-center justify-center gap-1 mt-1">
-                        <Bolt sx={{ fontSize: 12 }}/> VALENDO 10 COINS
+                        <Bolt sx={{ fontSize: 12 }} /> VALENDO 10 COINS
                     </p>
                 </div>
-                <div className="w-10"></div> 
+                <div className="w-10"></div>
             </div>
 
             <div className="flex-1 flex flex-col items-center justify-center relative">
@@ -128,29 +147,37 @@ export default function GameRoom() {
                         </div>
 
                         {gameId === 'velha' && boardState && (
-                            <TicTacToeBoard 
-                                board={boardState} 
-                                mySymbol={mySymbol} 
-                                isMyTurn={isMyTurn} 
-                                onMove={handleMove} 
+                            <TicTacToeBoard
+                                board={boardState}
+                                mySymbol={mySymbol}
+                                isMyTurn={isMyTurn}
+                                onMove={handleMove}
                             />
                         )}
 
                         {gameId === 'xadrez' && boardState && (
-                            <ChessBoardWrapper 
-                                fen={boardState} 
-                                myColor={mySymbol} 
-                                isMyTurn={isMyTurn} 
-                                onMove={handleMove} 
+                            <ChessBoardWrapper
+                                fen={boardState}
+                                myColor={mySymbol}
+                                isMyTurn={isMyTurn}
+                                onMove={handleMove}
                             />
                         )}
 
                         {gameId === 'connect4' && boardState && (
-                            <Connect4Board 
-                                board={boardState} 
-                                mySymbol={mySymbol} 
-                                isMyTurn={isMyTurn} 
-                                onMove={handleMove} 
+                            <Connect4Board
+                                board={boardState}
+                                mySymbol={mySymbol}
+                                isMyTurn={isMyTurn}
+                                onMove={handleMove}
+                            />
+                        )}
+                        {gameId === 'damas' && boardState && (
+                            <DamasBoard
+                                board={boardState}
+                                mySymbol={mySymbol}
+                                isMyTurn={isMyTurn}
+                                onMove={handleMove}
                             />
                         )}
                     </>
