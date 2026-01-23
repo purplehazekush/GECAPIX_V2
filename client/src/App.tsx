@@ -61,7 +61,7 @@ function AppRoutes() {
         <Route path="quests" element={<ArenaQuests />} />
         <Route path="laboratorio" element={<Laboratorio />} />
         <Route path="games" element={<GamesLobby />} />
-        <Route path="games/:gameId" element={<GameRoom />} />
+        <Route path="games/play/:roomId" element={<GameRoom />} />
         
         {/* Rota do Xerife */}
         <Route path="admin/validacao" element={<ValidationPanel />} />
