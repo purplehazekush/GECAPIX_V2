@@ -1,167 +1,194 @@
 // server/controllers/gameController.js
 const UsuarioModel = require('../models/Usuario');
 
-// Armazenamento em memória (Rápido para jogos)
-// Estrutura: { roomId: { players: [socketId, socketId], gameType: 'xadrez', boardState: '...', pot: 20, turn: 0 } }
+// Armazenamento em memória
+// Estrutura: { roomId: { id, gameType, players: [], config: { isPrivate, password, timeLimit }, state: {...} } }
 let rooms = {}; 
 
-exports.joinGame = async (io, socket, { gameType, userEmail, betAmount }) => {
+// --- 1. LISTAR SALAS (Para o Lobby) ---
+exports.getRooms = (io, socket) => {
+    // Retorna array simplificado para o front
+    const publicRooms = Object.values(rooms)
+        .filter(r => !r.config.isPrivate && r.players.length < 2) // Apenas públicas e não cheias
+        .map(r => ({
+            id: r.id,
+            gameType: r.gameType,
+            playersCount: r.players.length,
+            bet: r.pot / 2, // Aposta original (aprox)
+            creator: r.playerData[0]?.nome || 'Anônimo'
+        }));
+    
+    socket.emit('rooms_list', publicRooms);
+};
+
+// --- 2. CRIAR SALA CUSTOMIZADA ---
+exports.createRoom = async (io, socket, { gameType, userEmail, betAmount, isPrivate, password, timeLimit }) => {
     try {
-        // Procura uma sala aberta desse jogo
-        let roomId = Object.keys(rooms).find(id => 
-            rooms[id].gameType === gameType && 
-            rooms[id].players.length < 2 &&
-            !rooms[id].isPrivate // Futuro: Salas privadas
-        );
-
-        // Se não achar, cria uma sala
-        if (!roomId) {
-            roomId = `room_${Math.random().toString(36).substr(2, 9)}`;
-            rooms[roomId] = {
-                id: roomId,
-                gameType,
-                players: [],
-                playerData: [], // { email, nome, socketId }
-                boardState: null, // Estado inicial depende do jogo
-                pot: 0,
-                turnIndex: 0
-            };
-        }
-
-        const room = rooms[roomId];
-
-        // Verifica saldo do usuário antes de entrar
         const user = await UsuarioModel.findOne({ email: userEmail });
         if (!user || user.saldo_coins < betAmount) {
-            socket.emit('error', { message: 'Saldo insuficiente para apostar.' });
-            return;
+            return socket.emit('error', { message: 'Saldo insuficiente.' });
         }
 
-        // Adiciona jogador
-        room.players.push(socket.id);
-        room.playerData.push({ 
-            email: userEmail, 
-            nome: user.nome, 
-            socketId: socket.id,
-            avatar: user.avatar_slug 
-        });
-        room.pot += betAmount;
+        const roomId = `room_${Math.random().toString(36).substr(2, 6).toUpperCase()}`; // IDs curtos (ex: A4X9)
+        
+        rooms[roomId] = {
+            id: roomId,
+            gameType,
+            players: [socket.id],
+            playerData: [{ 
+                email: userEmail, 
+                nome: user.nome, 
+                socketId: socket.id,
+                avatar: user.avatar_slug 
+            }],
+            pot: betAmount,
+            turnIndex: 0,
+            boardState: null,
+            // Configurações da Sala
+            config: {
+                isPrivate,
+                password: password || null,
+                timeLimit: timeLimit || 60, // Segundos por turno (Padrão 60)
+            },
+            // Timers (Implementaremos na Bateria B)
+            timers: { [socket.id]: timeLimit || 60 }, 
+            lastMoveTime: Date.now()
+        };
 
         socket.join(roomId);
-
-        // Notifica a sala
-        io.to(roomId).emit('player_joined', { 
-            players: room.playerData, 
-            roomId 
-        });
-
-        // Se encheu (2 jogadores), começa!
-        if (room.players.length === 2) {
-            // Inicializa estado baseado no jogo
-            if (gameType === 'velha') room.boardState = Array(9).fill(null);
-            if (gameType === 'xadrez') room.boardState = 'start'; // FEN string inicial
-
-            io.to(roomId).emit('game_start', {
-                boardState: room.boardState,
-                turn: room.playerData[0].socketId, // Primeiro a entrar começa
-                pot: room.pot
-            });
-            console.log(`🔥 Jogo ${gameType} iniciado na sala ${roomId}. Pote: ${room.pot}`);
-        }
+        socket.emit('room_created', { roomId }); // Avisa o criador que deu certo
+        
+        // Atualiza a lista para todos no lobby
+        io.emit('rooms_update'); 
 
     } catch (e) {
-        console.error("Erro joinGame:", e);
+        console.error("Erro createRoom:", e);
     }
 };
 
+// --- 3. ENTRAR EM SALA ESPECÍFICA ---
+exports.joinSpecificRoom = async (io, socket, { roomId, userEmail, password }) => {
+    const room = rooms[roomId];
+    
+    // Validações
+    if (!room) return socket.emit('error', { message: 'Sala não encontrada.' });
+    if (room.players.length >= 2) return socket.emit('error', { message: 'Sala cheia.' });
+    if (room.config.isPrivate && room.config.password !== password) {
+        return socket.emit('error', { message: 'Senha incorreta.' });
+    }
+
+    const user = await UsuarioModel.findOne({ email: userEmail });
+    // Assume que a aposta é igual a metade do pote atual (o valor que o criador pôs)
+    const betAmount = room.pot; 
+
+    if (!user || user.saldo_coins < betAmount) {
+        return socket.emit('error', { message: 'Saldo insuficiente.' });
+    }
+
+    // Entra
+    room.players.push(socket.id);
+    room.playerData.push({ 
+        email: userEmail, 
+        nome: user.nome, 
+        socketId: socket.id,
+        avatar: user.avatar_slug 
+    });
+    room.timers[socket.id] = room.config.timeLimit; // Inicializa tempo do P2
+    room.pot += betAmount;
+
+    socket.join(roomId);
+
+    // Notifica início
+    io.to(roomId).emit('player_joined', { players: room.playerData, roomId });
+    
+    // Inicia Lógica do Jogo
+    startGameLogic(io, room);
+    
+    // Remove da lista de "disponíveis"
+    io.emit('rooms_update'); 
+};
+
+// --- 4. MOVIMENTOS E REGRAS ---
 exports.makeMove = async (io, socket, { roomId, move, newState }) => {
     const room = rooms[roomId];
     if (!room) return;
 
-    // Validação básica de turno (O Frontend valida as regras do jogo)
     const currentPlayerSocket = room.playerData[room.turnIndex].socketId;
     if (socket.id !== currentPlayerSocket) return;
 
-    // Atualiza estado
+    // --- LÓGICA DE TEMPO (BATERIA B - Placeholder) ---
+    // Aqui vamos descontar o tempo gasto no futuro
+    room.lastMoveTime = Date.now(); 
+
     room.boardState = newState;
-    
-    // Passa a vez
     room.turnIndex = room.turnIndex === 0 ? 1 : 0;
     const nextPlayerSocket = room.playerData[room.turnIndex].socketId;
 
-    // Emite o movimento para o oponente
     io.to(roomId).emit('move_made', {
         move,
         newState,
         nextTurn: nextPlayerSocket
     });
-
-    // CHECK DE VITÓRIA (Simplificado: O Frontend avisa quem ganhou e o Back confere/paga)
-    // Em produção robusta, o Back deve validar a vitória para evitar cheats.
-    // Para MVP, confiamos no sinal do cliente 'game_over'.
 };
 
-// Quando o jogo acaba (Recebe do Front quem ganhou)
-exports.handleGameOver = async (io, roomId, winnerSocketId) => {
-    const room = rooms[roomId];
-    if (!room) return;
-
-    const winner = room.playerData.find(p => p.socketId === winnerSocketId);
-    const loser = room.playerData.find(p => p.socketId !== winnerSocketId);
-
-    if (winner && loser) {
-        // LÓGICA ECONÔMICA (60% do Pote para Vencedor, Perdedor mantém aposta)
-        // Como o perdedor não perde, na verdade o vencedor ganha um bônus da casa.
-        // O Pote é virtual aqui.
-        
-        const premioVencedor = Math.floor(room.pot * 0.60); // Ex: Apostaram 10+10=20. Ganha 12.
-        
-        // Atualiza Vencedor
-        await UsuarioModel.findOneAndUpdate(
-            { email: winner.email },
-            { 
-                $inc: { saldo_coins: premioVencedor, xp: 50 },
-                $push: { extrato: { tipo: 'ENTRADA', valor: premioVencedor, descricao: `Vitória: ${room.gameType}`, data: new Date() } }
-            }
-        );
-
-        // Perdedor ganha XP de consolação
-        await UsuarioModel.findOneAndUpdate(
-            { email: loser.email },
-            { $inc: { xp: 10 } }
-        );
-
-        io.to(roomId).emit('game_over', { 
-            winner: winner.nome, 
-            prize: premioVencedor 
-        });
+// --- AUXILIARES ---
+function startGameLogic(io, room) {
+    if (room.gameType === 'velha') room.boardState = Array(9).fill(null);
+    if (room.gameType === 'xadrez') room.boardState = 'start';
+    if (room.gameType === 'connect4') room.boardState = Array(42).fill(null);
+    if (room.gameType === 'damas') {
+        // Lógica de damas (igual ao anterior)
+        const b = Array(64).fill(null);
+        for(let i=0; i<24; i++) if((Math.floor(i/8)+i%8)%2===0) b[i]='b';
+        for(let i=40; i<64; i++) if((Math.floor(i/8)+i%8)%2===0) b[i]='r';
+        room.boardState = b;
     }
 
-    // Limpa a sala
-    delete rooms[roomId];
-};
-
-exports.handleDisconnect = (io, socket) => {
-    // Achar sala do jogador e cancelar jogo (W.O.)
-    // Implementar depois para evitar travamentos
-};
-
-// Adicione isso ao final do arquivo ou junto aos exports
+    io.to(room.id).emit('game_start', {
+        boardState: room.boardState,
+        turn: room.playerData[0].socketId,
+        pot: room.pot,
+        config: room.config // Envia config para o front saber o tempo
+    });
+    console.log(`🔥 Jogo ${room.gameType} iniciado.`);
+}
 
 exports.handleWinClaim = async (io, socket, { roomId, winnerSymbol, draw }) => {
     const room = rooms[roomId];
     if (!room) return;
-
-    // EMPATE (Draw)
+    
+    // Se for empate
     if (draw) {
         io.to(roomId).emit('game_over', { winner: null, prize: 0, draw: true });
-        // Devolvemos a aposta ou damos XP de consolação (opcional)
         delete rooms[roomId];
+        io.emit('rooms_update');
         return;
     }
 
-    // VITÓRIA
-    // No Xadrez, o cheque-mate é validado pela lib. Na velha, pelo front.
-    // Confiamos no socketId de quem mandou o claim.
-    exports.handleGameOver(io, roomId, socket.id);
+    // Se for vitória (usa o socketId de quem mandou o claim)
+    await processGameOver(io, roomId, socket.id);
 };
+
+async function processGameOver(io, roomId, winnerSocketId) {
+    const room = rooms[roomId];
+    if(!room) return;
+
+    const winner = room.playerData.find(p => p.socketId === winnerSocketId);
+    const loser = room.playerData.find(p => p.socketId !== winnerSocketId);
+
+    if (winner) {
+        const premio = Math.floor(room.pot * 0.60);
+        await UsuarioModel.findOneAndUpdate({ email: winner.email }, { 
+            $inc: { saldo_coins: premio, xp: 50 },
+            $push: { extrato: { tipo: 'ENTRADA', valor: premio, descricao: `Vitória: ${room.gameType}`, data: new Date() } }
+        });
+        
+        if (loser) {
+            await UsuarioModel.findOneAndUpdate({ email: loser.email }, { $inc: { xp: 10 } });
+        }
+
+        io.to(roomId).emit('game_over', { winner: winner.nome, prize: premio });
+    }
+    delete rooms[roomId];
+    io.emit('rooms_update'); // Atualiza lobby
+}

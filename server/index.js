@@ -167,10 +167,14 @@ const io = new Server(server, {
 io.on('connection', (socket) => {
     console.log(`🎮 Jogador conectado: ${socket.id}`);
 
-    // Entrar em uma sala de jogo
-    socket.on('join_game', (data) => gameController.joinGame(io, socket, data));
+    // --- NOVOS EVENTOS DO LOBBY ---
+    socket.on('get_rooms', () => gameController.getRooms(io, socket));
+    
+    socket.on('create_room', (data) => gameController.createRoom(io, socket, data));
+    
+    socket.on('join_specific_room', (data) => gameController.joinSpecificRoom(io, socket, data));
 
-    // Realizar movimento
+    // Mantidos (mas join_game agora é legado, o front novo não usa)
     socket.on('make_move', (data) => gameController.makeMove(io, socket, data));
     socket.on('game_win_claim', (data) => gameController.handleWinClaim(io, socket, data));
 
