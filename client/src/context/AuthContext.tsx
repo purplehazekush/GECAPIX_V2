@@ -1,4 +1,3 @@
-// client/src/context/AuthContext.tsx
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { 
   GoogleAuthProvider, 
@@ -10,7 +9,15 @@ import {
 import { auth } from '../lib/firebase';
 import { api } from '../lib/api';
 
-// 1. ATUALIZANDO A DEFINIÇÃO DO USUÁRIO
+// --- DEFINIÇÃO DE TIPOS ATUALIZADA ---
+export interface ExtratoItem {
+  tipo: 'ENTRADA' | 'SAIDA';
+  valor: number;
+  descricao: string;
+  data: string;
+  referencia_id?: string;
+}
+
 export interface User {
   _id: string;
   email: string;
@@ -21,25 +28,33 @@ export interface User {
   xp: number;
   nivel: number;
   codigo_referencia?: string;
-  // --- NOVOS CAMPOS ADICIONADOS ---
+  
+  // Identidade
   classe?: string;
   materias?: string[];
-  avatar_seed?: string;
+  avatar_slug?: string;
+  avatar_layers?: Record<string, string>;
   bio?: string;
+  
+  // Dados Pessoais
   chave_pix?: string;
   curso?: string;
   comprovante_url?: string;
   validado?: boolean;
   status_profissional?: string;
   equipe_competicao?: string;
-  avatar_layers?: Record<string, string>;
+  
+  // Game
+  missoes_concluidas?: string[];
+  
+  // 🔥 A CORREÇÃO DO ERRO 1 ESTÁ AQUI:
+  extrato?: ExtratoItem[]; 
 }
 
-// 2. ATUALIZANDO O TIPO DO CONTEXTO
 interface AuthContextType {
   user: FirebaseUser | null;
   dbUser: User | null;
-  setDbUser: React.Dispatch<React.SetStateAction<User | null>>; // <--- ADICIONADO
+  setDbUser: React.Dispatch<React.SetStateAction<User | null>>;
   loading: boolean;
   signInGoogle: () => Promise<void>;
   logout: () => Promise<void>;
@@ -49,11 +64,9 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FirebaseUser | null>(null);
-  const [dbUser, setDbUser] = useState<User | null>(null); // Já existia, mas agora vamos exportar
+  const [dbUser, setDbUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ... (funções syncWithBackend e useEffect mantêm iguais) ...
-  
   const syncWithBackend = async (firebaseUser: FirebaseUser) => {
       try {
         const inviteCode = localStorage.getItem('gecapix_invite_code');
@@ -63,9 +76,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           codigo_convite: inviteCode
         });
         localStorage.removeItem('gecapix_invite_code');
-        setDbUser(res.data); // Isso atualiza o estado
+        setDbUser(res.data);
         if (res.data.mensagem_bonus) {
-          setTimeout(() => alert(res.data.mensagem_bonus), 1000);
+          // Pequeno hack para usar alert ou toast aqui se quiser, ou deixar pro componente
+           console.log("Bonus:", res.data.mensagem_bonus);
         }
       } catch (error) {
         console.error("Erro ao sincronizar:", error);
@@ -95,7 +109,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setDbUser(null);
   };
 
-  // 3. EXPORTANDO O SETDBUSER NO VALUE
   return (
     <AuthContext.Provider value={{ user, dbUser, setDbUser, loading, signInGoogle, logout }}>
       {children}

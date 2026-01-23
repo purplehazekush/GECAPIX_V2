@@ -1,34 +1,86 @@
-// client/src/pages/arena/Quests.tsx
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
+import toast from 'react-hot-toast';
 import {
     CheckCircle,
     MonetizationOn,
     MilitaryTech,
-    Bolt // Trocamos Zap por Bolt
+    Bolt,
+    ArrowForward,
+    Redeem
 } from '@mui/icons-material';
-// Removi o RadioButtonUnchecked que não estava sendo usado
 import { CircularProgress } from '@mui/material';
 
 export default function ArenaQuests() {
-    const { dbUser } = useAuth();
+    const { dbUser, setDbUser } = useAuth(); // setDbUser para atualizar saldo na hora
+    const navigate = useNavigate();
     const [quests, setQuests] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [claiming, setClaiming] = useState<string | null>(null);
 
-    useEffect(() => {
+    const fetchQuests = () => {
         if (dbUser?.email) {
             api.get(`arena/quests?email=${dbUser.email}`)
-                .then(res => {
+                .then((res: any) => {
                     setQuests(res.data);
                     setLoading(false);
                 })
                 .catch(() => setLoading(false));
         }
+    };
+
+    useEffect(() => {
+        fetchQuests();
     }, [dbUser]);
 
+    const handleClaim = async (quest: any) => {
+        // Se tem rota de ação e não é verificação manual, leva o usuário lá
+        if (quest.rota_acao && !quest.concluida && quest.id !== 'm2') {
+            navigate(quest.rota_acao);
+            return;
+        }
+
+        // Tenta Reivindicar (Para m2 ou outras manuais)
+        setClaiming(quest.id);
+        const toastId = toast.loading("Verificando missão...");
+
+        try {
+            const res = await api.post('arena/quests/claim', {
+                email: dbUser?.email,
+                questId: quest.id
+            });
+
+            // Sucesso!
+            toast.success(res.data.message || "Recompensa resgatada!", { id: toastId });
+            
+            // Atualiza a lista e o saldo do usuário localmente
+            fetchQuests();
+            if (dbUser) {
+                setDbUser({
+                    ...dbUser,
+                    saldo_coins: dbUser.saldo_coins + quest.premio_coins,
+                    xp: dbUser.xp + quest.premio_xp
+                });
+            }
+
+        } catch (error: any) {
+            // Se der erro (ex: ainda não fez), avisa
+            const msg = error.response?.data?.error || "Você ainda não completou os requisitos.";
+            toast.error(msg, { id: toastId });
+            
+            // Se for erro de requisito, redireciona para fazer
+            if (quest.rota_acao) {
+                setTimeout(() => navigate(quest.rota_acao), 1500);
+            }
+        } finally {
+            setClaiming(null);
+        }
+    };
+
     return (
-        <div className="p-4 pb-28 space-y-8 animate-fade-in">
+        <div className="p-4 pb-28 space-y-8 animate-fade-in max-w-lg mx-auto">
 
             {/* HEADER GAMER */}
             <header className="relative py-4">
@@ -36,69 +88,83 @@ export default function ArenaQuests() {
                 <h2 className="text-3xl font-black italic text-white uppercase tracking-tighter leading-none">
                     Missões <span className="text-yellow-500 text-sm block not-italic font-mono">SEASON 01</span>
                 </h2>
+                <p className="text-xs text-slate-400 mt-2">Complete tarefas para ganhar XP e Coins.</p>
             </header>
 
             {loading ? (
                 <div className="flex justify-center py-20"><CircularProgress color="secondary" /></div>
             ) : (
-                <div className="grid gap-4">
+                <div className="grid gap-5">
                     {quests.map((q) => (
                         <div
                             key={q.id}
-                            className={`relative overflow-hidden p-5 rounded-3xl border-2 transition-all active:scale-[0.98] ${q.concluida
-                                    ? 'bg-emerald-500/5 border-emerald-500/20 grayscale-[0.5]'
-                                    : 'bg-slate-900 border-slate-800 shadow-xl shadow-black/20'
-                                }`}
+                            className={`relative overflow-hidden p-5 rounded-3xl border-2 transition-all ${
+                                q.concluida
+                                    ? 'bg-emerald-900/10 border-emerald-500/20 grayscale-[0.3]'
+                                    : 'bg-slate-900 border-slate-800 shadow-xl shadow-black/40'
+                            }`}
                         >
-                            {/* Badge de Recompensa no canto */}
-                            <div className="absolute top-0 right-0 bg-slate-800 px-3 py-1 rounded-bl-2xl border-l border-b border-slate-700 flex items-center gap-2">
+                            {/* Badge de Recompensa */}
+                            <div className="absolute top-0 right-0 bg-slate-800 px-3 py-1 rounded-bl-2xl border-l border-b border-slate-700 flex items-center gap-2 z-10">
                                 <MonetizationOn className="text-yellow-500" sx={{ fontSize: 14 }} />
-                                <span className="text-[10px] font-black text-white">{q.premio}</span>
+                                <span className="text-[10px] font-black text-white">{q.premio_coins}</span>
                             </div>
 
-                            <div className="flex gap-4">
-                                <div className={`mt-1 rounded-xl w-12 h-12 flex items-center justify-center shrink-0 ${q.concluida ? 'bg-emerald-500/20 text-emerald-500' : 'bg-slate-950 text-slate-600'
-                                    }`}>
+                            <div className="flex gap-4 items-start relative z-10">
+                                {/* Ícone Status */}
+                                <div className={`mt-1 rounded-xl w-12 h-12 flex items-center justify-center shrink-0 border ${
+                                    q.concluida 
+                                        ? 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30' 
+                                        : 'bg-slate-800 text-slate-500 border-slate-700'
+                                }`}>
                                     {q.concluida ? <CheckCircle /> : <MilitaryTech />}
                                 </div>
 
-                                <div className="space-y-1 pr-10">
-                                    <h3 className={`text-sm font-black uppercase tracking-tight ${q.concluida ? 'text-emerald-400 line-through' : 'text-white'}`}>
+                                <div className="space-y-1 flex-1">
+                                    <h3 className={`text-sm font-black uppercase tracking-tight ${q.concluida ? 'text-emerald-400 line-through decoration-emerald-500/50' : 'text-white'}`}>
                                         {q.titulo}
                                     </h3>
-                                    <p className="text-[11px] text-slate-500 font-medium leading-tight italic">
+                                    <p className="text-[11px] text-slate-400 font-medium leading-tight">
                                         {q.desc}
                                     </p>
                                 </div>
                             </div>
 
-                            {/* Barra de Status Inferior */}
-                            <div className="mt-4 flex items-center justify-between border-t border-slate-800/50 pt-3">
+                            {/* BARRA DE AÇÃO */}
+                            <div className="mt-5 flex items-center justify-between border-t border-slate-800/50 pt-3 relative z-10">
                                 <div className="flex items-center gap-1 text-[9px] font-black text-purple-400 uppercase">
-                                    <Bolt sx={{ fontSize: 10 }} /> +{q.xp} XP EXPERIÊNCIA
+                                    <Bolt sx={{ fontSize: 10 }} /> +{q.premio_xp} XP
                                 </div>
-                                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${q.concluida ? 'bg-emerald-500/20 text-emerald-500' : 'bg-slate-800 text-slate-400'
-                                    }`}>
-                                    {q.concluida ? 'COMPLETA' : 'EM ANDAMENTO'}
-                                </span>
+                                
+                                {q.concluida ? (
+                                    <span className="text-[9px] font-black uppercase px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 flex items-center gap-1">
+                                        <CheckCircle sx={{ fontSize: 10 }} /> COMPLETA
+                                    </span>
+                                ) : (
+                                    <button
+                                        onClick={() => handleClaim(q)}
+                                        disabled={claiming === q.id}
+                                        className={`text-[9px] font-black uppercase px-4 py-1.5 rounded-full flex items-center gap-1 transition-all active:scale-95 ${
+                                            q.id === 'm2' // Missão de Investir (Manual Check)
+                                                ? 'bg-yellow-600 hover:bg-yellow-500 text-white shadow-lg shadow-yellow-600/20'
+                                                : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-600/20'
+                                        }`}
+                                    >
+                                        {claiming === q.id ? (
+                                            <CircularProgress size={10} color="inherit" />
+                                        ) : (
+                                            <>
+                                                {q.id === 'm2' ? <Redeem sx={{ fontSize: 12 }} /> : <ArrowForward sx={{ fontSize: 12 }} />}
+                                                {q.id === 'm2' ? 'RESGATAR' : 'IR FAZER'}
+                                            </>
+                                        )}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ))}
                 </div>
             )}
-
-            {/* FOOTER - TEASER DE SKINS */}
-            <div className="bg-gradient-to-br from-indigo-900/40 to-slate-900 p-6 rounded-3xl border border-indigo-500/20 relative overflow-hidden">
-                <div className="relative z-10">
-                    <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest mb-1">Loja de Avatares</p>
-                    <h4 className="text-white font-black text-sm uppercase italic">Skins exclusivas chegando...</h4>
-                    <div className="mt-4 flex -space-x-2">
-                        {[1, 2, 3, 4].map(i => (
-                            <div key={i} className="w-8 h-8 rounded-full bg-slate-800 border-2 border-slate-900 flex items-center justify-center text-[10px]">👤</div>
-                        ))}
-                    </div>
-                </div>
-            </div>
         </div>
     );
 }
