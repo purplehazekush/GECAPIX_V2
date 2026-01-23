@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../../context/AuthContext';
-import { ArrowBack, Bolt, ContentCopy } from '@mui/icons-material';
+import { ArrowBack, ContentCopy } from '@mui/icons-material';
 import toast from 'react-hot-toast';
 
 // Componentes
