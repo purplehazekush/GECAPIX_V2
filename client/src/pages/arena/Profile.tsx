@@ -71,11 +71,14 @@ export default function ArenaProfile() {
         try {
             const arrayMaterias = formData.materias.split(',').filter(m => m.trim().length > 0);
 
+            // Dentro de handleSave em ArenaProfile.tsx
             const payload = {
                 email: dbUser?.email,
                 ...formData,
                 materias: arrayMaterias,
-                avatar_layers: avatarConfig
+                // SE o avatarConfig tiver slug, enviamos como avatar_slug. Se for layers antigas, enviamos layers.
+                avatar_slug: avatarConfig.slug || dbUser?.avatar_slug,
+                avatar_layers: avatarConfig // Mantém por segurança
             };
 
             const res = await api.put('arena/perfil', payload);

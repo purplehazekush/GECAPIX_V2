@@ -1,280 +1,116 @@
-// client/src/components/arena/Profile/AvatarSection.tsx
-import { useState, useEffect } from 'react';
-import AvatarPixel from '../AvatarPixel'; 
-import AVATAR_ASSETS from '../../../data/avatarAssets.json';
-import { 
-    Edit, KeyboardArrowLeft, KeyboardArrowRight, Check, Shuffle, 
-    Male, Female, RotateRight, RotateLeft 
-} from '@mui/icons-material';
-import type { User } from '../../../context/AuthContext';
+import { useState } from 'react';
+import { Edit, CheckCircle } from '@mui/icons-material';
 
-interface Props {
-    user: User | null;
-    avatarConfig: any;
-    setAvatarConfig: (config: any) => void;
-    isEditing: boolean;
-    setIsEditing: (editing: boolean) => void;
-}
-
-const BODY_TYPES = [
-    { id: 'm', label: 'Masculino', icon: <Male /> },
-    { id: 'f', label: 'Feminino', icon: <Female /> }
+// Lista de Personagens Disponíveis (Seeds do DiceBear)
+const PERSONAGENS = [
+  { id: 'mago', nome: 'O Arcano', desc: 'Sabedoria antiga' },
+  { id: 'guerreiro', nome: 'Tanker', desc: 'Força bruta' },
+  { id: 'ladino', nome: 'CyberPunk', desc: 'Agilidade digital' },
+  { id: 'king', nome: 'Veterano', desc: 'Liderança nata' },
+  { id: 'scientist', nome: 'Cientista', desc: 'QI 200+' },
+  { id: 'robot', nome: 'Droid', desc: 'Automação total' },
+  { id: 'ninja', nome: 'Shadow', desc: 'Silencioso' },
+  { id: 'business', nome: 'Trader', desc: 'Foco no lucro' },
+  { id: 'student', nome: 'Calouro', desc: 'Apenas começando' },
+  { id: 'zombie', nome: 'Madrugador', desc: 'Sem dormir' },
 ];
 
-// --- APENAS O ESSENCIAL ---
-const CATEGORIES = [
-    { id: 'body', label: 'Pele' },
-    { id: 'eyes', label: 'Rosto' },
-    { id: 'hair', label: 'Cabelo' },
-    { id: 'beard', label: 'Barba' },
-    { id: 'torso', label: 'Roupa' },
-    { id: 'accessory', label: 'Extra' }
-];
+export default function AvatarSection({ user, isEditing, setIsEditing, setAvatarConfig }: any) {
+  // Estado local para visualização imediata antes de salvar
+  const [selectedSlug, setSelectedSlug] = useState(user?.avatar_slug || 'student');
 
-const COLORABLE_CATEGORIES = ['hair', 'beard', 'torso'];
-const COLORS = ['white', 'black', 'red', 'blue', 'green', 'yellow', 'purple', 'pink', 'gold', 'brown', 'orange', 'teal'];
+  const handleSelect = (slug: string) => {
+    setSelectedSlug(slug);
+    // Atualiza o estado pai para quando clicar em "Salvar" no Profile.tsx
+    // Nota: Estamos usando o campo 'avatar_slug' no backend agora
+    setAvatarConfig({ slug: slug }); 
+  };
 
-export default function AvatarSection({ user, avatarConfig, setAvatarConfig, isEditing, setIsEditing }: Props) {
-    const [activeTab, setActiveTab] = useState('hair');
-    const [gender, setGender] = useState('m');
-    const [direction, setDirection] = useState(2); // Começa de FRENTE
+  const currentSlug = isEditing ? selectedSlug : (user?.avatar_slug || 'student');
+  const avatarUrl = `https://api.dicebear.com/9.x/pixel-art/svg?seed=${currentSlug}`;
 
-    // Inicialização e Correção Automática
-    useEffect(() => {
-        const bodyId = typeof avatarConfig.body === 'string' ? avatarConfig.body : avatarConfig.body?.id;
-        if (bodyId && bodyId.startsWith('f_')) setGender('f');
-        else setGender('m');
-
-        // Garante Olhos
-        if (!avatarConfig.eyes || avatarConfig.eyes === 'none') {
-             // @ts-ignore
-             const eyesList = AVATAR_ASSETS.eyes || [];
-             if (eyesList.length) updateLayer('eyes', eyesList[0]);
-        }
-    }, [avatarConfig.body]);
-
-    // Helpers
-    const getId = (item: any) => (typeof item === 'string' ? item : item?.id);
-    const getColor = (item: any) => (typeof item === 'string' ? 'white' : item?.color || 'white');
-    const updateLayer = (key: string, val: any) => setAvatarConfig((p: any) => ({ ...p, [key]: val }));
-
-    const formatName = (name: string) => {
-        if (!name || name === 'none') return 'Nenhum';
-        return name.replace(/_/g, ' ').replace(/^f |^m |^u /g, '').replace(/\b\w/g, c => c.toUpperCase());
-    };
-
-    const handleGenderChange = (newGender: string) => {
-        setGender(newGender);
-        // @ts-ignore
-        const bodies = AVATAR_ASSETS.body || [];
-        // @ts-ignore
-        const heads = AVATAR_ASSETS.head || [];
-        // @ts-ignore
-        const eyes = AVATAR_ASSETS.eyes || [];
-
-        const newBody = bodies.find((b: string) => b.startsWith(newGender + '_')) || bodies[0];
-        const newHead = heads.find((h: string) => h.startsWith(newGender + '_')) || heads[0];
-
-        setAvatarConfig((prev: any) => ({
-            ...prev,
-            body: newBody,
-            head: newHead,
-            eyes: prev.eyes !== 'none' ? prev.eyes : (eyes[0] || 'none'),
-            beard: 'none', 
-            // Reseta roupa para não bugar
-            torso: 'none',
-            legs: 'none', 
-            feet: 'none'
-        }));
-    };
-
-    const getFilteredItems = (category: string) => {
-        // @ts-ignore
-        const allItems: string[] = AVATAR_ASSETS[category] || [];
-        if (['accessory', 'eyes', 'hair'].includes(category)) return allItems; // Unissex
-        
-        // Filtra por gênero
-        return allItems.filter(item => item.startsWith(gender + '_') || item.startsWith('u_') || !item.includes('_'));
-    };
-
-    const cycleItem = (dir: number) => {
-        const items = getFilteredItems(activeTab);
-        if (!items.length) return;
-        
-        const currentId = getId(avatarConfig[activeTab]);
-        let index = items.indexOf(currentId);
-        if (index === -1) index = 0;
-        let newIndex = index + dir;
-        if (newIndex >= items.length) newIndex = 0;
-        if (newIndex < 0) newIndex = items.length - 1;
-        
-        const newItem = items[newIndex];
-        
-        // Mantém a cor
-        if (COLORABLE_CATEGORIES.includes(activeTab)) {
-            updateLayer(activeTab, { id: newItem, color: getColor(avatarConfig[activeTab]) });
-        } else {
-            updateLayer(activeTab, newItem);
-        }
-    };
-
-    const setColor = (color: string) => {
-        if (!COLORABLE_CATEGORIES.includes(activeTab)) return;
-        updateLayer(activeTab, { id: getId(avatarConfig[activeTab]), color });
-    };
-
-    const randomize = () => {
-        const newConfig: any = {};
-        const items = getFilteredItems('body');
-        newConfig.body = items[Math.floor(Math.random() * items.length)];
-
-        const pfx = newConfig.body.startsWith('f_') ? 'f_' : 'm_';
-        
-        // Cabeça e Olhos
-        // @ts-ignore
-        const heads = (AVATAR_ASSETS.head || []).filter(h => h.startsWith(pfx));
-        newConfig.head = heads.length > 0 ? heads[Math.floor(Math.random() * heads.length)] : heads[0];
-        // @ts-ignore
-        const eyesList = AVATAR_ASSETS.eyes || [];
-        newConfig.eyes = eyesList.length > 0 ? eyesList[Math.floor(Math.random() * eyesList.length)] : 'none';
-
-        // Categorias Visíveis
-        CATEGORIES.forEach(cat => {
-            if (['body', 'head', 'eyes'].includes(cat.id)) return;
-            const catItems = getFilteredItems(cat.id);
-            if (catItems.length) {
-                const item = catItems[Math.floor(Math.random() * catItems.length)];
-                if (COLORABLE_CATEGORIES.includes(cat.id)) {
-                    newConfig[cat.id] = { id: item, color: COLORS[Math.floor(Math.random() * COLORS.length)] };
-                } else {
-                    newConfig[cat.id] = item;
-                }
-            } else {
-                newConfig[cat.id] = 'none';
-            }
-        });
-
-        // --- MAGIA OCULTA: Vestir Calças e Botas básicas ---
-        // (O usuário não vê a aba, mas o boneco ganha calças para combinar)
-        // @ts-ignore
-        const legs = AVATAR_ASSETS.legs || [];
-        // @ts-ignore
-        const feet = AVATAR_ASSETS.feet || [];
-        
-        if (legs.length) newConfig.legs = { id: legs[0], color: 'black' }; // Calça preta padrão
-        if (feet.length) newConfig.feet = { id: feet[0], color: 'brown' }; // Bota marrom padrão
-
-        setAvatarConfig(newConfig);
-    };
-
-    const rotate = (dir: number) => {
-        setDirection(prev => {
-            let n = prev + dir;
-            if (n > 3) return 0;
-            if (n < 0) return 3;
-            return n;
-        });
-    };
-
-    return (
-        <div className="flex flex-col items-center py-6 relative w-full">
-            <div className="relative group">
-                <AvatarPixel 
-                    layers={avatarConfig} 
-                    size={240} 
-                    className={`transition-all duration-300 ${isEditing ? 'scale-105 shadow-purple-500/30' : 'shadow-2xl border-slate-600'}`} 
-                    direction={direction}
-                />
-                
-                <button 
-                    onClick={() => setIsEditing(!isEditing)}
-                    className={`absolute -bottom-3 -right-3 p-3 rounded-full shadow-lg text-white z-10 transition-transform hover:scale-110 ${isEditing ? 'bg-green-500' : 'bg-cyan-600'}`}
-                >
-                    {isEditing ? <Check /> : <Edit />}
-                </button>
-                
-                {isEditing && (
-                    <>
-                        <button onClick={randomize} className="absolute top-0 right-0 p-2 bg-slate-800 rounded-bl-xl text-purple-400 hover:text-white" title="Aleatório">
-                            <Shuffle />
-                        </button>
-                        {/* Botões de Girar */}
-                        <div className="absolute top-1/2 -left-12 -translate-y-1/2">
-                             <button onClick={() => rotate(-1)} className="p-2 bg-slate-800/80 rounded-full text-white hover:bg-cyan-600 shadow-lg"><RotateLeft /></button>
-                        </div>
-                        <div className="absolute top-1/2 -right-12 -translate-y-1/2">
-                             <button onClick={() => rotate(1)} className="p-2 bg-slate-800/80 rounded-full text-white hover:bg-cyan-600 shadow-lg"><RotateRight /></button>
-                        </div>
-                    </>
-                )}
-            </div>
-
-            {!isEditing && (
-                <div className="text-center mt-6 animate-fade-in">
-                    <h1 className="text-3xl font-black text-white uppercase tracking-tight">{user?.nome}</h1>
-                    <p className="text-xs text-slate-400 font-mono mt-2">Nível {Math.floor((user?.xp || 0) / 1000)}</p>
-                </div>
-            )}
-
-            {isEditing && (
-                <div className="w-full mt-6 animate-slide-up space-y-6">
-                    <div className="flex justify-center gap-4">
-                        {BODY_TYPES.map(type => (
-                            <button
-                                key={type.id}
-                                onClick={() => handleGenderChange(type.id)}
-                                className={`flex items-center gap-2 px-6 py-3 rounded-xl border transition-all ${
-                                    gender === type.id 
-                                    ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300 shadow-lg' 
-                                    : 'bg-slate-800 border-slate-700 text-slate-400'
-                                }`}
-                            >
-                                {type.icon}
-                                <span className="text-xs font-bold uppercase">{type.label}</span>
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="flex overflow-x-auto gap-2 pb-2 px-1 no-scrollbar mask-gradient-x">
-                        {CATEGORIES.map(cat => (
-                            <button
-                                key={cat.id}
-                                onClick={() => setActiveTab(cat.id)}
-                                className={`px-4 py-2 rounded-lg text-xs font-bold uppercase whitespace-nowrap transition-all
-                                    ${activeTab === cat.id ? 'bg-purple-600 text-white shadow-lg' : 'bg-slate-800 text-slate-400'}`}
-                            >
-                                {cat.label}
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="bg-slate-900/80 rounded-2xl p-4 border border-slate-700/50 shadow-xl">
-                        <div className="flex items-center justify-between gap-4">
-                            <button onClick={() => cycleItem(-1)} className="p-4 bg-slate-800 rounded-xl text-white hover:bg-purple-600 active:scale-95"><KeyboardArrowLeft /></button>
-                            <div className="flex-1 text-center overflow-hidden">
-                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">{CATEGORIES.find(c => c.id === activeTab)?.label}</p>
-                                <p className="text-sm text-cyan-400 font-bold truncate px-2 font-mono">{formatName(getId(avatarConfig[activeTab]))}</p>
-                                <p className="text-[9px] text-slate-600 mt-1">{getFilteredItems(activeTab).indexOf(getId(avatarConfig[activeTab])) + 1} / {getFilteredItems(activeTab).length}</p>
-                            </div>
-                            <button onClick={() => cycleItem(1)} className="p-4 bg-slate-800 rounded-xl text-white hover:bg-purple-600 active:scale-95"><KeyboardArrowRight /></button>
-                        </div>
-                        {COLORABLE_CATEGORIES.includes(activeTab) && (
-                            <div className="mt-4 border-t border-slate-800 pt-4">
-                                <div className="flex gap-2 justify-center flex-wrap">
-                                    {COLORS.map(color => (
-                                        <button
-                                            key={color}
-                                            onClick={() => setColor(color)}
-                                            className={`w-8 h-8 rounded-full border-2 transition-transform shadow-md hover:scale-110 ${getColor(avatarConfig[activeTab]) === color ? 'border-white scale-110 ring-2 ring-cyan-400' : 'border-slate-600'}`}
-                                            style={{ backgroundColor: color }}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
+  return (
+    <div className="flex flex-col items-center gap-6">
+      
+      {/* 1. VISUALIZAÇÃO DO AVATAR (HOLO CARD) */}
+      <div className="relative group">
+        <div className={`
+          w-40 h-40 rounded-full bg-slate-900 border-4 overflow-hidden relative z-10 transition-all duration-500
+          ${isEditing ? 'border-yellow-400 shadow-[0_0_30px_rgba(250,204,21,0.3)] scale-110' : 'border-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.3)]'}
+        `}>
+          <img 
+            src={avatarUrl} 
+            alt="Avatar" 
+            className="w-full h-full object-cover bg-slate-800"
+          />
+          
+          {/* Botão de Editar (Só aparece se não estiver editando) */}
+          {!isEditing && (
+            <button 
+              onClick={() => setIsEditing(true)}
+              className="absolute bottom-0 right-0 bg-yellow-500 text-slate-900 p-2 rounded-full shadow-lg hover:scale-110 transition-transform"
+            >
+              <Edit />
+            </button>
+          )}
         </div>
-    );
+
+        {/* Efeito de Aura */}
+        <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-full blur-2xl opacity-20 group-hover:opacity-40 transition-opacity -z-10"></div>
+      </div>
+
+      {/* Texto de Status */}
+      <div className="text-center space-y-1">
+        <h2 className="text-2xl font-black italic text-white uppercase tracking-wider">
+           {isEditing ? 'QUEM É VOCÊ?' : (user?.nome?.split(' ')[0] || 'Recruta')}
+        </h2>
+        <p className="text-xs text-indigo-300 font-mono bg-indigo-500/10 px-3 py-1 rounded-full inline-block border border-indigo-500/20">
+           {isEditing ? 'Selecione seu Driver' : `Classe: ${user?.classe || 'Novato'}`}
+        </p>
+      </div>
+
+      {/* 2. GRID DE SELEÇÃO (Só aparece editando) */}
+      {isEditing && (
+        <div className="w-full bg-slate-900/50 p-4 rounded-2xl border border-slate-800 animate-fade-in mt-2">
+            <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
+                {PERSONAGENS.map((p) => {
+                    const isSelected = selectedSlug === p.id;
+                    return (
+                        <button
+                            key={p.id}
+                            onClick={() => handleSelect(p.id)}
+                            className={`
+                                relative aspect-square rounded-xl overflow-hidden border-2 transition-all active:scale-95 group
+                                ${isSelected 
+                                    ? 'border-yellow-400 bg-yellow-400/10 shadow-lg shadow-yellow-400/20 scale-105 z-10' 
+                                    : 'border-slate-700 bg-slate-800 opacity-60 hover:opacity-100 hover:border-slate-500'
+                                }
+                            `}
+                        >
+                            <img 
+                                src={`https://api.dicebear.com/9.x/pixel-art/svg?seed=${p.id}`} 
+                                className="w-full h-full object-cover" 
+                                alt={p.nome}
+                            />
+                            {isSelected && (
+                                <div className="absolute top-1 right-1 text-yellow-400 bg-slate-900 rounded-full p-0.5 shadow-sm">
+                                    <CheckCircle sx={{ fontSize: 12 }} />
+                                </div>
+                            )}
+                            {/* Tooltip simples */}
+                            <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-[8px] text-white py-0.5 text-center opacity-0 group-hover:opacity-100 transition-opacity truncate px-1">
+                                {p.nome}
+                            </div>
+                        </button>
+                    )
+                })}
+            </div>
+            
+            <p className="text-[10px] text-center text-slate-500 mt-4 italic">
+                Mais skins serão liberadas em eventos especiais.
+            </p>
+        </div>
+      )}
+    </div>
+  );
 }
