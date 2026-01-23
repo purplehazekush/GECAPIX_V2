@@ -5,29 +5,29 @@ import { useAuth } from '../../context/AuthContext';
 import { ArrowBack, Bolt } from '@mui/icons-material';
 import toast from 'react-hot-toast';
 
-// Componentes Limpos
+// Componentes
 import TicTacToeBoard from '../../components/arena/games/TicTacToeBoard';
 import ChessBoardWrapper from '../../components/arena/games/ChessBoardWrapper';
 import Connect4Board from '../../components/arena/games/Connect4Board';
 
-const SOCKET_URL = 'http://72.62.87.8:3001';
+// URL DO SOCKET (Ajuste conforme ambiente)
+const SOCKET_URL = window.location.hostname === 'localhost' 
+    ? 'http://localhost:3001' 
+    : 'http://72.62.87.8:3001';
 
 export default function GameRoom() {
     const { gameId } = useParams();
     const { dbUser } = useAuth();
     const navigate = useNavigate();
     
-    // Conexão
+    // Estados
     const [socket, setSocket] = useState<Socket | null>(null);
     const [status, setStatus] = useState<'connecting' | 'waiting' | 'playing' | 'finished'>('connecting');
     const [roomId, setRoomId] = useState<string | null>(null);
     const [opponent, setOpponent] = useState<string | null>(null);
     
-    // Estado do Turno
     const [isMyTurn, setIsMyTurn] = useState(false);
     const [mySymbol, setMySymbol] = useState<any>(null);
-
-    // Estado Geral do Tabuleiro (Pode ser array ou string FEN)
     const [boardState, setBoardState] = useState<any>(null);
 
     useEffect(() => {
@@ -55,7 +55,6 @@ export default function GameRoom() {
             setIsMyTurn(souEuOPrimeiro);
             setBoardState(data.boardState);
 
-            // Definição de Símbolos por Jogo
             if (gameId === 'velha') setMySymbol(souEuOPrimeiro ? 'X' : 'O');
             else if (gameId === 'xadrez') setMySymbol(souEuOPrimeiro ? 'white' : 'black');
             else if (gameId === 'connect4') setMySymbol(souEuOPrimeiro ? 'red' : 'yellow');
@@ -76,12 +75,13 @@ export default function GameRoom() {
             setTimeout(() => navigate('/arena/games'), 4000);
         });
 
+        // Cleanup
         return () => { newSocket.disconnect(); };
-    }, []);
+    }, [gameId, dbUser, navigate]);
 
-    // Função Genérica de Envio de Movimento
-    const handleMove = (newState: any, winnerSymbol: any, isDraw: boolean) => {
-        // Atualiza visualmente para ser snappy (Otimista)
+    // Função Unificada de Movimento
+    // Usamos 'any' aqui para aceitar tanto string (Chess) quanto array (Outros)
+    const handleMove = (newState: any, winnerSymbol: string | null, isDraw: boolean) => {
         setBoardState(newState);
         setIsMyTurn(false);
 
@@ -127,7 +127,6 @@ export default function GameRoom() {
                             {isMyTurn ? "SUA VEZ" : "AGUARDE"}
                         </div>
 
-                        {/* RENDERIZAÇÃO ORGANIZADA */}
                         {gameId === 'velha' && boardState && (
                             <TicTacToeBoard 
                                 board={boardState} 
