@@ -1,3 +1,4 @@
+// server/controllers/configController.js
 const ConfigModel = require('../models/Config');
 
 exports.getModoAberto = async (req, res) => {

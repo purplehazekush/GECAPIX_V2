@@ -1,3 +1,4 @@
+// server/controllers/productController.js
 const ProdutoModel = require('../models/Produto');
 
 exports.getProdutos = async (req, res) => {

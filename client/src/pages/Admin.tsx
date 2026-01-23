@@ -1,3 +1,4 @@
+// client/src/pages/Admin.tsx
 import { useEffect, useState } from 'react';
 import { 
   Shield, CheckCircle, Cancel, Person, AddCircle, 

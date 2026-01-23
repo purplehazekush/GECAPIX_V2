@@ -1,3 +1,4 @@
+// client/src/lib/api.ts
 /*import axios from 'axios';
 
 // Cria uma instância do Axios já com o endereço certo

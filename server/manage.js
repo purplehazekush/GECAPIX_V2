@@ -1,3 +1,4 @@
+// server/manage.js
 require('dotenv').config();
 const mongoose = require('mongoose');
 const Usuario = require('./models/Usuario');

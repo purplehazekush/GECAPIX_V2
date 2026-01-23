@@ -1,3 +1,4 @@
+// server/models/Config.js
 const mongoose = require('mongoose');
 
 const ConfigSchema = new mongoose.Schema({

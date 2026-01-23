@@ -1,3 +1,4 @@
+// client/src/types/index.ts
 export interface Pix {
   _id: string;
   remetente_extraido: string;

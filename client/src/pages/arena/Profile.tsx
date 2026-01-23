@@ -1,3 +1,4 @@
+// client/src/pages/arena/Profile.tsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';

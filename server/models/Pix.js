@@ -1,3 +1,4 @@
+// server/models/Pix.js
 const mongoose = require('mongoose');
 
 const PixSchema = new mongoose.Schema({

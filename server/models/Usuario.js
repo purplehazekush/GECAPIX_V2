@@ -1,3 +1,4 @@
+// server/models/Usuario.js
 const mongoose = require('mongoose');
 
 const UsuarioSchema = new mongoose.Schema({
@@ -6,11 +7,21 @@ const UsuarioSchema = new mongoose.Schema({
     role: { type: String, default: 'membro' },
     status: { type: String, default: 'pendente' },
     
-    // --- GAMIFICATION ---
-    saldo_coins: { type: Number, default: 0 },
+    // --- GAMIFICATION & ECONOMIA (O COFRE) ---
+    saldo_coins: { type: Number, default: 0 }, // Mantemos Number, mas cuidado com decimais
     xp: { type: Number, default: 0 },
     nivel: { type: Number, default: 1 },
     badges: [String],
+
+    // 🔥 NOVO: LEDGER (O Rastro do Dinheiro)
+    // Isso permite responder: "Você gastou 50 coins no Meme X dia tal"
+    extrato: [{
+        tipo: { type: String, enum: ['ENTRADA', 'SAIDA'] },
+        valor: Number,
+        descricao: String, // Ex: "Cashback Cantina", "Voto Meme", "Transferência"
+        referencia_id: String, // ID do Pix, do Meme ou do Usuário destino
+        data: { type: Date, default: Date.now }
+    }],
 
     // --- ENGENHARIA SOCIAL ---
     codigo_referencia: { type: String, unique: true },
@@ -20,16 +31,15 @@ const UsuarioSchema = new mongoose.Schema({
     ultimo_login: { type: Date },
     sequencia_login: { type: Number, default: 0 },
 
-    // --- IDENTIDADE & LAB ---
+    // --- IDENTIDADE ---
     classe: { type: String, default: 'Novato' },
-    avatar_seed: String,
+    avatar_slug: { type: String, default: 'default' }, // MUDANÇA: De 'avatar_seed' para 'avatar_slug' (mickey, einstein...)
     bio: String,
     
-    // O IMPORTANTE TÁ AQUI 👇
-    materias: { type: [String], default: [] }, // Array de Strings
+    materias: { type: [String], default: [] }, 
     hobbies: [String],
 
-    // --- NOVOS DADOS ---
+    // --- DADOS ADICIONAIS ---
     chave_pix: { type: String, default: '' },
     curso: { type: String, default: '' },
     comprovante_url: { type: String },
@@ -40,7 +50,7 @@ const UsuarioSchema = new mongoose.Schema({
     missoes_concluidas: { type: [String], default: [] }
 });
 
-// Hook para gerar código de convite
+// Hook para gerar código de convite (Mantido igual)
 UsuarioSchema.pre('save', async function() {
     if (!this.codigo_referencia && this.nome) {
         const nomeLimpo = this.nome.split(' ')[0].replace(/[^a-zA-Z]/g, '');

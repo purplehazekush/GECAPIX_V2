@@ -1,3 +1,4 @@
+// client/src/components/charts/PaymentMethodChart.tsx
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const COLORS = ['#22d3ee', '#34d399']; // Cyan (Pix) e Green (Dinheiro)

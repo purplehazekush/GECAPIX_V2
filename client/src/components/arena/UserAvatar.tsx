@@ -1,3 +1,4 @@
+// client/src/components/arena/UserAvatar.tsx
 import { type User } from '../../types';
 
 interface AvatarProps {

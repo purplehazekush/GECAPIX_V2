@@ -1,3 +1,4 @@
+// client/src/components/arena/AvatarPixel.tsx
 import { useMemo } from 'react';
 
 export interface LayerConfig {

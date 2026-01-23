@@ -1,3 +1,4 @@
+// server/controllers/adminController.js
 const UsuarioModel = require('../models/Usuario');
 
 // Lista quem mandou comprovante mas ainda não foi validado

@@ -1,3 +1,4 @@
+// client/src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth, AuthProvider } from './context/AuthContext';
 import { Toaster } from 'react-hot-toast'; // <--- 1. IMPORT NOVO

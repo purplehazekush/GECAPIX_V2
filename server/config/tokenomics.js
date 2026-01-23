@@ -1,3 +1,4 @@
+// server/config/tokenomics.js
 module.exports = {
     // RECOMPENSAS EM COINS (Dinheiro)
     COINS: {

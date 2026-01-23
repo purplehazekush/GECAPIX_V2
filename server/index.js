@@ -1,3 +1,4 @@
+// server/index.js
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -107,6 +108,7 @@ app.get('/api/arena/ranking', arenaController.getRanking);
 app.get('/api/arena/perfil/:id', arenaController.getPerfilPublico);
 app.put('/api/arena/perfil', arenaController.updatePerfil);
 app.get('/api/arena/quests', questController.getQuests);
+app.post('/api/arena/quests/claim', questController.claimQuest);
 
 // 🔥 ROTA FALTANTE ADICIONADA AQUI 🔥
 // Certifique-se que no arenaController existe a função 'transferirCoins' (ou o nome que você deu)

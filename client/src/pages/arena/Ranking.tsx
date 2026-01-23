@@ -1,3 +1,4 @@
+// client/src/pages/arena/Ranking.tsx
 import { useEffect, useState } from 'react';
 import { EmojiEvents, Star, MonetizationOn, Refresh } from '@mui/icons-material';
 import { api } from '../../lib/api';

@@ -1,3 +1,4 @@
+// client/src/components/NewSaleModal.tsx
 import { useState } from 'react';
 import { 
   Dialog, DialogTitle, DialogContent, DialogActions, 

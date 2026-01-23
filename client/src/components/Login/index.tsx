@@ -1,3 +1,4 @@
+// client/src/components/Login/index.tsx
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Google, GroupAdd } from '@mui/icons-material';

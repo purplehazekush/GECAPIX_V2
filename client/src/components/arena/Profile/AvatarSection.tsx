@@ -1,3 +1,4 @@
+// client/src/components/arena/Profile/AvatarSection.tsx
 import { useState, useEffect } from 'react';
 import AvatarPixel from '../AvatarPixel'; 
 import AVATAR_ASSETS from '../../../data/avatarAssets.json';

@@ -1,3 +1,4 @@
+// client/src/pages/arena/Laboratorio.tsx
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';

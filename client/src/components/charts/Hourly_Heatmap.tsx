@@ -1,3 +1,4 @@
+// client/src/components/charts/Hourly_Heatmap.tsx
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 export default function HourlyHeatmap({ data }: { data: any[] }) {

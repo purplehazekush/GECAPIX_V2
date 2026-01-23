@@ -1,3 +1,4 @@
+// client/src/components/Layout/index.tsx
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { AppBar, Toolbar, Typography, Button, IconButton, Box } from '@mui/material';
 import { Logout, BarChart, List, AdminPanelSettings } from '@mui/icons-material';

@@ -1,3 +1,4 @@
+// server/models/Meme.js
 const mongoose = require('mongoose');
 
 const MemeSchema = new mongoose.Schema({

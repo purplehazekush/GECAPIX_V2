@@ -1,3 +1,4 @@
+// client/src/pages/Feed.tsx
 import { useEffect, useState } from 'react';
 import {
     Refresh, Add, LocalAtm, Pix as PixIcon,

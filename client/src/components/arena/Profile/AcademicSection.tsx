@@ -1,3 +1,4 @@
+// client/src/components/arena/Profile/AcademicSection.tsx
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { School, CloudUpload } from '@mui/icons-material';

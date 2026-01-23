@@ -1,3 +1,4 @@
+// client/src/pages/Blocked.tsx
 import { LockClock } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 

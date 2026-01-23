@@ -1,3 +1,4 @@
+// client/src/components/arena/Chat/ChatInput.tsx
 import { Send, AttachFile } from '@mui/icons-material';
 import { CircularProgress } from '@mui/material';
 

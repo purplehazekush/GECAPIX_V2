@@ -1,3 +1,4 @@
+// server/controllers/statsController.js
 const PixModel = require('../models/Pix');
 
 exports.getStats = async (req, res) => {

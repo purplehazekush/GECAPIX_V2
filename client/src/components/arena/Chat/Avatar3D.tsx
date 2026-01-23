@@ -1,3 +1,4 @@
+// client/src/components/arena/Chat/Avatar3D.tsx
 import { AvatarCreator, type AvatarCreatorConfig } from '@readyplayerme/react-avatar-creator'; // Para editar
 import { useState } from 'react';
 import { Close } from '@mui/icons-material';

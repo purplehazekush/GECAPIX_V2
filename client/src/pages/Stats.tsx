@@ -1,3 +1,4 @@
+// client/src/pages/Stats.tsx
 import { useEffect, useState } from 'react';
 import { api } from "../lib/api";
 import { AttachMoney, ShowChart, EmojiEvents, Groups } from '@mui/icons-material';

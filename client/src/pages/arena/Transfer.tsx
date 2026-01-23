@@ -1,3 +1,4 @@
+// client/src/pages/arena/Transfer.tsx
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast'; // <--- O Toast bonito

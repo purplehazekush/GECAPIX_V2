@@ -1,3 +1,4 @@
+// client/src/components/ui/ImageViewer.tsx
 import { Close } from '@mui/icons-material';
 
 interface ImageViewerProps {

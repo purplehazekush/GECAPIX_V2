@@ -1,3 +1,4 @@
+// client/src/components/arena/Chat/MessageBubble.tsx
 import { PictureAsPdf, Download } from '@mui/icons-material';
 
 interface MessageBubbleProps {
