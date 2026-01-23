@@ -145,3 +145,23 @@ exports.handleDisconnect = (io, socket) => {
     // Achar sala do jogador e cancelar jogo (W.O.)
     // Implementar depois para evitar travamentos
 };
+
+// Adicione isso ao final do arquivo ou junto aos exports
+
+exports.handleWinClaim = async (io, socket, { roomId, winnerSymbol, draw }) => {
+    const room = rooms[roomId];
+    if (!room) return;
+
+    // EMPATE (Draw)
+    if (draw) {
+        io.to(roomId).emit('game_over', { winner: null, prize: 0, draw: true });
+        // Devolvemos a aposta ou damos XP de consolação (opcional)
+        delete rooms[roomId];
+        return;
+    }
+
+    // VITÓRIA
+    // No Xadrez, o cheque-mate é validado pela lib. Na velha, pelo front.
+    // Confiamos no socketId de quem mandou o claim.
+    exports.handleGameOver(io, roomId, socket.id);
+};

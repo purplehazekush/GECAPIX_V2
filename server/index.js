@@ -172,6 +172,7 @@ io.on('connection', (socket) => {
 
     // Realizar movimento
     socket.on('make_move', (data) => gameController.makeMove(io, socket, data));
+    socket.on('game_win_claim', (data) => gameController.handleWinClaim(io, socket, data));
 
     // Chat do Jogo
     socket.on('game_chat', (data) => {
