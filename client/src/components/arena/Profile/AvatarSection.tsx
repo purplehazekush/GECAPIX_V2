@@ -19,14 +19,14 @@ const BODY_TYPES = [
     { id: 'f', label: 'Feminino', icon: <Female /> }
 ];
 
-// ABAS SIMPLIFICADAS
+// CATEGORIAS OTIMIZADAS (Eyes adicionado)
 const CATEGORIES = [
     { id: 'body', label: 'Pele' },
-    { id: 'head', label: 'Rosto' },
+    { id: 'eyes', label: 'Olhos' }, // AQUI O ROSTO
     { id: 'hair', label: 'Cabelo' },
-    { id: 'beard', label: 'Barba' }, // NOVO
+    { id: 'beard', label: 'Barba' },
     { id: 'torso', label: 'Roupa' },
-    { id: 'accessory', label: 'Acessório' }
+    { id: 'accessory', label: 'Item' }
 ];
 
 const COLORABLE_CATEGORIES = ['hair', 'beard', 'torso'];
@@ -36,19 +36,21 @@ export default function AvatarSection({ user, avatarConfig, setAvatarConfig, isE
     const [activeTab, setActiveTab] = useState('hair');
     const [gender, setGender] = useState('m');
 
-    // Inicialização
+    // Inicialização Inteligente
     useEffect(() => {
         const bodyId = typeof avatarConfig.body === 'string' ? avatarConfig.body : avatarConfig.body?.id;
         if (bodyId && bodyId.startsWith('f_')) setGender('f');
         else setGender('m');
         
-        // Garante que tenha olhos se não tiver
-        if (!avatarConfig.eyes) {
+        // AUTO-FIX: Se não tiver olhos, coloca o primeiro da lista!
+        if (!avatarConfig.eyes || avatarConfig.eyes === 'none') {
              // @ts-ignore
-             const eyes = AVATAR_ASSETS.eyes || [];
-             if (eyes.length) updateLayer('eyes', eyes[0]);
+             const eyesList = AVATAR_ASSETS.eyes || [];
+             if (eyesList.length > 0) {
+                 updateLayer('eyes', eyesList[0]);
+             }
         }
-    }, [avatarConfig]);
+    }, [avatarConfig.body]); // Roda quando o corpo muda
 
     // Helpers
     const getId = (item: any) => (typeof item === 'string' ? item : item?.id);
@@ -67,8 +69,6 @@ export default function AvatarSection({ user, avatarConfig, setAvatarConfig, isE
         const bodies = AVATAR_ASSETS.body || [];
         // @ts-ignore
         const heads = AVATAR_ASSETS.head || [];
-        // @ts-ignore
-        const eyes = AVATAR_ASSETS.eyes || [];
 
         const newBody = bodies.find((b: string) => b.startsWith(newGender + '_')) || bodies[0];
         const newHead = heads.find((h: string) => h.startsWith(newGender + '_')) || heads[0];
@@ -77,8 +77,8 @@ export default function AvatarSection({ user, avatarConfig, setAvatarConfig, isE
             ...prev,
             body: newBody,
             head: newHead,
-            eyes: eyes[0] || 'none', // Garante olhos
-            beard: 'none', // Reseta barba ao trocar genero
+            // Mantemos os olhos atuais se possível, ou resetamos se necessário
+            beard: 'none', 
             torso: 'none'
         }));
     };
@@ -86,10 +86,12 @@ export default function AvatarSection({ user, avatarConfig, setAvatarConfig, isE
     const getFilteredItems = (category: string) => {
         // @ts-ignore
         const allItems: string[] = AVATAR_ASSETS[category] || [];
+        
+        // Olhos e Acessórios são universais
         if (['accessory', 'eyes'].includes(category)) return allItems;
         
-        // Filtra pelo gênero atual + itens unissex (u_)
-        return allItems.filter(item => item.startsWith(gender + '_') || item.startsWith('u_') || !item.includes('_'));
+        // Outros filtramos por gênero (m_ ou f_)
+        return allItems.filter(item => item.startsWith(gender + '_') || !item.includes('_'));
     };
 
     const cycleItem = (direction: number) => {
@@ -131,12 +133,13 @@ export default function AvatarSection({ user, avatarConfig, setAvatarConfig, isE
         const heads = (AVATAR_ASSETS.head || []).filter(h => h.startsWith(pfx));
         newConfig.head = heads.length > 0 ? heads[Math.floor(Math.random() * heads.length)] : heads[0];
         
+        // Garante Olhos
         // @ts-ignore
         const eyesList = AVATAR_ASSETS.eyes || [];
         newConfig.eyes = eyesList.length > 0 ? eyesList[Math.floor(Math.random() * eyesList.length)] : 'none';
 
         CATEGORIES.forEach(cat => {
-            if (['body', 'head'].includes(cat.id)) return;
+            if (['body', 'head', 'eyes'].includes(cat.id)) return;
             const catItems = getFilteredItems(cat.id);
             if (catItems.length) {
                 const item = catItems[Math.floor(Math.random() * catItems.length)];
@@ -160,6 +163,7 @@ export default function AvatarSection({ user, avatarConfig, setAvatarConfig, isE
                     size={240} 
                     className={`transition-all duration-300 ${isEditing ? 'scale-105 shadow-purple-500/30' : 'shadow-2xl border-slate-600'}`} 
                 />
+                
                 <button 
                     onClick={() => setIsEditing(!isEditing)}
                     className={`absolute -bottom-3 -right-3 p-3 rounded-full shadow-lg text-white z-10 transition-transform hover:scale-110 ${isEditing ? 'bg-green-500' : 'bg-cyan-600'}`}

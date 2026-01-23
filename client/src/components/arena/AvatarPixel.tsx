@@ -7,12 +7,14 @@ export interface LayerConfig {
 export interface AvatarConfig {
     body?: string;
     head?: string;
-    eyes?: string;   // NOVO: Olhos
-    beard?: LayerConfig | string; // NOVO: Barba (pintável)
+    eyes?: string;   // <--- CAMADA OBRIGATÓRIA PARA TER ROSTO
     hair?: LayerConfig | string;
+    beard?: LayerConfig | string;
     torso?: LayerConfig | string;
+    legs?: LayerConfig | string;
+    feet?: LayerConfig | string;
     accessory?: LayerConfig | string;
-    // Removemos legs/feet/hand_r do frontend para simplificar
+    hand_r?: string;
 }
 
 interface AvatarPixelProps {
@@ -38,11 +40,15 @@ const COLOR_FILTERS: Record<string, string> = {
 
 export default function AvatarPixel({ layers, size = 200, className = '' }: AvatarPixelProps) {
   
+  // --- CONSTANTES RÍGIDAS (A LÓGICA DO LAB) ---
   const FRAME_SIZE = 64;   
   const SHEET_WIDTH = 832; 
   const SHEET_HEIGHT = 1344;
-  const ROW_Y = -640; // Linha 11 (Walk South)
+  
+  // A POSIÇÃO CORRETA: Linha 11 (Walk South)
+  const ROW_Y = -640; 
 
+  // Calcula o Zoom
   const scale = size / FRAME_SIZE;
 
   const renderLayer = (folder: string, item: LayerConfig | string | undefined, zIndex: number) => {
@@ -63,13 +69,18 @@ export default function AvatarPixel({ layers, size = 200, className = '' }: Avat
         <div 
             className="animate-walk-x"
             style={{
+                // TRAVA O TAMANHO EM 64px (Isso evita fantasmas)
                 width: `${FRAME_SIZE}px`,
                 height: `${FRAME_SIZE}px`,
+                
                 backgroundImage: `url(/assets/avatar/${folder}/${cleanFile}.png)`,
                 backgroundRepeat: 'no-repeat',
                 backgroundSize: `${SHEET_WIDTH}px ${SHEET_HEIGHT}px`,
+                
+                // TRAVA A POSIÇÃO Y (Isso evita mostrar as costas)
                 backgroundPositionY: `${ROW_Y}px`,
                 backgroundPositionX: '0px',
+                
                 imageRendering: 'pixelated',
                 filter: filterStyle
             }}
@@ -89,29 +100,33 @@ export default function AvatarPixel({ layers, size = 200, className = '' }: Avat
     >
         <div className="absolute inset-0 bg-gradient-to-b from-slate-800 to-slate-950 opacity-90" />
         
-        {/* VIEWPORT FIXO 64x64 */}
+        {/* A "MÁSCARA" DO LAB (Invisível, mas funcional) */}
         <div 
             style={{ 
                 width: `${FRAME_SIZE}px`, 
                 height: `${FRAME_SIZE}px`, 
                 position: 'relative',
-                overflow: 'hidden',
+                overflow: 'hidden', // O SEGREDO: Corta tudo que sobra
                 transform: `scale(${scale * 0.9}) translateY(5px)`, 
                 transformOrigin: 'center center',
             }}
         >
             {/* 1. Base */}
             {renderLayer('body', layers.body, 10)}
-            {renderLayer('head', layers.head, 15)}
-            {renderLayer('eyes', layers.eyes, 16)} {/* OLHOS! */}
             
-            {/* 2. Pelos Faciais (Abaixo do cabelo, acima da cabeça) */}
-            {renderLayer('beard', layers.beard, 17)} 
+            {/* 2. Rosto (ESSENCIAL PARA NÃO FICAR VAZIO) */}
+            {renderLayer('head', layers.head, 11)} 
+            {renderLayer('eyes', layers.eyes, 12)} {/* AQUI ESTÁ O ROSTO! */}
 
-            {/* 3. Roupas */}
+            {/* 3. Barba (Opcional) */}
+            {renderLayer('beard', layers.beard, 13)}
+
+            {/* 4. Roupas */}
+            {renderLayer('feet', layers.feet, 20)}
+            {renderLayer('legs', layers.legs, 30)}
             {renderLayer('torso', layers.torso, 40)}
             
-            {/* 4. Topo */}
+            {/* 5. Topo */}
             {renderLayer('hair', layers.hair, 50)}
             {renderLayer('accessory', layers.accessory, 55)} 
         </div>
