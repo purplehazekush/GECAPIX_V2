@@ -47,7 +47,10 @@ const UsuarioSchema = new mongoose.Schema({
     status_profissional: { type: String },
     equipe_competicao: { type: String },
     
-    missoes_concluidas: { type: [String], default: [] }
+    missoes_concluidas: { type: [String], default: [] },
+
+    jogos_hoje: { type: Number, default: 0 },
+    ultimo_jogo_data: { type: Date },
 });
 
 // Hook para gerar código de convite (Mantido igual)

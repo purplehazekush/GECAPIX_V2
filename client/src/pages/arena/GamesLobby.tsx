@@ -47,7 +47,7 @@ export default function GamesLobby() {
         
         newSocket.on('room_created', (data) => {
             toast.success("Sala criada! Aguardando oponente...");
-            navigate(`/arena/games/${data.roomId}`); // Redireciona para a sala criada (que usa ID agora)
+            navigate(`/arena/games/play/${data.roomId}`); // Redireciona para a sala criada (que usa ID agora)
         });
 
         newSocket.on('error', (err) => toast.error(err.message));
