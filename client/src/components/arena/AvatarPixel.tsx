@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 
 export interface LayerConfig {
     id: string;      
@@ -45,17 +46,22 @@ export default function AvatarPixel({ layers, size = 200, className = '', direct
   const SHEET_WIDTH = 832; 
   const SHEET_HEIGHT = 1344;
   
-  // MAPA DE ROTAÇÃO (Linhas do Sprite Sheet)
+  // MAPA DE ROTAÇÃO
   const DIRECTION_OFFSETS = {
       0: -512, // Costas (Norte)
       1: -576, // Esquerda (Oeste)
-      2: -640, // Frente (Sul) - Padrão
+      2: -640, // Frente (Sul)
       3: -704  // Direita (Leste)
   };
 
   // @ts-ignore
   const currentOffsetY = DIRECTION_OFFSETS[direction] || -640;
   const scale = size / FRAME_SIZE;
+
+  // --- CACHE BUSTER ---
+  // Gera um número aleatório (ou usa data) para obrigar o navegador a baixar a imagem nova
+  // Usamos useMemo para não ficar piscando a cada render, mas mudar se a layer mudar
+  const cacheBuster = useMemo(() => `?v=${new Date().getDate()}`, []); 
 
   const renderLayer = (folder: string, item: LayerConfig | string | undefined, zIndex: number) => {
     if (!item) return null;
@@ -65,6 +71,9 @@ export default function AvatarPixel({ layers, size = 200, className = '', direct
 
     const cleanFile = layerId.replace('.png', '');
     const filterStyle = COLOR_FILTERS[layerColor] || 'none';
+
+    // URL COM VACINA ANTI-CACHE
+    const imageUrl = `/assets/avatar/${folder}/${cleanFile}.png${cacheBuster}`;
 
     return (
       <div 
@@ -77,14 +86,11 @@ export default function AvatarPixel({ layers, size = 200, className = '', direct
             style={{
                 width: `${FRAME_SIZE}px`,
                 height: `${FRAME_SIZE}px`,
-                backgroundImage: `url(/assets/avatar/${folder}/${cleanFile}.png)`,
+                backgroundImage: `url('${imageUrl}')`, // Aspas importantes
                 backgroundRepeat: 'no-repeat',
                 backgroundSize: `${SHEET_WIDTH}px ${SHEET_HEIGHT}px`,
-                
-                // O Segredo do Giro e do Alinhamento
                 backgroundPositionY: `${currentOffsetY}px`,
                 backgroundPositionX: '0px',
-                
                 imageRendering: 'pixelated',
                 filter: filterStyle
             }}
@@ -114,24 +120,18 @@ export default function AvatarPixel({ layers, size = 200, className = '', direct
                 transformOrigin: 'center center',
             }}
         >
-            {/* Camadas Essenciais */}
+            {/* CAMADAS NA ORDEM LÓGICA */}
             {renderLayer('body', layers.body, 10)}
             {renderLayer('head', layers.head, 15)}
+            {renderLayer('eyes', layers.eyes, 20)}
+            {renderLayer('beard', layers.beard, 25)}
             
-            {/* OLHOS: Z-Index alto e sem filtro de cor para não bugar */}
-            {renderLayer('eyes', layers.eyes, 90)} 
+            {renderLayer('feet', layers.feet, 30)}
+            {renderLayer('legs', layers.legs, 40)}
+            {renderLayer('torso', layers.torso, 50)}
             
-            {/* Barba por cima do rosto, mas embaixo do cabelo */}
-            {renderLayer('beard', layers.beard, 20)}
-
-            {/* Roupas */}
-            {renderLayer('feet', layers.feet, 25)}
-            {renderLayer('legs', layers.legs, 30)}
-            {renderLayer('torso', layers.torso, 40)}
-            
-            {/* Cabelo e Acessórios por cima de tudo */}
-            {renderLayer('hair', layers.hair, 50)}
-            {renderLayer('accessory', layers.accessory, 100)} 
+            {renderLayer('hair', layers.hair, 60)}
+            {renderLayer('accessory', layers.accessory, 70)} 
         </div>
 
         <style>{`
