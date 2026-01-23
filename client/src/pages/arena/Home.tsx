@@ -1,14 +1,15 @@
-// client/src/pages/arena/Home.tsx
 import { useAuth } from '../../context/AuthContext';
-import UserAvatar from '../../components/arena/UserAvatar';
+import UserAvatar from '../../components/arena/UserAvatar'; // Seu novo componente pixelado
 import { 
-    MonetizationOn, LocalFireDepartment, EmojiEvents, 
-    Campaign, QrCodeScanner, ArrowForward , WhatsApp, Share
+    MonetizationOn, LocalActivity, 
+    SportsEsports, Science, RocketLaunch, Assignment,
+    ContentCopy, WhatsApp, QrCodeScanner, ArrowForward
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 export default function ArenaHome() {
-    const { dbUser, user } = useAuth();
+    const { dbUser } = useAuth();
     const navigate = useNavigate();
 
     // Cálculos de XP
@@ -16,195 +17,209 @@ export default function ArenaHome() {
     const xpProxNivel = (dbUser?.nivel || 1) * 100;
     const progresso = Math.min((xpAtual / xpProxNivel) * 100, 100);
 
+    const copyCode = () => {
+        navigator.clipboard.writeText(dbUser?.codigo_referencia || "");
+        toast.success("Código copiado! Cole no grupo da sala.", {
+            icon: '📋',
+            style: { background: '#1e293b', color: '#fff' }
+        });
+    };
+
+    const shareWhatsapp = () => {
+        const texto = window.encodeURIComponent(
+            `Vem pra Arena GECAPIX! 🏟️\nUse meu código: *${dbUser?.codigo_referencia}* e já comece com bônus de moedas!\n\nEntre aqui: https://gecapix-v2.vercel.app`
+        );
+        window.open(`https://wa.me/?text=${texto}`, '_blank');
+    };
+
     return (
-        <div className="pb-24 space-y-6 animate-fade-in relative">
+        <div className="pb-28 space-y-6 animate-fade-in relative">
             
-            {/* 1. MURAL DE AVISOS (TICKER) - Estilo Bolsa de Valores */}
+            {/* 1. TICKER DE NOTÍCIAS */}
             <div className="bg-yellow-500/10 border-y border-yellow-500/20 overflow-hidden py-1 whitespace-nowrap">
                 <div className="animate-marquee inline-block text-[10px] font-mono text-yellow-500 font-bold uppercase tracking-widest px-4">
-                    📢 BEM-VINDO À TEMPORADA 2026 DO GECA • O BOLÃO DA FINAL DA COPA GECA JÁ ESTÁ ABERTO • QUEM COMPRAR 3 CERVEJAS HOJE GANHA BADGE "HIDRATADO" •
+                    📢 SEASON 01 NO AR • CAMPEONATO DE LIG 4 VALENDO XP EM DOBRO • PROIBIDO USAR BOT NO XADREZ • FESTA DO MEIO ENGENHEIRO VEM AÍ •
                 </div>
             </div>
 
-            {/* 2. HUD PRINCIPAL (Hero Section) */}
+            {/* 2. HUD PRINCIPAL */}
             <div className="px-4 pt-2 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <UserAvatar 
-                        user={dbUser} 
-                        googlePhoto={user?.photoURL} 
-                        size="lg" 
-                        showLevel={true} 
-                    />
+                    {/* Agora usa o Avatar Pixelado que configuramos */}
+                    <div onClick={() => navigate('/arena/perfil')}>
+                        <UserAvatar user={dbUser} size="lg" showLevel={true} />
+                    </div>
                     <div>
-                        <h1 className="text-2xl font-black text-white italic leading-none">
+                        <h1 className="text-2xl font-black text-white italic leading-none uppercase">
                             {dbUser?.nome?.split(' ')[0] || 'RECRUTA'}
                         </h1>
                         <div className="flex items-center gap-1 text-slate-400 text-xs font-mono mt-1">
                             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                            ONLINE NO GECA
+                            {dbUser?.classe || 'Novato'}
                         </div>
                     </div>
                 </div>
 
-                {/* PLACAR DE MOEDAS (Bancário) */}
+                {/* BANCO */}
                 <div className="text-right">
-                    <p className="text-[9px] text-cyan-400 font-black tracking-widest uppercase mb-1">SALDO ATUAL</p>
+                    <p className="text-[9px] text-cyan-400 font-black tracking-widest uppercase mb-1">SALDO</p>
                     <div 
                         onClick={() => navigate('/arena/transferir')}
-                        className="bg-slate-900 border border-cyan-500/30 rounded-xl px-3 py-2 flex items-center gap-2 shadow-[0_0_15px_rgba(34,211,238,0.15)] active:scale-95 transition-transform cursor-pointer"
+                        className="bg-slate-900 border border-cyan-500/30 rounded-xl px-3 py-2 flex items-center gap-2 shadow-[0_0_15px_rgba(34,211,238,0.1)] active:scale-95 transition-transform cursor-pointer"
                     >
                         <MonetizationOn className="text-yellow-400" />
-                        <span className="text-2xl font-black text-white font-mono tracking-tight">
+                        <span className="text-xl font-black text-white font-mono tracking-tight">
                             {dbUser?.saldo_coins || 0}
                         </span>
                     </div>
                 </div>
             </div>
 
-            {/* 3. BARRA DE PROGRESSO (XP) */}
-            <div className="px-4">
-                <div className="flex justify-between text-[10px] font-bold text-slate-500 mb-1 uppercase">
-                    <span>Progresso do Nível {dbUser?.nivel}</span>
+            {/* 3. XP BAR */}
+            <div className="px-4 -mt-2">
+                <div className="flex justify-between text-[9px] font-bold text-slate-500 mb-1 uppercase">
+                    <span>Nível {dbUser?.nivel}</span>
                     <span className="text-purple-400">{xpAtual}/{xpProxNivel} XP</span>
                 </div>
-                <div className="h-3 w-full bg-slate-900 rounded-full border border-slate-800 overflow-hidden relative">
+                <div className="h-2 w-full bg-slate-900 rounded-full overflow-hidden relative">
                     <div 
-                        className="h-full bg-gradient-to-r from-purple-600 via-pink-500 to-yellow-500 shadow-[0_0_10px_rgba(168,85,247,0.5)] transition-all duration-1000"
+                        className="h-full bg-gradient-to-r from-purple-600 to-pink-500 transition-all duration-1000"
                         style={{ width: `${progresso}%` }}
                     ></div>
-                    {/* Brilho animado na barra */}
-                    <div className="absolute top-0 bottom-0 right-0 w-full h-full bg-gradient-to-r from-transparent to-white/20 opacity-30"></div>
-                </div>
-                <p className="text-[9px] text-center text-slate-600 mt-1.5">
-                    Faça check-in ou compras para subir de patente.
-                </p>
-            </div>
-
-            {/* 4. GRID DE AÇÕES RÁPIDAS (Widgets) */}
-            <div className="px-4 grid grid-cols-2 gap-3">
-                
-                {/* Daily Quest Widget */}
-                <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 relative overflow-hidden group">
-                    <div className="absolute right-0 top-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <LocalFireDepartment sx={{ fontSize: 40 }} />
-                    </div>
-                    <h3 className="text-xs font-black text-orange-400 uppercase mb-1">Missão Diária</h3>
-                    <p className="text-xs text-slate-300 font-bold leading-tight">
-                        Logar por 3 dias seguidos
-                    </p>
-                    <div className="mt-3 flex items-center gap-2">
-                        <div className="h-1.5 flex-1 bg-slate-800 rounded-full overflow-hidden">
-                            <div className="h-full bg-orange-500 w-1/3"></div>
-                        </div>
-                        <span className="text-[9px] text-white font-mono">1/3</span>
-                    </div>
-                </div>
-
-                {/* Bolão Widget */}
-                <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 relative overflow-hidden group">
-                    <div className="absolute right-0 top-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <EmojiEvents sx={{ fontSize: 40 }} />
-                    </div>
-                    <h3 className="text-xs font-black text-emerald-400 uppercase mb-1">Bolão Ativo</h3>
-                    <p className="text-xs text-slate-300 font-bold leading-tight">
-                        Quem ganha o Truco hoje?
-                    </p>
-                    <button className="mt-2 w-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-lg py-1 text-[10px] font-black hover:bg-emerald-500/20 transition-colors">
-                        APOSTAR AGORA
-                    </button>
                 </div>
             </div>
 
-            {/* 5. AÇÃO PRINCIPAL: Check-in / Carteira */}
+            {/* 4. BANNER DE EVENTOS (NOVIDADE) */}
             <div className="px-4">
-                <div className="bg-gradient-to-r from-indigo-900 to-slate-900 rounded-2xl p-5 border border-indigo-500/30 flex items-center justify-between relative overflow-hidden">
-                    <div className="absolute -left-4 -bottom-4 bg-indigo-500/20 w-24 h-24 rounded-full blur-2xl"></div>
+                <div className="relative w-full h-32 rounded-2xl overflow-hidden group cursor-pointer border border-white/10 shadow-lg">
+                    {/* Imagem de Fundo (Placeholder de festa) */}
+                    <img 
+                        src="https://images.unsplash.com/photo-1514525253440-b393452e3726?q=80&w=1000&auto=format&fit=crop" 
+                        className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-500"
+                        alt="Festa"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
                     
-                    <div className="relative z-10">
-                        <h3 className="text-white font-black text-sm uppercase italic">Presença Confirmada?</h3>
-                        <p className="text-indigo-200 text-[10px] mt-0.5 mb-3 max-w-[150px]">
-                            Escaneie o QR Code na parede do grêmio para ganhar bônus.
+                    <div className="absolute bottom-4 left-4">
+                        <span className="bg-red-600 text-white text-[9px] px-2 py-0.5 rounded font-bold uppercase tracking-wider mb-1 inline-block animate-pulse">
+                            Evento Oficial
+                        </span>
+                        <h3 className="text-xl font-black text-white italic uppercase leading-none">
+                            Calourada 2026
+                        </h3>
+                        <p className="text-[10px] text-slate-300 font-medium">
+                            Garanta seu ingresso com GecaCoins!
                         </p>
-                        <button className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-400 text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg shadow-indigo-500/30 transition-all active:scale-95">
-                            <QrCodeScanner sx={{ fontSize: 16 }} />
-                            ESCANEAR
-                        </button>
                     </div>
-
-                    <div className="relative z-10 opacity-80">
-                         {/* Placeholder para uma ilustração ou ícone grande */}
-                         <Campaign sx={{ fontSize: 60, color: '#818cf8' }} />
+                    <div className="absolute bottom-4 right-4 bg-white/10 p-2 rounded-full backdrop-blur-sm">
+                        <LocalActivity className="text-white" />
                     </div>
                 </div>
             </div>
 
-             {/* Link para Ranking (Teaser) */}
-             <div className="px-4">
+            {/* 5. GRID DE APPS (NAVEGAÇÃO RÁPIDA) */}
+            <div className="px-4">
+                <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 ml-1">Central de Apps</h3>
+                <div className="grid grid-cols-2 gap-3">
+                    <QuickApp 
+                        icon={<SportsEsports className="text-yellow-400" fontSize="large" />}
+                        title="Arcade"
+                        desc="Xadrez, Velha & Lig 4"
+                        color="border-yellow-500/20 bg-yellow-500/5 hover:bg-yellow-500/10"
+                        onClick={() => navigate('/arena/games')}
+                    />
+                    <QuickApp 
+                        icon={<RocketLaunch className="text-pink-400" fontSize="large" />}
+                        title="Memes"
+                        desc="Feed da Engenharia"
+                        color="border-pink-500/20 bg-pink-500/5 hover:bg-pink-500/10"
+                        onClick={() => navigate('/arena/memes')}
+                    />
+                    <QuickApp 
+                        icon={<Science className="text-cyan-400" fontSize="large" />}
+                        title="Lab"
+                        desc="Chat Anônimo"
+                        color="border-cyan-500/20 bg-cyan-500/5 hover:bg-cyan-500/10"
+                        onClick={() => navigate('/arena/laboratorio')}
+                    />
+                    <QuickApp 
+                        icon={<Assignment className="text-emerald-400" fontSize="large" />}
+                        title="Missões"
+                        desc="Tasks & Recompensas"
+                        color="border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10"
+                        onClick={() => navigate('/arena/quests')}
+                    />
+                </div>
+            </div>
+
+            {/* 6. CARD DE REFERÊNCIA (REDESIGN COMPLETO) */}
+            <div className="px-4">
+                <div className="bg-slate-900 rounded-2xl border border-slate-800 p-5 relative overflow-hidden shadow-2xl">
+                    {/* Background Pattern */}
+                    <div className="absolute top-0 right-0 p-8 opacity-5">
+                        <QrCodeScanner sx={{ fontSize: 120 }} />
+                    </div>
+
+                    <div className="relative z-10">
+                        <h3 className="text-white font-black text-sm uppercase italic mb-1">
+                            Sistema de Indicação
+                        </h3>
+                        <p className="text-[10px] text-slate-400 mb-4 max-w-[200px]">
+                            Convide calouros. Ganhe 500 Coins e 100 XP por cada registro validado.
+                        </p>
+
+                        <div className="flex flex-col gap-3">
+                            {/* O Código */}
+                            <div 
+                                onClick={copyCode}
+                                className="flex items-center justify-between bg-black/40 border border-slate-700 rounded-xl px-4 py-3 cursor-pointer hover:border-purple-500 transition-colors group"
+                            >
+                                <div className="flex flex-col">
+                                    <span className="text-[9px] text-slate-500 uppercase font-bold">Seu Código</span>
+                                    <span className="text-lg font-mono font-black text-purple-400 tracking-widest group-hover:text-purple-300">
+                                        {dbUser?.codigo_referencia || '...'}
+                                    </span>
+                                </div>
+                                <ContentCopy className="text-slate-600 group-hover:text-white transition-colors" fontSize="small" />
+                            </div>
+
+                            {/* Botão Zap */}
+                            <button 
+                                onClick={shareWhatsapp}
+                                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95"
+                            >
+                                <WhatsApp fontSize="small" /> ENVIAR NO ZAP
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* 7. LINK RANKING */}
+            <div className="px-4 pb-4">
                 <div 
                     onClick={() => navigate('/arena/ranking')}
-                    className="flex items-center justify-between bg-slate-900/30 p-4 rounded-xl border border-slate-800 hover:bg-slate-800/50 cursor-pointer transition-colors"
+                    className="flex items-center justify-between p-4 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 cursor-pointer transition-colors"
                 >
-                    <div className="flex items-center gap-3">
-                         <div className="w-8 h-8 rounded-lg bg-yellow-500/20 flex items-center justify-center text-yellow-500">
-                             <EmojiEvents fontSize="small" />
-                         </div>
-                         <div className="flex flex-col">
-                             <span className="text-xs font-bold text-white">Ranking Geral</span>
-                             <span className="text-[10px] text-slate-500">Veja quem lidera a engenharia</span>
-                         </div>
-                    </div>
-                    <ArrowForward sx={{ fontSize: 16, color: '#475569' }} />
+                    <span className="text-xs font-bold text-slate-300">Ver Ranking Geral</span>
+                    <ArrowForward className="text-slate-500" fontSize="small" />
                 </div>
-             </div>
-            {/* SEÇÃO DE CONVITE (ENGENHARIA SOCIAL) */}
-<div className="px-4">
-    <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-3xl p-6 shadow-xl shadow-indigo-900/40 relative overflow-hidden group">
-        
-        {/* Enfeite de fundo */}
-        <div className="absolute -right-6 -bottom-6 opacity-20 group-hover:scale-110 transition-transform">
-            <Share sx={{ fontSize: 120, color: 'white' }} />
-        </div>
-
-        <div className="relative z-10">
-            <h3 className="text-white font-black text-lg italic leading-none uppercase">
-                Convoque sua Guilda
-            </h3>
-            <p className="text-indigo-100 text-[10px] mt-2 mb-4 font-bold uppercase tracking-wider">
-                Ganhe <span className="text-yellow-300">500 GecaCoins</span> por cada calouro indicado!
-            </p>
-            
-            <div className="flex gap-2">
-                {/* O CÓDIGO */}
-                <div 
-                    onClick={() => {
-                        navigator.clipboard.writeText(dbUser?.codigo_referencia || "");
-                        alert("Código copiado! Mande no grupo da sala.");
-                    }}
-                    className="flex-1 bg-slate-950/40 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/20 text-white font-mono font-black text-center text-lg tracking-widest cursor-pointer active:scale-95 transition-all"
-                >
-                    {dbUser?.codigo_referencia || 'GERANDO...'}
-                </div>
-
-                {/* BOTÃO WHATSAPP */}
-                <button 
-                    onClick={() => {
-                        const texto = window.encodeURIComponent(
-                            `Vem pra Arena GECAPIX! 🏟️\nUse meu código: *${dbUser?.codigo_referencia}* e já comece com bônus de moedas!\n\nEntre aqui: https://gecapix-v2.vercel.app`
-                        );
-                        window.open(`https://wa.me/?text=${texto}`, '_blank');
-                    }}
-                    className="bg-green-500 hover:bg-green-400 text-white p-3 rounded-2xl shadow-lg transition-all active:scale-95"
-                >
-                    <WhatsApp />
-                </button>
             </div>
-            
-            <p className="text-[9px] text-indigo-200 mt-4 text-center font-medium">
-                O bônus cai na conta assim que o indicado fizer o primeiro login.
-            </p>
+
         </div>
-    </div>
-</div>
-        </div>
+    );
+}
+
+// Subcomponente para o Grid de Apps
+function QuickApp({ icon, title, desc, color, onClick }: any) {
+    return (
+        <button 
+            onClick={onClick}
+            className={`flex flex-col items-start p-4 rounded-2xl border transition-all active:scale-95 text-left ${color}`}
+        >
+            <div className="mb-2">{icon}</div>
+            <h4 className="font-black text-white text-sm uppercase italic">{title}</h4>
+            <p className="text-[10px] text-slate-400 font-medium">{desc}</p>
+        </button>
     );
 }
