@@ -24,3 +24,5 @@ module.exports = {
         MULTIPLIER_MEME: 1.2,    // Multiplicador de votos em memes
     }
 };
+
+//teste
