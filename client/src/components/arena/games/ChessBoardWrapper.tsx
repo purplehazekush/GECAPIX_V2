@@ -6,18 +6,18 @@ interface Props {
     fen: string;
     myColor: 'white' | 'black';
     isMyTurn: boolean;
-    onMove: (fen: string, isGameOver: boolean, winner: string | null, isDraw: boolean) => void;
+    // CORREÇÃO: Assinatura padronizada com os outros jogos (3 argumentos)
+    onMove: (fen: string, winner: string | null, isDraw: boolean) => void;
 }
 
 export default function ChessBoardWrapper({ fen, myColor, isMyTurn, onMove }: Props) {
     const [game, setGame] = useState(new Chess(fen));
 
-    // Sincroniza estado interno se o FEN mudar externamente (jogada do oponente)
     useEffect(() => {
         try {
             setGame(new Chess(fen));
         } catch (e) {
-            console.error("Erro FEN:", e);
+            // Proteção contra FEN inválido
         }
     }, [fen]);
 
@@ -35,29 +35,30 @@ export default function ChessBoardWrapper({ fen, myColor, isMyTurn, onMove }: Pr
 
             if (!move) return false;
 
-            setGame(tempGame); // Atualiza visual instantâneo
+            setGame(tempGame);
 
-            // Prepara dados para o Container
             const newFen = tempGame.fen();
             const isOver = tempGame.isGameOver();
-            let winner = null;
             
+            // Lógica de Vitória Simplificada para bater com a interface
+            let winner = null;
             if (isOver && tempGame.isCheckmate()) {
-                winner = myColor; // Se eu dei cheque-mate, eu ganhei
+                // Se o jogo acabou em checkmate e fui EU que movi, eu ganhei (myColor)
+                winner = myColor; 
             }
 
-            onMove(newFen, isOver, winner, tempGame.isDraw());
+            // CORREÇÃO: Envia apenas 3 argumentos
+            onMove(newFen, winner, tempGame.isDraw());
             return true;
         } catch (e) { return false; }
     };
 
+    // SOLUÇÃO NUCLEAR PARA O ERRO DE TIPO DA LIB
+    const ChessboardAny = Chessboard as any;
+
     return (
         <div className="w-full max-w-[350px] aspect-square shadow-2xl rounded-lg overflow-hidden border-4 border-slate-700 bg-slate-800">
-            {/* @ts-ignore 
-                Motivo: A lib react-chessboard tem um bug na definição de tipos da prop 'position',
-                mas ela funciona perfeitamente em runtime.
-            */}
-            <Chessboard 
+            <ChessboardAny 
                 position={game.fen()} 
                 onPieceDrop={onDrop}
                 boardOrientation={myColor}
