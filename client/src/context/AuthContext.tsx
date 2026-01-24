@@ -26,6 +26,7 @@ export interface User {
   role: 'admin' | 'membro';
   status: 'ativo' | 'pendente';
   saldo_coins: number;
+  saldo_glue: number;
   xp: number;
   nivel: number;
   codigo_referencia?: string;

@@ -33,6 +33,7 @@ export interface User {
   
   // Campos de Gamification (Garantir que todos estão aqui)
   saldo_coins: number;
+  saldo_glue: number;
   xp: number;
   nivel: number;
   badges: string[];
