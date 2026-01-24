@@ -85,6 +85,7 @@ export default function ArenaProfile() {
                 isEditing={isAvatarEditing}
                 setIsEditing={setIsAvatarEditing}
                 setAvatarConfig={(cfg: any) => setAvatarSlug(cfg.slug)} // Callback simples
+                draftSlug={avatarSlug} // <--- ADICIONE ISSO (Envia o rascunho pro filho)
             />
 
             {/* Se estiver editando avatar, esconde o resto para focar */}

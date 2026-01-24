@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Edit, Casino, CheckCircle } from '@mui/icons-material';
 
-export default function AvatarSection({ user, isEditing, setIsEditing, setAvatarConfig }: any) {
+export default function AvatarSection({ user, isEditing, setIsEditing, setAvatarConfig, draftSlug }: any) {
   // Estado local para o "Slug" (A semente do avatar)
   // Se estiver editando, usa o estado local. Se não, usa o do usuário salvo.
   const [localSlug, setLocalSlug] = useState(user?.avatar_slug || 'player1');
@@ -14,7 +14,14 @@ export default function AvatarSection({ user, isEditing, setIsEditing, setAvatar
     setAvatarConfig({ slug: newSlug }); // Já prepara para salvar
   };
 
-  const currentSlug = isEditing ? localSlug : (user?.avatar_slug || 'player1');
+  // A LÓGICA MÁGICA:
+  // Se estiver editando -> Mostra o localSlug (o que vc tá digitando/rolando)
+  // Se NÃO estiver editando -> Mostra o draftSlug (o que vc confirmou mas não salvou)
+  // Se não tiver draft -> Mostra o do usuário (banco)
+  const currentSlug = isEditing 
+      ? localSlug 
+      : (draftSlug || user?.avatar_slug || 'default');
+
   const avatarUrl = `https://api.dicebear.com/9.x/pixel-art/svg?seed=${currentSlug}`;
 
   return (
