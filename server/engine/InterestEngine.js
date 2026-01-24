@@ -69,10 +69,11 @@ exports.aplicarJurosDiarios = async (currentDay) => {
             { saldo_staking_liquido: { $gt: 0 }, classe: { $ne: 'ESPECULADOR' } },
             { $mul: { saldo_staking_liquido: (1 + aprLiquido) } }
         );
-        // Especuladores (Ganha turbo sobre o dinâmico)
+
+        // Filtro adicional: status 'ativo'
         await UsuarioModel.updateMany(
-            { saldo_staking_liquido: { $gt: 0 }, classe: 'ESPECULADOR' },
-            { $mul: { saldo_staking_liquido: (1 + (aprLiquido * speculatorMult)) } }
+            { saldo_staking_liquido: { $gt: 0 }, status: 'ativo', classe: { $ne: 'ESPECULADOR' } },
+            { $mul: { saldo_staking_liquido: baseRate } }
         );
 
         // B. Locked (Títulos)

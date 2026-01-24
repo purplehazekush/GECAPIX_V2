@@ -1,3 +1,4 @@
+// server/controllers/questController.js
 const UsuarioModel = require('../models/Usuario');
 const QUESTS_CONFIG = require('../config/quests');
 

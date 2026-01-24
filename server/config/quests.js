@@ -1,3 +1,4 @@
+// server/config/quests.js
 const TOKEN = require('./tokenomics');
 
 module.exports = [

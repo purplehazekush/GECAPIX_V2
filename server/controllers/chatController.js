@@ -1,3 +1,4 @@
+// server/controllers/chatController.js
 const MensagemModel = require('../models/Mensagem');
 const UsuarioModel = require('../models/Usuario');
 

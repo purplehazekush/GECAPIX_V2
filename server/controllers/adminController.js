@@ -1,13 +1,13 @@
 // server/controllers/adminController.js
 const UsuarioModel = require('../models/Usuario');
 
-// Lista quem mandou comprovante mas ainda não foi validado
+// 1. GET FILA (Apenas pendentes com comprovante)
 exports.getFilaValidacao = async (req, res) => {
     try {
         const pendentes = await UsuarioModel.find({
-            comprovante_url: { $exists: true, $ne: '' }, // Tem foto
-            validado: { $ne: true } // Não está validado
-        }).select('nome email curso comprovante_url classe data_criacao'); // Traz só o necessário
+            comprovante_url: { $exists: true, $ne: '' }, 
+            status: 'pendente' // <--- Filtro chave
+        }).select('nome email curso comprovante_url data_criacao');
 
         res.json(pendentes);
     } catch (error) {
@@ -15,19 +15,24 @@ exports.getFilaValidacao = async (req, res) => {
     }
 };
 
-// Aprova ou Rejeita
+// 2. MODERAR (Aprovar = Ativo)
 exports.moderarUsuario = async (req, res) => {
     try {
-        const { email, acao } = req.body; // acao: 'aprovar' ou 'rejeitar'
+        const { email, acao } = req.body;
 
         if (acao === 'aprovar') {
-            await UsuarioModel.findOneAndUpdate({ email }, { validado: true });
+            // Ativa o aluno e dá o bônus de boas-vindas se for a primeira vez
+            // (Opcional: dar um XP extra de "Verificado")
+            await UsuarioModel.findOneAndUpdate(
+                { email }, 
+                { status: 'ativo' }
+            );
         } else {
-            // Se rejeitar, limpamos a URL para ele ter que mandar de novo
-            await UsuarioModel.findOneAndUpdate({ email }, { 
-                validado: false,
-                comprovante_url: '' 
-            });
+            // Rejeita: Volta o comprovante pra nulo mas mantem pendente pra ele reenviar
+            await UsuarioModel.findOneAndUpdate(
+                { email }, 
+                { status: 'pendente', comprovante_url: '' } 
+            );
         }
 
         res.json({ success: true });
@@ -35,8 +40,6 @@ exports.moderarUsuario = async (req, res) => {
         res.status(500).json({ error: "Erro na moderação" });
     }
 };
-
-// ... (outras funções)
 
 // INJETAR RECURSOS (GLUE/COINS)
 exports.darRecursos = async (req, res) => {

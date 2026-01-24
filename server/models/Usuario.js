@@ -4,8 +4,22 @@ const mongoose = require('mongoose');
 const UsuarioSchema = new mongoose.Schema({
     email: { type: String, unique: true },
     nome: String,
-    role: { type: String, default: 'membro' },
-    status: { type: String, default: 'pendente' },
+    // --- HIERARQUIA DE PODER ---
+    role: { 
+        type: String, 
+        enum: ['admin', 'gm2', 'gm', 'gestao', 'membro'], // 'membro' = Aluno comum
+        default: 'membro' 
+    },
+    
+    // --- ESTADO DE VALIDAÇÃO ---
+    // pendente = Aspirante (Não ganha nada)
+    // ativo = Aluno Verificado (Ganha XP/Coins)
+    // banido = Game Over
+    status: { 
+        type: String, 
+        enum: ['ativo', 'pendente', 'banido'],
+        default: 'pendente' 
+    },
     
     // --- GAMIFICATION & ECONOMIA (O COFRE) ---
     saldo_coins: { type: Number, default: 0 }, // Mantemos Number, mas cuidado com decimais
