@@ -141,6 +141,10 @@ app.post('/api/chat', chatLimiter, chatController.enviarMensagem);
 app.get('/api/admin/validacao', adminController.getFilaValidacao);
 app.post('/api/admin/validacao', adminController.moderarUsuario);
 app.post('/api/admin/recursos', adminController.darRecursos);
+app.post('/api/admin/reset', adminController.resetSeason);
+// ROTA DE DEBUG (Apagar em produção)
+app.post('/api/debug/fechar-mercado', memeController.finalizarDiaArena);
+
 
 // Rotas Legado/Simples
 const UsuarioModel = require('./models/Usuario');

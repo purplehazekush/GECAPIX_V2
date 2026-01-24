@@ -79,11 +79,11 @@ module.exports = {
         STAKING_ALLOCATION: 0.30, // 30% do pote diário é distribuído
 
         // Multiplicador de Risco (Locked ganha X vezes mais que Liquid)
-        LOCKED_WEIGHT: 3.0, // Quem trava ganha 3x mais yield
+        LOCKED_WEIGHT: 2.0, // Quem trava ganha 3x mais yield
 
         // Circuit Breaker (Teto Máximo de APR Diário)
         MAX_DAILY_YIELD_LIQUID: 0.01, // Max 1% ao dia pro Líquido (365% a.a.)
-        MAX_DAILY_YIELD_LOCKED: 0.03, // Max 3% ao dia pro Locked (Explosivo)
+        MAX_DAILY_YIELD_LOCKED: 0.025, // Max 3% ao dia pro Locked (Explosivo)
 
         LOCKED_PERIOD_DAYS: 30,
         
