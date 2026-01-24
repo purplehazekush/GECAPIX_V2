@@ -19,14 +19,12 @@ const questController = require('./controllers/questController');
 const chatController = require('./controllers/chatController');
 const adminController = require('./controllers/adminController');
 const productController = require('./controllers/productController');
-const configController = require('./controllers/configController');
 const statsController = require('./controllers/statsController');
 const spottedController = require('./controllers/spottedController');
 const aiController = require('./controllers/aiController')
 const DailyTreasury = require('./engine/DailyTreasury'); // <--- Importe
 const SystemState = require('./models/SystemState'); // <--- Importe
 const storeController = require('./controllers/storeController');
-const InterestEngine = require('./engine/InterestEngine');
 const bankController = require('./controllers/bankController');
 
 const app = express();
@@ -162,9 +160,6 @@ app.put('/api/admin/usuarios', async (req, res) => {
 // 6. ROTAS ORGANIZADAS
 app.get('/api/produtos', productController.getProdutos);
 app.post('/api/produtos', productController.createProduto);
-
-app.get('/api/config/modo-aberto', configController.getModoAberto);
-app.put('/api/config/modo-aberto', configController.setModoAberto);
 
 app.get('/api/stats', statsController.getStats);
 
