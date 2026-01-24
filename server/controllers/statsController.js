@@ -164,16 +164,47 @@ exports.getHistoricalStats = async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Erro histórico" }); }
 };
 
-// ...
+// ... (imports)
+
 exports.getGlobalTransactions = async (req, res) => {
     try {
         const limit = 20;
         const page = parseInt(req.query.page) || 0;
+        const categoryFilter = req.query.category || 'ALL'; // Recebe filtro do front
 
-        // Pipeline agressivo para extrair extratos de todos os usuários
-        const transactions = await UsuarioModel.aggregate([
-            { $unwind: "$extrato" }, // Explode o array de extratos
-            { $sort: { "extrato.data": -1 } }, // Ordena globalmente por data
+        // Pipeline de Agregação (O Cérebro da Ledger)
+        const pipeline = [
+            { $unwind: "$extrato" }, // 1. Desmonta o array
+            
+            // 2. "Auto-Tagging" para dados legados (Retrocompatibilidade)
+            { 
+                $addFields: {
+                    "extrato.categoria_inferida": {
+                        $cond: {
+                            if: { $ifNull: ["$extrato.categoria", false] },
+                            then: "$extrato.categoria", // Se já tem categoria, usa ela
+                            else: {
+                                // Se não tem, adivinha pelo texto
+                                $switch: {
+                                    branches: [
+                                        { case: { $regexMatch: { input: "$extrato.descricao", regex: /Aposta|Vitória|Reembolso|Empate/i } }, then: "GAME" },
+                                        { case: { $regexMatch: { input: "$extrato.descricao", regex: /Transferência|Recebido/i } }, then: "P2P" },
+                                        { case: { $regexMatch: { input: "$extrato.descricao", regex: /Login|Bônus|Indicou/i } }, then: "SYSTEM" },
+                                        { case: { $regexMatch: { input: "$extrato.descricao", regex: /Compra|Loja/i } }, then: "SHOP" },
+                                        { case: { $regexMatch: { input: "$extrato.descricao", regex: /Meme/i } }, then: "MEME" }
+                                    ],
+                                    default: "OUTROS"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+
+            // 3. Filtro (Se selecionado)
+            ...(categoryFilter !== 'ALL' ? [{ $match: { "extrato.categoria_inferida": categoryFilter } }] : []),
+
+            { $sort: { "extrato.data": -1 } },
             { $skip: page * limit },
             { $limit: limit },
             { 
@@ -184,14 +215,18 @@ exports.getGlobalTransactions = async (req, res) => {
                     tipo: "$extrato.tipo",
                     valor: "$extrato.valor",
                     descricao: "$extrato.descricao",
+                    categoria: "$extrato.categoria_inferida", // Manda pro front
                     data: "$extrato.data"
                 } 
             }
-        ]);
+        ];
 
+        const transactions = await UsuarioModel.aggregate(pipeline);
         res.json(transactions);
+
     } catch (e) {
         console.error(e);
         res.status(500).json({ error: "Erro ao buscar ledger" });
     }
 };
+// ...
