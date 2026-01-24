@@ -2,12 +2,58 @@ const SpottedModel = require('../models/Spotted');
 const UsuarioModel = require('../models/Usuario');
 const TOKEN = require('../config/tokenomics');
 
+// ... imports
+
 exports.getSpotteds = async (req, res) => {
     try {
-        const posts = await SpottedModel.find().sort({ data: -1 }).limit(50);
-        res.json(posts);
-    } catch (e) { res.status(500).json({ error: "Erro ao buscar spotted" }); }
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const periodo = req.query.periodo || 'all'; // 'today', 'week', 'month', 'all'
+        const sort = req.query.sort || 'newest'; // 'newest', 'hot'
+
+        let query = {};
+
+        // 1. Filtro de Data
+        const now = new Date();
+        if (periodo === 'today') {
+            const startOfDay = new Date(now.setHours(0,0,0,0));
+            query.data = { $gte: startOfDay };
+        } else if (periodo === 'week') {
+            const startOfWeek = new Date(now.setDate(now.getDate() - 7));
+            query.data = { $gte: startOfWeek };
+        } else if (periodo === 'month') {
+            const startOfMonth = new Date(now.setMonth(now.getMonth() - 1));
+            query.data = { $gte: startOfMonth };
+        }
+
+        // 2. Ordenação
+        let sortOption = { data: -1 }; // Padrão: Mais novos primeiro
+        if (sort === 'hot') {
+            // Ordena pelo tamanho do array de comentários (gambiarra performática no Mongo)
+            // Para produção massiva, ideal seria ter um campo contador 'comentarios_count',
+            // mas para MVP isso funciona:
+            sortOption = { "comentarios": -1, data: -1 }; 
+        }
+
+        // 3. Busca Paginada
+        const posts = await SpottedModel.find(query)
+            .sort(sortOption)
+            .skip((page - 1) * limit)
+            .limit(limit);
+
+        // Retorna também se tem mais páginas para o botão "Load More" sumir se acabar
+        const total = await SpottedModel.countDocuments(query);
+        const hasMore = (page * limit) < total;
+
+        res.json({ posts, hasMore, total });
+
+    } catch (e) { 
+        console.error(e);
+        res.status(500).json({ error: "Erro ao buscar spotteds" }); 
+    }
 };
+
+// ... restante das funções (postar, comentar) mantém igual
 
 exports.postarSpotted = async (req, res) => {
     try {
