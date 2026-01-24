@@ -1,8 +1,8 @@
 // server/controllers/arenaController.js
 const UsuarioModel = require('../models/Usuario');
-const RULES = require('../config/gameRules'); // <--- IMPORT NOVO
+const RULES = require('../config/gameRules'); // <--- IMPORT DA CONSTITUIÇÃO
 
-// --- RANKING (Mantido) ---
+// --- RANKING ---
 exports.getRanking = async (req, res) => {
     try {
         const rankingXP = await UsuarioModel.find({})
@@ -19,13 +19,13 @@ exports.getRanking = async (req, res) => {
     }
 };
 
-// --- PERFIL PÚBLICO (Mantido) ---
+// --- PERFIL PÚBLICO ---
 exports.getPerfilPublico = async (req, res) => {
     try {
         const { id } = req.params;
         const user = await UsuarioModel.findOne({ 
             $or: [{ _id: id.length === 24 ? id : null }, { codigo_referencia: id.toUpperCase() }] 
-        }).select('-__v -extrato'); // Não mostramos o extrato financeiro publicamente
+        }).select('-__v -extrato'); 
 
         if (!user) return res.status(404).json({ error: "Membro não encontrado" });
         res.json(user);
@@ -34,29 +34,7 @@ exports.getPerfilPublico = async (req, res) => {
     }
 };
 
-// --- UPDATE PERFIL (Mantido) ---
-exports.updatePerfil = async (req, res) => {
-    try {
-        const { email, classe, materias, bio, chave_pix, curso, status_profissional, equipe_competicao, comprovante_url } = req.body;
-        
-        let materiasFormatadas = [];
-        if (Array.isArray(materias)) {
-            materiasFormatadas = materias.map(m => m.trim().toUpperCase().replace(/[^A-Z0-9]/g, ''));
-        }
-
-        const updateData = { classe, materias: materiasFormatadas, bio, chave_pix, curso, status_profissional, equipe_competicao };
-        if (comprovante_url && comprovante_url.length > 5) updateData.comprovante_url = comprovante_url;
-
-        const user = await UsuarioModel.findOneAndUpdate(
-            { email }, { $set: updateData }, { new: true }
-        );
-        res.json(user);
-    } catch (error) {
-        res.status(500).json({ error: "Erro ao atualizar perfil" });
-    }
-};
-
-// --- 🔥 TRANSFERÊNCIA BLINDADA (ACID + LEDGER) ---
+// --- 🔥 TRANSFERÊNCIA BLINDADA ---
 exports.transferirCoins = async (req, res) => {
     try {
         const { remetenteEmail, destinatarioChave, valor } = req.body;
@@ -65,7 +43,7 @@ exports.transferirCoins = async (req, res) => {
         // 1. Validações
         if (!valorNumerico || valorNumerico <= 0) return res.status(400).json({ error: "Valor inválido." });
         
-        // 2. Busca Remetente (Checa saldo antes de tentar transação)
+        // 2. Busca Remetente
         const remetente = await UsuarioModel.findOne({ email: remetenteEmail });
         if (!remetente) return res.status(404).json({ error: "Erro na autenticação." });
         if (remetente.saldo_coins < valorNumerico) return res.status(400).json({ error: "Saldo insuficiente." });
@@ -78,10 +56,9 @@ exports.transferirCoins = async (req, res) => {
         if (!destinatario) return res.status(404).json({ error: "Destinatário não encontrado." });
         if (remetente.email === destinatario.email) return res.status(400).json({ error: "Não pode transferir para si mesmo." });
 
-        // 4. OPERAÇÃO ATÔMICA (O Pulo do Gato)
-        // Retira de um e grava extrato
+        // 4. OPERAÇÃO ATÔMICA
         await UsuarioModel.updateOne(
-            { _id: remetente._id, saldo_coins: { $gte: valorNumerico } }, // Trava de segurança extra no banco
+            { _id: remetente._id, saldo_coins: { $gte: valorNumerico } }, 
             { 
                 $inc: { saldo_coins: -valorNumerico },
                 $push: { extrato: {
@@ -94,7 +71,6 @@ exports.transferirCoins = async (req, res) => {
             }
         );
         
-        // Coloca no outro e grava extrato
         await UsuarioModel.updateOne(
             { _id: destinatario._id }, 
             { 
@@ -117,6 +93,7 @@ exports.transferirCoins = async (req, res) => {
     }
 };
 
+// --- UPDATE PERFIL (VERSÃO FINAL COM AVATAR E XP CORRIGIDO) ---
 exports.updatePerfil = async (req, res) => {
     try {
         const { 
@@ -125,15 +102,14 @@ exports.updatePerfil = async (req, res) => {
             avatar_slug 
         } = req.body;
         
-        // Busca usuário atual para recalcular nível baseado no XP total
+        console.log("--> UPDATE PERFIL:", req.body); // Log para debug
+
+        // Busca usuário atual
         const currentUser = await UsuarioModel.findOne({ email });
         if (!currentUser) return res.status(404).json({ error: "User not found" });
 
-        // 1. RECALCULA NÍVEL (Corrige o bug do 120/100)
-        // O XP no banco deve ser o XP TOTAL ACUMULADO. 
-        // O front que calcula a barra de progresso usando a função do gameRules.
-        // Se no seu banco o XP reseta a cada nivel, a lógica muda. 
-        // Vamos assumir XP ACUMULADO (estilo RPG clássico) para não perder histórico.
+        // 1. RECALCULA NÍVEL (Corrige bug do XP travado)
+        // Usa as regras do gameRules.js para definir o nível baseado no XP total
         const levelData = RULES.getLevelData(currentUser.xp);
         
         let materiasFormatadas = [];
@@ -142,8 +118,7 @@ exports.updatePerfil = async (req, res) => {
         }
 
         const updateData = {
-            // Permite mudar o Nickname (Nome de exibição)
-            nome: nome || currentUser.nome, 
+            nome: nome || currentUser.nome, // Atualiza Nickname
             classe,
             materias: materiasFormatadas,
             bio,
@@ -151,12 +126,14 @@ exports.updatePerfil = async (req, res) => {
             curso,
             status_profissional,
             equipe_competicao,
-            // Atualiza nível calculado
-            nivel: levelData.level 
+            nivel: levelData.level // Salva o nível correto
         };
 
-        // Salva Avatar Novo
-        if (avatar_slug) updateData.avatar_slug = avatar_slug;
+        // Salva Avatar Novo se vier na requisição
+        if (avatar_slug) {
+            updateData.avatar_slug = avatar_slug;
+        }
+        
         if (comprovante_url) updateData.comprovante_url = comprovante_url;
 
         const user = await UsuarioModel.findOneAndUpdate(

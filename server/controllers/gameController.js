@@ -187,7 +187,11 @@ function verificarLimiteDiario(user) {
 function startGameLogic(io, room) {
     if (!room.boardState) { 
         if (room.gameType === 'velha') room.boardState = Array(9).fill(null);
-        if (room.gameType === 'xadrez') room.boardState = 'start';
+        
+        // --- CORREÇÃO AQUI ---
+        // Em vez de 'start', usamos o FEN oficial da posição inicial
+        if (room.gameType === 'xadrez') room.boardState = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+        
         if (room.gameType === 'connect4') room.boardState = Array(42).fill(null);
         if (room.gameType === 'damas') {
             const b = Array(64).fill(null);
@@ -196,14 +200,7 @@ function startGameLogic(io, room) {
             room.boardState = b;
         }
     }
-    room.status = 'playing';
-    io.to(room.id).emit('game_start', {
-        gameType: room.gameType,
-        boardState: room.boardState,
-        turn: room.playerData[0].socketId,
-        pot: room.pot,
-        config: room.config
-    });
+    // ... resto da função
 }
 
 async function processGameOver(io, roomId, winnerSocketId) {
