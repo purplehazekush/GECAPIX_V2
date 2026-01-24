@@ -52,6 +52,16 @@ const UsuarioSchema = new mongoose.Schema({
 
     jogos_hoje: { type: Number, default: 0 },
     ultimo_jogo_data: { type: Date },
+    // --- NOVOS CAMPOS FINANCEIROS ---
+    saldo_staking_liquido: { type: Number, default: 0 }, // Onde rende o APR diário
+    
+    // --- PREPARAÇÃO PARA RPG (CLASSES) ---
+    classe_rpg: { 
+        type: String, 
+        enum: ['BRUXO', 'ESPECULADOR', 'TECNOMANTE', 'BARDO', 'NOVATO'],
+        default: 'NOVATO'
+    },
+    subclasse_rpg: { type: String, default: 'Calouro' },
 });
 
 // Hook para gerar código de convite (Mantido igual)

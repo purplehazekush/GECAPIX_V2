@@ -7,31 +7,27 @@ import {
 } from 'recharts';
 import { 
     AccountBalance, TrendingDown, Whatshot, 
-    LockClock, InfoOutlined, MonetizationOn 
+    LockClock, InfoOutlined, MonetizationOn,
+    Lock, LockOpen, Savings, RequestQuote
 } from '@mui/icons-material';
-import { CircularProgress } from '@mui/material';
+import { CircularProgress, Tabs, Tab } from '@mui/material';
+import toast from 'react-hot-toast';
 
-// Fórmulas Matemáticas (Réplica do Backend para Projeção)
+// --- CONFIGURAÇÃO GRÁFICA ---
 const SEASON_LENGTH = 180;
 const REFERRAL_A = 1459558;
 const REFERRAL_K = 0.024;
 const CASHBACK_BASE = 5000;
 
-// Função para gerar dados do gráfico (Dia 0 ao 180)
 const generateCurveData = (currentDay: number) => {
     const data = [];
-    for (let d = 0; d <= SEASON_LENGTH; d += 5) { // Pontos a cada 5 dias
-        // Curva Referral (Decaimento)
+    for (let d = 0; d <= SEASON_LENGTH; d += 5) {
         const refVal = Math.floor(REFERRAL_A * Math.exp(-REFERRAL_K * d));
-        
-        // Curva Cashback (Crescimento)
         const cashVal = Math.floor(CASHBACK_BASE * Math.pow(d + 1, 1.5));
-        
         data.push({
             day: d,
             Referral: refVal,
             Cashback: cashVal,
-            // Marca o dia atual para o gráfico saber onde pintar diferente
             isPast: d <= currentDay
         });
     }
@@ -39,11 +35,22 @@ const generateCurveData = (currentDay: number) => {
 };
 
 export default function CentralBank() {
-    useAuth();
-    const [status, setStatus] = useState<any>(null);
+    const { dbUser, setDbUser } = useAuth();
+    
+    // Estados Gerais
+    const [tab, setTab] = useState(0); // 0=Policy, 1=Liquid, 2=Locked
     const [loading, setLoading] = useState(true);
+    
+    // Estados Tokenomics (Aba 0)
+    const [status, setStatus] = useState<any>(null);
     const [graphData, setGraphData] = useState<any[]>([]);
 
+    // Estados Bancários (Aba 1 e 2)
+    const [valorLiq, setValorLiq] = useState('');
+    const [valorBond, setValorBond] = useState('');
+    const [titulos, setTitulos] = useState<any[]>([]);
+
+    // 1. CARGA INICIAL (Tokenomics)
     useEffect(() => {
         api.get('/tokenomics/status')
             .then(res => {
@@ -53,16 +60,88 @@ export default function CentralBank() {
             .finally(() => setLoading(false));
     }, []);
 
+    // 2. CARGA DE TÍTULOS (Quando muda para aba 2)
+    const fetchTitulos = () => {
+        if (dbUser?.email) {
+            api.get(`/bank/bonds?email=${dbUser.email}`).then(res => setTitulos(res.data));
+        }
+    };
+    useEffect(() => { if (tab === 2) fetchTitulos(); }, [tab]);
+
+    // --- AÇÕES BANCÁRIAS ---
+
+    // Staking Líquido
+    const handleLiqAction = async (action: 'deposit' | 'withdraw') => {
+        const val = parseInt(valorLiq);
+        if (!val || val <= 0) return toast.error("Valor inválido");
+
+        const toastId = toast.loading(action === 'deposit' ? "Depositando..." : "Sacando...");
+        try {
+            await api.post(`/bank/${action}`, { email: dbUser?.email, valor: val });
+            
+            // Atualização Otimista do UI
+            if (dbUser) {
+                const novoSaldo = action === 'deposit' ? dbUser.saldo_coins - val : dbUser.saldo_coins + val;
+                const novoStaking = action === 'deposit' 
+                    ? (dbUser.saldo_staking_liquido || 0) + val 
+                    : (dbUser.saldo_staking_liquido || 0) - val;
+                
+                setDbUser({ ...dbUser, saldo_coins: novoSaldo, saldo_staking_liquido: novoStaking });
+            }
+
+            toast.success("Sucesso!", { id: toastId });
+            setValorLiq('');
+        } catch (e: any) { 
+            toast.error(e.response?.data?.error || "Erro na transação", { id: toastId }); 
+        }
+    };
+
+    // Compra de Título
+    const handleBuyBond = async () => {
+        const val = parseInt(valorBond);
+        if (!val || val < 100) return toast.error("Investimento mínimo: 100 GC");
+
+        const toastId = toast.loading("Emitindo título...");
+        try {
+            await api.post('/bank/bond/buy', { email: dbUser?.email, valor: val });
+            
+            if (dbUser) setDbUser({ ...dbUser, saldo_coins: dbUser.saldo_coins - val });
+            
+            toast.success("Título comprado!", { id: toastId });
+            setValorBond('');
+            fetchTitulos();
+        } catch (e: any) { 
+            toast.error(e.response?.data?.error || "Erro na compra", { id: toastId }); 
+        }
+    };
+
+    // Resgate de Título
+    const handleRedeem = async (id: string) => {
+        if(!window.confirm("ATENÇÃO: Resgatar antes do vencimento cobra MULTA de até 40% sobre o valor. Deseja continuar?")) return;
+        
+        const toastId = toast.loading("Processando resgate...");
+        try {
+            const res = await api.post('/bank/bond/redeem', { email: dbUser?.email, tituloId: id });
+            
+            if (dbUser) setDbUser({ ...dbUser, saldo_coins: dbUser.saldo_coins + res.data.valor_recebido });
+
+            toast.success(`Recebido: ${Math.floor(res.data.valor_recebido)} GC`, { id: toastId });
+            fetchTitulos();
+        } catch (e: any) { 
+            toast.error(e.response?.data?.error || "Erro no resgate", { id: toastId }); 
+        }
+    };
+
     if (loading) return <div className="flex justify-center p-20"><CircularProgress color="secondary" /></div>;
 
     const currentReward = status?.current_referral_reward || 0;
-    const nextReward = Math.floor(currentReward * 0.98); // Simulação de queda de ~2%
+    const nextReward = Math.floor(currentReward * 0.98);
 
     return (
         <div className="pb-28 p-4 animate-fade-in space-y-6 max-w-2xl mx-auto">
             
-            {/* Header */}
-            <header className="flex items-center justify-between mb-4">
+            {/* Header Global */}
+            <header className="flex items-center justify-between mb-2">
                 <div>
                     <h2 className="text-3xl font-black italic text-white uppercase tracking-tighter flex items-center gap-2">
                         <AccountBalance className="text-emerald-500" fontSize="large"/> Banco Central
@@ -71,114 +150,211 @@ export default function CentralBank() {
                         Política Monetária • Season {status?.season_id}
                     </p>
                 </div>
-                <div className="text-right">
-                    <p className="text-xs text-slate-500 font-bold uppercase">Dia da Season</p>
-                    <p className="text-2xl font-black text-white">#{status?.current_day} <span className="text-slate-600">/ 180</span></p>
+                <div className="text-right bg-slate-900 p-2 rounded-xl border border-slate-800">
+                     <p className="text-[9px] text-slate-500 font-bold uppercase">Disponível</p>
+                     <p className="text-sm font-black text-yellow-400 flex items-center justify-end gap-1">
+                        <MonetizationOn sx={{fontSize:14}}/> {dbUser?.saldo_coins}
+                     </p>
                 </div>
             </header>
 
-            {/* TICKER DE FOMO (O PREÇO CAI AMANHÃ) */}
-            <div className="bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700 p-6 rounded-3xl relative overflow-hidden shadow-2xl">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                    <LockClock sx={{ fontSize: 120 }} />
-                </div>
-                
-                <h3 className="text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-1">
-                    <Whatshot className="text-orange-500" fontSize="small"/> Oportunidade do Dia
-                </h3>
-                
-                <div className="flex items-end gap-4 relative z-10">
-                    <div>
-                        <p className="text-4xl font-black text-white tracking-tighter">
-                            {currentReward} <span className="text-lg text-yellow-500">GC</span>
-                        </p>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">
-                            Bônus por Indicação (Hoje)
-                        </p>
+            {/* Navegação de Abas */}
+            <Tabs 
+                value={tab} 
+                onChange={(_, v) => setTab(v)} 
+                textColor="inherit" 
+                indicatorColor="secondary" 
+                variant="fullWidth" 
+                className="bg-slate-900 rounded-xl border border-slate-800"
+            >
+                <Tab label={<span className="text-[10px] font-black">POLÍTICA</span>} />
+                <Tab label={<span className="text-[10px] font-black">RENDA FIXA</span>} />
+                <Tab label={<span className="text-[10px] font-black">TÍTULOS</span>} />
+            </Tabs>
+
+            {/* --- ABA 0: POLÍTICA MONETÁRIA (Gráficos) --- */}
+            {tab === 0 && (
+                <div className="space-y-6 animate-fade-in">
+                    {/* Ticker FOMO */}
+                    <div className="bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700 p-6 rounded-3xl relative overflow-hidden shadow-2xl">
+                        <div className="absolute top-0 right-0 p-4 opacity-10"><LockClock sx={{ fontSize: 120 }} /></div>
+                        
+                        <h3 className="text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-1">
+                            <Whatshot className="text-orange-500" fontSize="small"/> Oportunidade do Dia
+                        </h3>
+                        
+                        <div className="flex items-end gap-4 relative z-10">
+                            <div>
+                                <p className="text-4xl font-black text-white tracking-tighter">
+                                    {currentReward} <span className="text-lg text-yellow-500">GC</span>
+                                </p>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Bônus por Indicação</p>
+                            </div>
+                            <div className="mb-2">
+                                <div className="flex items-center gap-1 text-red-400 text-xs font-bold bg-red-900/20 px-2 py-1 rounded-lg">
+                                    <TrendingDown fontSize="inherit" /> Amanhã: ~{nextReward}
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="mb-2">
-                        <div className="flex items-center gap-1 text-red-400 text-xs font-bold bg-red-900/20 px-2 py-1 rounded-lg">
-                            <TrendingDown fontSize="inherit" />
-                            Amanhã: ~{nextReward} GC
+                    {/* Gráfico */}
+                    <div className="bg-slate-900 border border-slate-800 p-4 rounded-3xl">
+                        <div className="h-64 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={graphData}>
+                                    <defs>
+                                        <linearGradient id="colorRef" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                        </linearGradient>
+                                        <linearGradient id="colorCash" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3}/><stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
+                                    <XAxis dataKey="day" stroke="#64748b" fontSize={10} tickFormatter={(val) => `D${val}`} />
+                                    <YAxis hide />
+                                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px' }} />
+                                    <ReferenceLine x={status?.current_day} stroke="#f59e0b" strokeDasharray="3 3" label={{ position: 'top', value: 'HOJE', fill: '#f59e0b', fontSize: 10 }} />
+                                    <Area type="monotone" dataKey="Referral" stroke="#10b981" fillOpacity={1} fill="url(#colorRef)" strokeWidth={2} />
+                                    <Area type="monotone" dataKey="Cashback" stroke="#a855f7" fillOpacity={1} fill="url(#colorCash)" strokeWidth={2} />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    {/* Dados Potes */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800">
+                            <p className="text-[10px] text-slate-500 font-bold uppercase">Pote Referral</p>
+                            <p className="text-lg font-black text-emerald-400 truncate">{status?.referral_pool_available.toLocaleString()}</p>
+                        </div>
+                        <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800">
+                            <p className="text-[10px] text-slate-500 font-bold uppercase">Pote Cashback</p>
+                            <p className="text-lg font-black text-purple-400 truncate">{status?.cashback_pool_available.toLocaleString()}</p>
                         </div>
                     </div>
                 </div>
+            )}
 
-                <div className="mt-4 bg-black/20 p-3 rounded-xl border border-white/5">
-                    <p className="text-[10px] text-slate-300 leading-relaxed">
-                        <InfoOutlined sx={{fontSize: 12, verticalAlign: 'middle', mr: 0.5}}/>
-                        A emissão de moedas é deflacionária. Quanto mais cedo você convidar amigos e participar, maior será sua recompensa. O "Halving" é diário.
-                    </p>
-                </div>
-            </div>
+            {/* --- ABA 1: RENDA FIXA (Líquido) --- */}
+            {tab === 1 && (
+                <div className="space-y-4 animate-fade-in">
+                    <div className="bg-gradient-to-br from-emerald-900 to-slate-900 p-6 rounded-3xl border border-emerald-500/30 text-center relative overflow-hidden shadow-2xl">
+                        <div className="absolute top-0 right-0 p-4 opacity-10"><Savings sx={{fontSize: 100}}/></div>
+                        
+                        <h3 className="text-xl font-black text-white italic uppercase relative z-10">Staking Líquido</h3>
+                        <p className="text-emerald-200 text-xs mb-6 relative z-10">Rendimento diário (0.5%). Liquidez imediata.</p>
+                        
+                        <div className="bg-black/20 p-4 rounded-2xl inline-block mb-6 backdrop-blur-sm border border-emerald-500/20 relative z-10">
+                            <p className="text-[10px] text-slate-300 font-bold uppercase">Seu Saldo Aplicado</p>
+                            <p className="text-4xl font-black text-white tracking-tighter">
+                                {Math.floor(dbUser?.saldo_staking_liquido || 0).toLocaleString()} <span className="text-lg text-emerald-400">GC</span>
+                            </p>
+                        </div>
 
-            {/* GRÁFICO DE CURVAS (REFERRAL VS CASHBACK) */}
-            <div className="bg-slate-900 border border-slate-800 p-4 rounded-3xl">
-                <div className="flex justify-between items-center mb-4 px-2">
-                    <h3 className="text-sm font-black text-white uppercase">Curvas de Liquidez</h3>
-                    <div className="flex gap-3 text-[10px] font-bold">
-                        <span className="flex items-center gap-1 text-emerald-400"><span className="w-2 h-2 rounded-full bg-emerald-400"></span> Referral</span>
-                        <span className="flex items-center gap-1 text-purple-400"><span className="w-2 h-2 rounded-full bg-purple-400"></span> Cashback</span>
+                        <div className="flex gap-2 relative z-10">
+                            <input 
+                                type="number" 
+                                placeholder="Valor..." 
+                                value={valorLiq} 
+                                onChange={e => setValorLiq(e.target.value)}
+                                className="flex-1 bg-slate-950/50 border border-emerald-500/30 rounded-xl px-4 text-white outline-none focus:border-emerald-400 font-bold text-center"
+                            />
+                        </div>
+                        
+                        <div className="flex gap-2 mt-2 relative z-10">
+                            <button onClick={() => handleLiqAction('deposit')} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl font-black text-xs shadow-lg shadow-emerald-900/50 active:scale-95 transition-all">
+                                DEPOSITAR
+                            </button>
+                            <button onClick={() => handleLiqAction('withdraw')} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-black text-xs border border-slate-600 active:scale-95 transition-all">
+                                SACAR
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 text-xs text-slate-400 text-center">
+                        <InfoOutlined sx={{fontSize:14, verticalAlign:'text-bottom', mr:1}}/>
+                        O rendimento é creditado automaticamente todo dia às 21h.
                     </div>
                 </div>
+            )}
 
-                <div className="h-64 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={graphData}>
-                            <defs>
-                                <linearGradient id="colorRef" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                                </linearGradient>
-                                <linearGradient id="colorCash" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3}/>
-                                    <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
-                            <XAxis dataKey="day" stroke="#64748b" fontSize={10} tickFormatter={(val) => `Dia ${val}`} />
-                            <YAxis hide />
-                            <Tooltip 
-                                contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px' }}
-                                itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
-                                labelStyle={{ color: '#94a3b8', fontSize: '10px', marginBottom: '5px' }}
+            {/* --- ABA 2: TÍTULOS (Locked) --- */}
+            {tab === 2 && (
+                <div className="space-y-4 animate-fade-in">
+                    {/* Criar Título */}
+                    <div className="bg-slate-900 p-5 rounded-3xl border border-purple-500/30 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-4 opacity-5"><RequestQuote sx={{fontSize: 80}}/></div>
+                        
+                        <h3 className="text-sm font-black text-white uppercase mb-1 flex items-center gap-2 relative z-10">
+                            <Lock className="text-purple-400" fontSize="small"/> Novo Título Público
+                        </h3>
+                        <p className="text-[10px] text-slate-400 mb-4 relative z-10">
+                            Trava por 30 dias. Rendimento de 1.5% ao dia. Multa por saída antecipada.
+                        </p>
+                        
+                        <div className="flex gap-2 relative z-10">
+                            <input 
+                                type="number" 
+                                placeholder="Min. 100 GC" 
+                                value={valorBond} 
+                                onChange={e => setValorBond(e.target.value)}
+                                className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 text-white outline-none focus:border-purple-500 font-bold"
                             />
+                            <button onClick={handleBuyBond} className="bg-purple-600 hover:bg-purple-500 text-white px-6 rounded-xl font-black text-xs shadow-lg shadow-purple-900/30 active:scale-95 transition-all">
+                                INVESTIR
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Lista de Títulos */}
+                    <div className="space-y-3">
+                        {titulos.length === 0 && (
+                            <div className="text-center py-8 opacity-50 border-2 border-dashed border-slate-800 rounded-2xl">
+                                <LockOpen sx={{fontSize: 40}} className="mb-2"/>
+                                <p className="text-xs font-bold">Nenhum investimento ativo.</p>
+                            </div>
+                        )}
+
+                        {titulos.map((t) => {
+                            const vencimento = new Date(t.data_vencimento);
+                            const hoje = new Date();
+                            const venceu = hoje >= vencimento;
                             
-                            {/* Linha do Tempo Atual */}
-                            <ReferenceLine x={status?.current_day} stroke="#f59e0b" strokeDasharray="3 3" label={{ position: 'top', value: 'HOJE', fill: '#f59e0b', fontSize: 10, fontWeight: 'bold' }} />
-
-                            <Area type="monotone" dataKey="Referral" stroke="#10b981" fillOpacity={1} fill="url(#colorRef)" strokeWidth={2} />
-                            <Area type="monotone" dataKey="Cashback" stroke="#a855f7" fillOpacity={1} fill="url(#colorCash)" strokeWidth={2} />
-                        </AreaChart>
-                    </ResponsiveContainer>
+                            return (
+                                <div key={t._id} className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex justify-between items-center group hover:border-purple-500/50 transition-colors">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-[10px] font-bold bg-slate-800 px-2 py-0.5 rounded text-slate-400">
+                                                Investido: {t.valor_inicial}
+                                            </span>
+                                            {venceu && <span className="text-[9px] font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded animate-pulse">VENCEU</span>}
+                                        </div>
+                                        <p className="text-xl font-black text-white">{Math.floor(t.valor_atual).toLocaleString()} <span className="text-xs text-purple-400">GC</span></p>
+                                    </div>
+                                    
+                                    <div className="text-right">
+                                        <p className="text-[9px] text-slate-500 font-bold uppercase mb-2">
+                                            Vence {vencimento.toLocaleDateString()}
+                                        </p>
+                                        <button 
+                                            onClick={() => handleRedeem(t._id)}
+                                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all active:scale-95 ${
+                                                venceu 
+                                                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/40 hover:bg-emerald-500' 
+                                                    : 'bg-slate-800 text-slate-300 hover:text-red-300 hover:bg-red-900/20 border border-slate-700'
+                                            }`}
+                                        >
+                                            {venceu ? "RESGATAR (0%)" : "RESGATAR (MULTA)"}
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
-                <p className="text-center text-[10px] text-slate-500 mt-2">
-                    *Projeção algorítmica. Valores reais podem variar conforme demanda.
-                </p>
-            </div>
-
-            {/* DADOS DO TESOURO */}
-            <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800">
-                    <p className="text-[10px] text-slate-500 font-bold uppercase">Pote Referral (Hoje)</p>
-                    <p className="text-xl font-black text-emerald-400 truncate">
-                        {status?.referral_pool_available.toLocaleString()} <span className="text-xs">GC</span>
-                    </p>
-                </div>
-                <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800">
-                    <p className="text-[10px] text-slate-500 font-bold uppercase">Pote Cashback</p>
-                    <p className="text-xl font-black text-purple-400 truncate">
-                        {status?.cashback_pool_available.toLocaleString()} <span className="text-xs">GC</span>
-                    </p>
-                </div>
-            </div>
-
-            {/* BOTÃO DE AÇÃO */}
-            <button className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-2xl font-black text-sm uppercase shadow-lg shadow-emerald-900/20 active:scale-95 transition-all flex items-center justify-center gap-2">
-                <MonetizationOn /> INICIAR MINERAÇÃO SOCIAL
-            </button>
-
+            )}
         </div>
     );
 }

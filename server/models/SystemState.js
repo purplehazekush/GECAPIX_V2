@@ -17,7 +17,10 @@ const SystemStateSchema = new mongoose.Schema({
     current_referral_reward: { type: Number, default: 500 },
     
     // Status
-    is_active: { type: Boolean, default: true }
+    is_active: { type: Boolean, default: true },
+    // --- LEDGER DO SISTEMA ---
+    total_burned: { type: Number, default: 0 }, // Moedas destruídas
+    total_fees_collected: { type: Number, default: 0 } // Moedas no tesouro
 });
 
 module.exports = mongoose.models.SystemState || mongoose.model('SystemState', SystemStateSchema);

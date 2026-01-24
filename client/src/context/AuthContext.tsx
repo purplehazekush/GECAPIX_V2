@@ -51,6 +51,8 @@ export interface User {
   
   // 🔥 A CORREÇÃO DO ERRO 1 ESTÁ AQUI:
   extrato?: ExtratoItem[]; 
+  saldo_staking_liquido?: number
+  
 }
 interface AuthContextType {
   user: FirebaseUser | null;

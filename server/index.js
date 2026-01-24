@@ -26,6 +26,8 @@ const aiController = require('./controllers/aiController')
 const DailyTreasury = require('./engine/DailyTreasury'); // <--- Importe
 const SystemState = require('./models/SystemState'); // <--- Importe
 const storeController = require('./controllers/storeController');
+const InterestEngine = require('./engine/InterestEngine');
+const bankController = require('./controllers/bankController');
 
 const app = express();
 
@@ -162,19 +164,29 @@ app.put('/api/config/modo-aberto', configController.setModoAberto);
 
 app.get('/api/stats', statsController.getStats);
 
-// 7. CRON JOB
+
+app.post('/api/bank/deposit', bankController.depositarLiquido);
+app.post('/api/bank/withdraw', bankController.sacarLiquido);
+app.post('/api/bank/bond/buy', bankController.comprarTitulo);
+app.post('/api/bank/bond/redeem', bankController.resgatarTitulo);
+app.get('/api/bank/bonds', bankController.listarTitulos);
+
+
+app.get('/api/store/p2p', storeController.getOfertasP2P);
+app.post('/api/store/p2p/criar', storeController.criarOfertaP2P);
+app.post('/api/store/p2p/comprar', storeController.comprarOfertaP2P);
+app.post('/api/store/p2p/cancelar', storeController.cancelarOfertaP2P);
+
+
 cron.schedule('0 21 * * *', () => { // Todo dia às 21h
     console.log('⏰ Rotina das 21h...');
     memeController.finalizarDiaArena();
     statsController.snapshotEconomy(); 
     DailyTreasury.runDailyClosing(); // <--- O MOTOR ECONÔMICO RODA AQUI
+    InterestEngine.aplicarJurosDiarios(); // <--- Rende o dinheiro da galera
 }, { timezone: "America/Sao_Paulo" });
 
-// 8. LOJA & CÂMBIO
-app.get('/api/store/p2p', storeController.getOfertasP2P);
-app.post('/api/store/p2p/criar', storeController.criarOfertaP2P);
-app.post('/api/store/p2p/comprar', storeController.comprarOfertaP2P);
-app.post('/api/store/p2p/cancelar', storeController.cancelarOfertaP2P);
+
 
 // --- SOCKET.IO SETUP (SUBSTITUI O app.listen) ---
 const http = require('http');
