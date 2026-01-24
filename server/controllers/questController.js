@@ -9,11 +9,11 @@ const isCompletedInPeriod = (lastDate, frequency) => {
 
     // Reset às 21:00 (Fuso do Game) ou 00:00 (Fuso Real). Vamos usar 00:00 UTC para simplificar a lógica
     // Lógica simples: Mesmo dia/semana calendário
-    
+
     if (frequency === 'DIARIA') {
         return last.toDateString() === now.toDateString();
     }
-    
+
     if (frequency === 'SEMANAL') {
         // Pega o número da semana do ano
         const getWeek = (d) => {
@@ -26,7 +26,7 @@ const isCompletedInPeriod = (lastDate, frequency) => {
     if (frequency === 'UNICA') {
         return true; // Se tem data, tá feita pra sempre
     }
-    
+
     return false;
 };
 
@@ -39,9 +39,9 @@ exports.getQuests = async (req, res) => {
         const statusQuests = QUESTS_CONFIG.map(q => {
             // Busca progresso dessa quest específica
             const userQuest = progress.find(p => p.quest_id === q.id);
-            
+
             // Verifica se está concluída NO PERÍODO ATUAL
-            const isDone = userQuest 
+            const isDone = userQuest
                 ? isCompletedInPeriod(userQuest.last_completed_at, q.frequencia)
                 : false;
 
@@ -62,7 +62,7 @@ exports.getQuests = async (req, res) => {
 exports.claimQuest = async (req, res) => {
     try {
         const { email, questId } = req.body;
-        
+
         // 1. Configs
         const quest = QUESTS_CONFIG.find(q => q.id === questId);
         if (!quest) return res.status(404).json({ error: "Missão inexistente" });
@@ -79,25 +79,24 @@ exports.claimQuest = async (req, res) => {
 
         // 3. Validação Lógica (Igual ao anterior, mas adaptado)
         let passou = false;
-        
-        // Se não checa backend, assume true (frontend validou redirecionamento)
-        if (!quest.check_backend) passou = true; 
+
+        if (!quest.check_backend) passou = true;
         else {
-            const hoje = new Date(); hoje.setHours(0,0,0,0);
-            
+            // HELPER DE DATA: Pega YYYY-MM-DD do servidor
+            const hojeStr = new Date().toISOString().split('T')[0];
+
             switch (quest.criterio) {
                 case 'INVESTIMENTO_MEME':
-                    // Procura extrato de MEME/SAIDA com data >= hoje
-                    passou = user.extrato.some(t => 
-                        t.categoria === 'MEME' && t.tipo === 'SAIDA' && new Date(t.data) >= hoje
-                    );
+                    passou = user.extrato.some(t => {
+                        const tDate = new Date(t.data).toISOString().split('T')[0];
+                        return t.categoria === 'MEME' && t.tipo === 'SAIDA' && tDate === hojeStr;
+                    });
                     break;
                 case 'COMPRA_TITULO':
-                    // Procura extrato de INVEST/SAIDA com data >= hoje
-                    // (Aqui poderia melhorar checando se foi essa semana, mas hoje serve pra validar a ação)
-                    passou = user.extrato.some(t => 
-                        t.categoria === 'INVEST' && t.tipo === 'SAIDA' && new Date(t.data) >= hoje
-                    );
+                    passou = user.extrato.some(t => {
+                        const tDate = new Date(t.data).toISOString().split('T')[0];
+                        return t.categoria === 'INVEST' && t.tipo === 'SAIDA' && tDate === hojeStr;
+                    });
                     break;
             }
         }
@@ -105,7 +104,7 @@ exports.claimQuest = async (req, res) => {
         if (passou) {
             // 4. ATUALIZA O PROGRESSO (Upsert no Array)
             // Se já existe, atualiza data e incrementa count. Se não, push.
-            
+
             // Remove entrada antiga se existir para colocar a nova (maneira fácil de atualizar array de objetos)
             await UsuarioModel.updateOne(
                 { email },
@@ -114,16 +113,16 @@ exports.claimQuest = async (req, res) => {
 
             await UsuarioModel.updateOne(
                 { email },
-                { 
-                    $push: { 
-                        quest_progress: { 
-                            quest_id: questId, 
+                {
+                    $push: {
+                        quest_progress: {
+                            quest_id: questId,
                             last_completed_at: new Date(),
-                            count: (userQuest?.count || 0) + 1 
+                            count: (userQuest?.count || 0) + 1
                         },
-                        extrato: { 
-                            tipo: 'ENTRADA', valor: quest.premio_coins, 
-                            descricao: `Quest: ${quest.titulo}`, categoria: 'QUEST', data: new Date() 
+                        extrato: {
+                            tipo: 'ENTRADA', valor: quest.premio_coins,
+                            descricao: `Quest: ${quest.titulo}`, categoria: 'QUEST', data: new Date()
                         }
                     },
                     $inc: { saldo_coins: quest.premio_coins, xp: quest.premio_xp }

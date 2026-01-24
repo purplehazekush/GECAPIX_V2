@@ -77,9 +77,15 @@ exports.investirMeme = async (req, res) => {
 // 3. GET MEMES (Mantém igual)
 exports.getMemes = async (req, res) => {
     try {
-        // Traz memes do dia atual, ordenados por score
-        // (Lógica simples para MVP, depois podemos filtrar por data)
-        const memes = await MemeModel.find().sort({ score: -1, data: -1 }).limit(50);
+        const hoje = new Date();
+        hoje.setHours(0,0,0,0); // Meia-noite de hoje
+
+        const memes = await MemeModel.find({ 
+            data: { $gte: hoje } // Só pega de hoje pra frente
+        })
+        .sort({ score: -1, data: -1 }) // Mais populares primeiro
+        .limit(50);
+        
         res.json(memes);
     } catch (e) { res.status(500).json({ error: "Erro ao buscar memes" }); }
 };

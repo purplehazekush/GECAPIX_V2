@@ -58,3 +58,27 @@ exports.darRecursos = async (req, res) => {
         res.status(500).json({ error: "Erro ao dar recursos" });
     }
 };
+
+exports.resetSeason = async (req, res) => {
+    try {
+        const { confirm } = req.body;
+        if (confirm !== "ZERAR_TUDO_SEASON_1") return res.status(400).json({ error: "Senha incorreta" });
+
+        // 1. Reseta Saldos e XP de TODOS
+        await require('../models/Usuario').updateMany({}, {
+            saldo_coins: 1000, // Começa com 1k
+            saldo_staking_liquido: 0,
+            xp: 0,
+            missoes_concluidas: [],
+            quest_progress: [],
+            extrato: [{ tipo: 'ENTRADA', valor: 1000, descricao: 'Season 1 Start', data: new Date() }]
+        });
+
+        // 2. Limpa Memes, Chat, Títulos
+        await require('../models/Meme').deleteMany({});
+        await require('../models/Mensagem').deleteMany({});
+        await require('../models/LockedBond').deleteMany({});
+
+        res.json({ success: true, message: "SEASON 1 RESETADA COM SUCESSO." });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+};
