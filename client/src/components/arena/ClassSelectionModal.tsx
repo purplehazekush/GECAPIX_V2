@@ -1,3 +1,4 @@
+// client/src/components/arena/ClassSelectionModal.tsx
 import { useState } from 'react';
 import { Modal, Box } from '@mui/material';
 import { useAuth } from '../../context/AuthContext';

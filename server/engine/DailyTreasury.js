@@ -1,3 +1,4 @@
+// server/engine/DailyTreasury.js
 // server/engine/DailyTreasure.js
 const SystemState = require('../models/SystemState');
 const EmissionCurve = require('./EmissionCurve');

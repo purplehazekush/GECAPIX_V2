@@ -1,3 +1,4 @@
+// client/src/components/arena/ArenaLayout.tsx
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { 
     Home, RocketLaunch, SportsEsports, Science, Person 

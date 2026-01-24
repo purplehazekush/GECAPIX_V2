@@ -76,13 +76,12 @@ exports.investirMeme = async (req, res) => {
 
 // 3. GET MEMES (Mantém igual)
 exports.getMemes = async (req, res) => {
-    // ... (Código igual ao anterior) ...
     try {
-        const { tipo } = req.query;
-        let query = (tipo === 'historico') ? { status: 'fechado', vencedor: true } : { status: 'ativo' };
-        const memes = await MemeModel.find(query).sort({ total_investido: -1 });
+        // Traz memes do dia atual, ordenados por score
+        // (Lógica simples para MVP, depois podemos filtrar por data)
+        const memes = await MemeModel.find().sort({ score: -1, data: -1 }).limit(50);
         res.json(memes);
-    } catch (e) { res.status(500).json({ error: "Erro" }); }
+    } catch (e) { res.status(500).json({ error: "Erro ao buscar memes" }); }
 };
 
 // 4. FECHAMENTO DO MERCADO (LÓGICA PARIMUTUEL)

@@ -1,3 +1,4 @@
+// server/controllers/storeController.js
 const UsuarioModel = require('../models/Usuario');
 const MarketOrderModel = require('../models/MarketOrder');
 const PixController = require('./pixController'); // Reutiliza sua lógica de PIX existente

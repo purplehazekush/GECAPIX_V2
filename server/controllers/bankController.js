@@ -43,35 +43,32 @@ exports.sacarLiquido = async (req, res) => {
 // --- 2. STAKING LOCKED (TÍTULOS) ---
 
 exports.comprarTitulo = async (req, res) => {
-    console.log("💰 [BANK] Tentativa de compra de título:", req.body);
+    console.log("💰 [BANK] Tentativa de compra:", req.body);
     try {
         const { email, valor } = req.body;
         
-        // Validação TOKENOMICS
-        if (!TOKEN.BANK) throw new Error("Configuração TOKEN.BANK não encontrada no tokenomics.js");
+        // FAILSAFE: Se o tokenomics não carregar, usa valor padrão (1.5%)
+        const APR_DIARIO = TOKEN.BANK?.LOCKED_APR_DAILY || 0.015;
+        const DIAS_TRAVA = TOKEN.BANK?.LOCKED_PERIOD_DAYS || 30;
 
         const amount = parseInt(valor);
         const user = await UsuarioModel.findOne({ email });
 
-        if (!user) throw new Error("Usuário não encontrado");
+        if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
         if (user.saldo_coins < amount) return res.status(400).json({ error: "Saldo insuficiente" });
-
-        console.log(`   -> Usuário: ${user.nome}, Saldo: ${user.saldo_coins}, Valor: ${amount}`);
 
         // Calcula Vencimento
         const vencimento = new Date();
-        vencimento.setDate(vencimento.getDate() + TOKEN.BANK.LOCKED_PERIOD_DAYS);
+        vencimento.setDate(vencimento.getDate() + DIAS_TRAVA);
 
-        // 1. Cria o Título
+        // 1. Cria o Título (Agora com garantia de valor no APR)
         const titulo = await LockedBondModel.create({
             owner_id: user._id,
             valor_inicial: amount,
             valor_atual: amount,
             data_vencimento: vencimento,
-            apr_contratada: TOKEN.BANK.LOCKED_APR_DAILY
+            apr_contratada: APR_DIARIO // <--- Agora nunca será undefined
         });
-
-        console.log("   -> Título Criado:", titulo._id);
 
         // 2. Debita Usuário
         await UsuarioModel.updateOne({ email }, {
@@ -82,15 +79,16 @@ exports.comprarTitulo = async (req, res) => {
         res.json(titulo);
 
     } catch (e) { 
-        console.error("❌ ERRO CRÍTICO COMPRAR TÍTULO:", e.message); // Loga a mensagem exata
-        console.error(e); // Loga o stack trace
-        res.status(500).json({ error: "Erro interno: " + e.message }); 
+        console.error("❌ ERRO COMPRA TÍTULO:", e);
+        res.status(500).json({ error: "Erro ao processar investimento." }); 
     }
 };
+
 exports.listarTitulos = async (req, res) => {
     try {
         const { email } = req.query;
         const user = await UsuarioModel.findOne({ email });
+        // Busca apenas ativos
         const titulos = await LockedBondModel.find({ owner_id: user._id, status: 'ATIVO' });
         res.json(titulos);
     } catch (e) { res.status(500).json({ error: "Erro ao listar" }); }
@@ -102,29 +100,30 @@ exports.resgatarTitulo = async (req, res) => {
         const user = await UsuarioModel.findOne({ email });
         const titulo = await LockedBondModel.findById(tituloId);
 
-        if (!titulo || titulo.status !== 'ATIVO') return res.status(400).json({ error: "Título inválido" });
+        if (!titulo || titulo.status !== 'ATIVO') return res.status(400).json({ error: "Título inválido ou já resgatado" });
         if (titulo.owner_id !== user._id.toString()) return res.status(403).json({ error: "Não autorizado" });
 
         const hoje = new Date();
-        const diasTotais = TOKEN.BANK.LOCKED_PERIOD_DAYS;
+        // Failsafe nas configurações
+        const DIAS_TOTAIS = TOKEN.BANK?.LOCKED_PERIOD_DAYS || 30;
+        const PENALTY_MAX = TOKEN.BANK?.PENALTY_MAX || 0.40;
+        const PENALTY_MIN = TOKEN.BANK?.PENALTY_MIN || 0.10;
+
         const diasPassados = Math.floor((hoje - titulo.data_compra) / (1000 * 60 * 60 * 24));
-        const diasRestantes = Math.max(0, diasTotais - diasPassados);
+        const diasRestantes = Math.max(0, DIAS_TOTAIS - diasPassados);
         
         let valorFinal = titulo.valor_atual;
         let penalty = 0;
         let isEarly = false;
 
-        // Se resgatar antes do vencimento -> PAGA MULTA
+        // Multa por saída antecipada
         if (hoje < titulo.data_vencimento) {
             isEarly = true;
-            // Cálculo da Multa Linear (40% dia 0 -> 10% dia 29)
-            // Fórmula: Min + (Max-Min) * (DiasRestantes / DiasTotais)
-            const taxa = TOKEN.BANK.PENALTY_MIN + (TOKEN.BANK.PENALTY_MAX - TOKEN.BANK.PENALTY_MIN) * (diasRestantes / diasTotais);
-            
+            const taxa = PENALTY_MIN + (PENALTY_MAX - PENALTY_MIN) * (diasRestantes / DIAS_TOTAIS);
             penalty = Math.floor(valorFinal * taxa);
             valorFinal = valorFinal - penalty;
 
-            // Envia Multa para Carteira de Burn/Taxas (Ex: 50/50)
+            // Burn & Fees
             const burnPart = Math.floor(penalty * 0.5);
             const feesPart = penalty - burnPart;
             

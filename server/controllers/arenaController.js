@@ -34,64 +34,42 @@ exports.getPerfilPublico = async (req, res) => {
     }
 };
 
-// --- 🔥 TRANSFERÊNCIA BLINDADA ---
+const UsuarioModel = require('../models/Usuario');
+
 exports.transferirCoins = async (req, res) => {
     try {
-        const { remetenteEmail, destinatarioChave, valor } = req.body;
-        const valorNumerico = parseInt(valor);
-        
-        // 1. Validações
-        if (!valorNumerico || valorNumerico <= 0) return res.status(400).json({ error: "Valor inválido." });
-        
-        // 2. Busca Remetente
-        const remetente = await UsuarioModel.findOne({ email: remetenteEmail });
-        if (!remetente) return res.status(404).json({ error: "Erro na autenticação." });
-        if (remetente.saldo_coins < valorNumerico) return res.status(400).json({ error: "Saldo insuficiente." });
+        const { email_remetente, email_destinatario, valor } = req.body;
+        const quantia = parseInt(valor);
 
-        // 3. Busca Destinatário
-        const destinatario = await UsuarioModel.findOne({
-            $or: [{ email: destinatarioChave }, { codigo_referencia: destinatarioChave.toUpperCase() }]
+        if (quantia <= 0) return res.status(400).json({ error: "Valor inválido" });
+        if (email_remetente === email_destinatario) return res.status(400).json({ error: "Não pode transferir para si mesmo" });
+
+        const remetente = await UsuarioModel.findOne({ email: email_remetente });
+        const destinatario = await UsuarioModel.findOne({ email: email_destinatario });
+
+        if (!destinatario) return res.status(404).json({ error: "Destinatário não encontrado" });
+        if (remetente.saldo_coins < quantia) return res.status(400).json({ error: "Saldo insuficiente" });
+
+        // 1. Tira do Remetente (SINAL NEGATIVO)
+        await UsuarioModel.updateOne({ email: email_remetente }, {
+            $inc: { saldo_coins: -quantia },
+            $push: { extrato: { tipo: 'SAIDA', valor: quantia, descricao: `Envio para ${destinatario.nome}`, categoria: 'TRANSFER', data: new Date() } }
         });
 
-        if (!destinatario) return res.status(404).json({ error: "Destinatário não encontrado." });
-        if (remetente.email === destinatario.email) return res.status(400).json({ error: "Não pode transferir para si mesmo." });
+        // 2. Dá pro Destinatário (SINAL POSITIVO +)
+        await UsuarioModel.updateOne({ email: email_destinatario }, {
+            $inc: { saldo_coins: quantia }, // <--- AQUI ESTAVA O ERRO PROVAVELMENTE
+            $push: { extrato: { tipo: 'ENTRADA', valor: quantia, descricao: `Recebido de ${remetente.nome}`, categoria: 'TRANSFER', data: new Date() } }
+        });
 
-        // 4. OPERAÇÃO ATÔMICA
-        await UsuarioModel.updateOne(
-            { _id: remetente._id, saldo_coins: { $gte: valorNumerico } }, 
-            { 
-                $inc: { saldo_coins: -valorNumerico },
-                $push: { extrato: {
-                    tipo: 'SAIDA',
-                    valor: valorNumerico,
-                    descricao: `Transferência para ${destinatario.nome}`,
-                    referencia_id: destinatario._id,
-                    data: new Date()
-                }}
-            }
-        );
-        
-        await UsuarioModel.updateOne(
-            { _id: destinatario._id }, 
-            { 
-                $inc: { saldo_coins: valorNumerico },
-                $push: { extrato: {
-                    tipo: 'ENTRADA',
-                    valor: valorNumerico,
-                    descricao: `Recebido de ${remetente.nome}`,
-                    referencia_id: remetente._id,
-                    data: new Date()
-                }}
-            }
-        );
+        res.json({ success: true, message: "Transferência realizada!" });
 
-        res.json({ success: true, novoSaldo: remetente.saldo_coins - valorNumerico });
-
-    } catch (error) {
-        console.error("Erro na transferência:", error);
-        res.status(500).json({ error: "Erro ao processar transferência." });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: "Erro na transferência" });
     }
 };
+
 
 // --- UPDATE PERFIL (VERSÃO FINAL COM AVATAR E XP CORRIGIDO) ---
 exports.updatePerfil = async (req, res) => {

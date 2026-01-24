@@ -1,3 +1,4 @@
+// client/src/components/arena/DailyRewardModal.tsx
 import { Modal, Box } from '@mui/material';
 import { CalendarMonth, MonetizationOn, CheckCircle } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
