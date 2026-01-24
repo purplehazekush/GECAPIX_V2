@@ -34,8 +34,6 @@ exports.getPerfilPublico = async (req, res) => {
     }
 };
 
-const UsuarioModel = require('../models/Usuario');
-
 exports.transferirCoins = async (req, res) => {
     try {
         const { email_remetente, email_destinatario, valor } = req.body;
