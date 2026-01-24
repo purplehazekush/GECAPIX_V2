@@ -21,10 +21,6 @@ const getLevelInfo = (totalXp: number) => {
         xpNecessario = nivel * 100;
     }
 
-    // Retorna: 
-    // current: quanto tem na barra atual (ex: 40)
-    // max: quanto precisa pra encher (ex: 300)
-    // level: nível atual calculado
     return { current: xpRestante, max: xpNecessario, level: nivel };
 };
 

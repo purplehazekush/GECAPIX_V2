@@ -1,3 +1,4 @@
+// server/fix_users.js
 require('dotenv').config();
 const mongoose = require('mongoose');
 const Usuario = require('./models/Usuario'); // Ajuste o caminho se necessário
