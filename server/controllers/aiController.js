@@ -13,16 +13,35 @@ exports.resolverQuestao = async (req, res) => {
         const user = await UsuarioModel.findOne({ email });
         if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
 
-        // 1. COBRANÇA
+        // 1. DEFINIÇÃO DE CUSTOS
         const custoGlue = TOKEN.COSTS.AI_SOLVER_GLUE;
-        if (user.saldo_glue < custoGlue) {
-            return res.status(402).json({ error: "Sem GLUE suficiente." });
+        let custoCoins = TOKEN.COSTS.AI_SOLVER_COINS;
+
+        // [LÓGICA DE CLASSE: TECNOMANTE]
+        if (user.classe === 'TECNOMANTE') {
+            // Aplica o desconto definido no tokenomics
+            const desconto = TOKEN.CLASSES.TECNOMANTE.ORACLE_DISCOUNT; // ex: 0.5
+            custoCoins = Math.floor(custoCoins * (1 - desconto));
         }
 
-        // Debita GLUE e COINS (Se tiver custo em coins tb)
+        // Validação de Saldo
+        if (user.saldo_glue < custoGlue) {
+            return res.status(402).json({ error: `Sem GLUE suficiente. (Requer: ${custoGlue})` });
+        }
+        if (user.saldo_coins < custoCoins) {
+            return res.status(402).json({ error: `Sem GecaCoins suficientes. (Requer: ${custoCoins})` });
+        }
+
+        // Cobrança
         await UsuarioModel.updateOne({ email }, {
-            $inc: { saldo_glue: -custoGlue },
-            $push: { extrato: { tipo: 'SAIDA', valor: 0, descricao: 'IA: Oráculo Invocado', categoria: 'SYSTEM', data: new Date() }}
+            $inc: { saldo_glue: -custoGlue, saldo_coins: -custoCoins },
+            $push: { extrato: { 
+                tipo: 'SAIDA', 
+                valor: custoCoins, 
+                descricao: `IA: Oráculo Invocado (${user.classe === 'TECNOMANTE' ? 'Desc. Tecnomante' : 'Taxa Padrão'})`, 
+                categoria: 'SYSTEM', 
+                data: new Date() 
+            }}
         });
 
         // 2. PROMPT ENGENHEIRO

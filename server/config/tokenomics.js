@@ -87,5 +87,29 @@ module.exports = {
     MEME_MARKET: {
         CREATOR_ROYALTY: 150,   // Criador do meme vencedor ganha fixo
         YIELD_PERCENT: 0.20     // Vencedores ganham +20% sobre a aposta
+    },
+    // --- 9. RPG CLASS BONUSES (BALANCEAMENTO) ---
+    CLASSES: {
+        // O ESPECULADOR: Mestre dos Juros
+        ESPECULADOR: {
+            STAKING_YIELD_MULT: 1.5, // Rende 50% a mais no Banco (Líquido)
+        },
+
+        // O TECNOMANTE: Eficiência Energética
+        TECNOMANTE: {
+            ORACLE_DISCOUNT: 0.50, // 50% de desconto em GecaCoins no Oráculo
+        },
+
+        // O BARDO: Influência Social
+        BARDO: {
+            REFERRAL_BONUS_MULT: 1.25, // Ganha +25% ao indicar amigos
+        },
+
+        // O BRUXO: Caos e Sorte (Futuro: Drops raros / Jogos)
+        BRUXO: {
+            GAME_WIN_MULT: 1.10, // Ganha +10% XP/Coins ao vencer jogos (PvP)
+        },
+        
+        NOVATO: { _dummy: 0 } // Sem bônus
     }
 };

@@ -56,12 +56,12 @@ const UsuarioSchema = new mongoose.Schema({
     saldo_staking_liquido: { type: Number, default: 0 }, // Onde rende o APR diário
     
     // --- PREPARAÇÃO PARA RPG (CLASSES) ---
-    classe_rpg: { 
+    classe: { 
         type: String, 
         enum: ['BRUXO', 'ESPECULADOR', 'TECNOMANTE', 'BARDO', 'NOVATO'],
-        default: 'NOVATO'
+        default: 'NOVATO' // Todo mundo começa aqui até escolher
     },
-    subclasse_rpg: { type: String, default: 'Calouro' },
+    subclasse: { type: String, default: 'Calouro' },
 });
 
 // Hook para gerar código de convite (Mantido igual)

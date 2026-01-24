@@ -43,12 +43,20 @@ exports.sacarLiquido = async (req, res) => {
 // --- 2. STAKING LOCKED (TÍTULOS) ---
 
 exports.comprarTitulo = async (req, res) => {
+    console.log("💰 [BANK] Tentativa de compra de título:", req.body);
     try {
         const { email, valor } = req.body;
+        
+        // Validação TOKENOMICS
+        if (!TOKEN.BANK) throw new Error("Configuração TOKEN.BANK não encontrada no tokenomics.js");
+
         const amount = parseInt(valor);
         const user = await UsuarioModel.findOne({ email });
 
+        if (!user) throw new Error("Usuário não encontrado");
         if (user.saldo_coins < amount) return res.status(400).json({ error: "Saldo insuficiente" });
+
+        console.log(`   -> Usuário: ${user.nome}, Saldo: ${user.saldo_coins}, Valor: ${amount}`);
 
         // Calcula Vencimento
         const vencimento = new Date();
@@ -63,16 +71,22 @@ exports.comprarTitulo = async (req, res) => {
             apr_contratada: TOKEN.BANK.LOCKED_APR_DAILY
         });
 
+        console.log("   -> Título Criado:", titulo._id);
+
         // 2. Debita Usuário
         await UsuarioModel.updateOne({ email }, {
             $inc: { saldo_coins: -amount },
-            $push: { extrato: { tipo: 'SAIDA', valor: amount, descricao: `Compra: Título Público #${titulo._id.toString().slice(-4)}`, categoria: 'INVEST', data: new Date() } }
+            $push: { extrato: { tipo: 'SAIDA', valor: amount, descricao: `Compra: Título Público`, categoria: 'INVEST', data: new Date() } }
         });
 
         res.json(titulo);
-    } catch (e) { res.status(500).json({ error: "Erro ao comprar título" }); }
-};
 
+    } catch (e) { 
+        console.error("❌ ERRO CRÍTICO COMPRAR TÍTULO:", e.message); // Loga a mensagem exata
+        console.error(e); // Loga o stack trace
+        res.status(500).json({ error: "Erro interno: " + e.message }); 
+    }
+};
 exports.listarTitulos = async (req, res) => {
     try {
         const { email } = req.query;

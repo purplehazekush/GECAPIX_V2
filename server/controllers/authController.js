@@ -1,7 +1,7 @@
 // server/controllers/authController.js
 const UsuarioModel = require('../models/Usuario');
 const SystemState = require('../models/SystemState'); // Certifique-se que o arquivo acima existe!
-const TOKEN = require('../config/tokenomics'); 
+const TOKEN = require('../config/tokenomics');
 
 const EMAILS_ADMINS = ["joaovictorrabelo95@gmail.com", "caiogcosta03@gmail.com"];
 
@@ -27,7 +27,7 @@ const calcularNivel = (xpTotal) => {
 exports.login = async (req, res) => {
     try {
         const { email, nome, codigo_convite } = req.body;
-        
+
         // Busca estado da economia (com fallback se não existir)
         let state = await SystemState.findOne({ season_id: 1 });
         const premioReferralHoje = state ? state.current_referral_reward : TOKEN.COINS.MAX_REFERRAL_REWARD;
@@ -41,13 +41,13 @@ exports.login = async (req, res) => {
             try {
                 const totalUsers = await UsuarioModel.countDocuments();
                 const isAdmin = EMAILS_ADMINS.includes(email) || totalUsers === 0;
-                
+
                 user = new UsuarioModel({
-                    email, 
-                    nome, 
+                    email,
+                    nome,
                     role: isAdmin ? 'admin' : 'membro',
                     status: isAdmin ? 'ativo' : 'pendente',
-                    saldo_coins: TOKEN.COINS.WELCOME_BONUS, 
+                    saldo_coins: TOKEN.COINS.WELCOME_BONUS,
                     xp: 0,
                     nivel: 1,
                     avatar_slug: 'default',
@@ -60,27 +60,44 @@ exports.login = async (req, res) => {
                     const padrinho = await UsuarioModel.findOne({ codigo_referencia: codigo_convite.toUpperCase() });
                     if (padrinho) {
                         user.indicado_por = padrinho.email;
-                        
-                        // Novato ganha
+
+                        // Novato ganha o fixo
                         user.saldo_coins += TOKEN.COINS.REFERRAL_WELCOME;
                         user.extrato.push({ tipo: 'ENTRADA', valor: TOKEN.COINS.REFERRAL_WELCOME, descricao: 'Bônus Código Convite', data: new Date() });
 
-                        // Padrinho ganha (Valor Dinâmico)
+                        // [LÓGICA DE CLASSE: BARDO]
+                        let premioPadrinho = premioReferralHoje; // Valor base do dia (Banco Central)
+                        let descBonus = `Indicou ${nome.split(' ')[0]}`;
+
+                        if (padrinho.classe === 'BARDO') {
+                            const mult = TOKEN.CLASSES.BARDO.REFERRAL_BONUS_MULT; // ex: 1.25
+                            premioPadrinho = Math.floor(premioPadrinho * mult);
+                            descBonus += ` (Bônus Bardo +${Math.round((mult - 1) * 100)}%)`;
+                        }
+
+                        // Paga o Padrinho
                         await UsuarioModel.updateOne({ _id: padrinho._id }, {
-                            $inc: { saldo_coins: premioReferralHoje, xp: TOKEN.XP.REFERRAL },
-                            $push: { extrato: { tipo: 'ENTRADA', valor: premioReferralHoje, descricao: `Indicou ${nome.split(' ')[0]}`, data: new Date() } }
+                            $inc: { saldo_coins: premioPadrinho, xp: TOKEN.XP.REFERRAL },
+                            $push: {
+                                extrato: {
+                                    tipo: 'ENTRADA',
+                                    valor: premioPadrinho,
+                                    descricao: descBonus,
+                                    data: new Date()
+                                }
+                            }
                         });
                     }
                 }
                 await user.save();
-                
+
                 const userData = user.toObject();
                 userData.mensagem_bonus = "Bem-vindo ao GECA!";
                 return res.json(userData);
 
             } catch (err) {
                 if (err.code === 11000) user = await UsuarioModel.findOne({ email });
-                else throw err; 
+                else throw err;
             }
         }
 
@@ -95,25 +112,25 @@ exports.login = async (req, res) => {
         }
 
         // 3. LÓGICA DE LOGIN DIÁRIO
-        const hoje = new Date().setHours(0,0,0,0);
-        const ultimo = user.ultimo_login ? new Date(user.ultimo_login).setHours(0,0,0,0) : 0;
+        const hoje = new Date().setHours(0, 0, 0, 0);
+        const ultimo = user.ultimo_login ? new Date(user.ultimo_login).setHours(0, 0, 0, 0) : 0;
 
         if (hoje > ultimo) {
-            const ontem = new Date(); ontem.setDate(ontem.getDate() - 1); ontem.setHours(0,0,0,0);
-            
+            const ontem = new Date(); ontem.setDate(ontem.getDate() - 1); ontem.setHours(0, 0, 0, 0);
+
             // Se logou ontem, aumenta streak. Se não, reseta pra 1.
             user.sequencia_login = (ultimo === ontem.getTime()) ? (user.sequencia_login || 0) + 1 : 1;
-            
+
             const coinsBonus = TOKEN.COINS.DAILY_LOGIN_BASE + (user.sequencia_login * TOKEN.COINS.DAILY_LOGIN_STEP);
-            
+
             user.saldo_coins += coinsBonus;
             user.xp += TOKEN.XP.DAILY_LOGIN;
             user.ultimo_login = new Date();
-            
-            user.extrato.push({ 
-                tipo: 'ENTRADA', valor: coinsBonus, descricao: `Daily Login (Dia ${user.sequencia_login})`, data: new Date() 
+
+            user.extrato.push({
+                tipo: 'ENTRADA', valor: coinsBonus, descricao: `Daily Login (Dia ${user.sequencia_login})`, data: new Date()
             });
-            
+
             mensagem_bonus = `+${coinsBonus} Coins! Sequência: ${user.sequencia_login} dias 🔥`;
             teveAlteracao = true;
         }
@@ -127,14 +144,14 @@ exports.login = async (req, res) => {
 
         // 5. SINCRONIZA ADMIN
         if (EMAILS_ADMINS.includes(email) && user.role !== 'admin') {
-            user.role = 'admin'; user.status = 'ativo'; 
+            user.role = 'admin'; user.status = 'ativo';
             teveAlteracao = true;
         }
 
         if (teveAlteracao) await user.save();
 
         const userData = user.toObject();
-        userData.mensagem_bonus = mensagem_bonus; 
+        userData.mensagem_bonus = mensagem_bonus;
         res.json(userData);
 
     } catch (error) {
