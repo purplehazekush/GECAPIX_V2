@@ -1,4 +1,3 @@
-// client/src/components/arena/NewMemeModal.tsx
 import { useState } from 'react';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
@@ -10,28 +9,6 @@ interface Props { open: boolean; onClose: () => void; onRefresh: () => void; }
 
 const CLOUD_NAME = "dcetrqazm"; 
 const UPLOAD_PRESET = "gecapix_preset"; 
-
-// Estilo Centralizado via JS (Infalível no MUI)
-const style = {
-  position: 'absolute' as 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  width: '90%',
-  maxWidth: 400,
-  
-  // --- O FIX ESTÁ AQUI ---
-  maxHeight: '85vh', // Ocupa no máximo 85% da altura da tela
-  overflowY: 'auto', // Cria barra de rolagem se o conteúdo for maior
-  // -----------------------
-  
-  bgcolor: '#0f172a',
-  border: '1px solid #1e293b',
-  borderRadius: '24px',
-  boxShadow: 24,
-  p: 4,
-  outline: 'none'
-}
 
 export default function NewMemeModal({ open, onClose, onRefresh }: Props) {
     const { dbUser } = useAuth();
@@ -80,8 +57,16 @@ export default function NewMemeModal({ open, onClose, onRefresh }: Props) {
     };
 
     return (
-        <Modal open={open} onClose={handleClose}>
-            <Box sx={style} className="animate-fade-in">
+        <Modal 
+            open={open} 
+            onClose={handleClose}
+            // MÁGICA DO FLEXBOX: Centraliza qualquer coisa perfeitamente
+            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}
+        >
+            <Box 
+                className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl outline-none w-full max-w-sm animate-fade-in"
+                sx={{ maxHeight: '90vh', overflowY: 'auto' }} // Garante scroll se a tela for pequena
+            >
                 {/* Header */}
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-black text-white italic uppercase flex items-center gap-2">

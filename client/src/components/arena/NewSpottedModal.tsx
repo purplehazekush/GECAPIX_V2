@@ -1,4 +1,3 @@
-// client/src/components/arena/NewSpottedModal.tsx
 import { useState } from 'react';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
@@ -8,15 +7,8 @@ import toast from 'react-hot-toast';
 
 interface Props { open: boolean; onClose: () => void; onRefresh: () => void; }
 
-// Configuração Cloudinary (Reutilizando a mesma)
 const CLOUD_NAME = "dcetrqazm"; 
 const UPLOAD_PRESET = "gecapix_preset"; 
-
-const style = {
-  position: 'absolute' as 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-  width: '90%', maxWidth: 400, bgcolor: '#0f172a', border: '1px solid #1e293b', borderRadius: '24px',
-  boxShadow: 24, p: 4, outline: 'none'
-};
 
 export default function NewSpottedModal({ open, onClose, onRefresh }: Props) {
     const { dbUser } = useAuth();
@@ -30,8 +22,6 @@ export default function NewSpottedModal({ open, onClose, onRefresh }: Props) {
 
         try {
             let imageUrl = '';
-
-            // Upload Opcional
             if (image) {
                 const formData = new FormData();
                 formData.append('file', image);
@@ -64,8 +54,15 @@ export default function NewSpottedModal({ open, onClose, onRefresh }: Props) {
     };
 
     return (
-        <Modal open={open} onClose={handleClose}>
-            <Box sx={style}>
+        <Modal 
+            open={open} 
+            onClose={handleClose}
+            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}
+        >
+            <Box 
+                className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl outline-none w-full max-w-sm animate-fade-in"
+                sx={{ maxHeight: '90vh', overflowY: 'auto' }}
+            >
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-black text-white italic uppercase flex items-center gap-2">
                         <VisibilityOff className="text-cyan-500" /> Novo Spotted
@@ -82,7 +79,6 @@ export default function NewSpottedModal({ open, onClose, onRefresh }: Props) {
                         maxLength={280}
                     />
                     
-                    {/* Preview Imagem */}
                     {image && (
                         <div className="relative w-full h-32 rounded-xl overflow-hidden border border-slate-700">
                             <img src={URL.createObjectURL(image)} className="w-full h-full object-cover" />
