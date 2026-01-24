@@ -1,182 +1,143 @@
-// server/controllers/memeController.js
 const MemeModel = require('../models/Meme');
 const UsuarioModel = require('../models/Usuario');
 const TOKEN = require('../config/tokenomics');
 
-// 1. POSTAR MEME (IPO)
+// HELPER: Verifica Fase do Mercado
+// 09:00 - 21:00 = PREGÃO (Apostas)
+// 21:00 - 09:00 = CRIAÇÃO (Postagem)
+function getMarketPhase() {
+    const hora = new Date().getHours();
+    if (hora >= 9 && hora < 21) return 'PREGAO';
+    return 'CRIACAO';
+}
+
+// 1. POSTAR MEME (IPO) - Só na fase de CRIAÇÃO
 exports.postarMeme = async (req, res) => {
     try {
+        if (getMarketPhase() === 'PREGAO') {
+            return res.status(403).json({ error: "O Mercado está aberto para apostas! Novos IPOs só após as 21h." });
+        }
+
         const { email, legenda, imagem_url } = req.body;
         const user = await UsuarioModel.findOne({ email });
         
-        if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
-
-        // Verifica limite diário (Anti-Spam)
+        // Verifica limite diário... (código igual ao anterior)
         const hoje = new Date(); hoje.setHours(0,0,0,0);
-        const jaPostou = await MemeModel.findOne({ 
-            usuario_id: user._id, 
-            data_postagem: { $gte: hoje } 
-        });
-        
+        const jaPostou = await MemeModel.findOne({ usuario_id: user._id, data_postagem: { $gte: hoje } });
         if (jaPostou) return res.status(403).json({ error: "Você já lançou um IPO hoje!" });
 
         const novoMeme = await MemeModel.create({
             usuario_id: user._id,
             autor_nome: user.nome,
             autor_avatar: user.avatar_slug,
-            imagem_url,
-            legenda,
-            total_investido: 0
+            imagem_url, legenda, total_investido: 0
         });
 
-        // XP por criar conteúdo + Ledger
         await UsuarioModel.updateOne({ email }, { 
             $inc: { xp: TOKEN.XP.MEME_POSTADO },
-            $push: { extrato: { 
-                tipo: 'ENTRADA', 
-                valor: 0, 
-                descricao: 'XP: IPO Lançado', 
-                categoria: 'MEME',
-                data: new Date() 
-            }}
+            $push: { extrato: { tipo: 'ENTRADA', valor: 0, descricao: 'XP: IPO Lançado', categoria: 'MEME', data: new Date() }}
         });
 
         res.json(novoMeme);
-    } catch (error) {
-        console.error("Erro postarMeme:", error);
-        res.status(500).json({ error: "Erro ao realizar IPO" });
-    }
+    } catch (error) { res.status(500).json({ error: "Erro ao realizar IPO" }); }
 };
 
-// 2. INVESTIR NO MEME (COMPRAR AÇÃO)
+// 2. INVESTIR (COMPRAR AÇÃO) - Só na fase de PREGÃO
 exports.investirMeme = async (req, res) => {
     try {
+        // PERMITIR TESTES FORA DE HORA? Comente este if se quiser testar agora
+        if (getMarketPhase() === 'CRIACAO') {
+            return res.status(403).json({ error: "O Pregão está fechado! Apostas só entre 09h e 21h." });
+        }
+
         const { memeId, email, valor } = req.body;
         const valorInt = parseInt(valor);
-
         if (valorInt <= 0) return res.status(400).json({ error: "Valor inválido" });
 
         const user = await UsuarioModel.findOne({ email });
         const meme = await MemeModel.findById(memeId);
 
-        if (!meme || meme.status !== 'ativo') return res.status(400).json({ error: "Mercado fechado para este ativo." });
+        if (!meme || meme.status !== 'ativo') return res.status(400).json({ error: "Ativo indisponível." });
         if (user.saldo_coins < valorInt) return res.status(400).json({ error: "Saldo insuficiente." });
 
-        // A. Desconta do Usuário (Staking)
-        await UsuarioModel.updateOne(
-            { email },
-            { 
-                $inc: { saldo_coins: -valorInt },
-                $push: { extrato: { 
-                    tipo: 'SAIDA', 
-                    valor: valorInt, 
-                    descricao: `Buy: $${meme.autor_nome.split(' ')[0].toUpperCase()}`, 
-                    categoria: 'MEME',
-                    data: new Date() 
-                }}
-            }
-        );
+        await UsuarioModel.updateOne({ email }, { 
+            $inc: { saldo_coins: -valorInt },
+            $push: { extrato: { tipo: 'SAIDA', valor: valorInt, descricao: `Buy: $${meme.autor_nome.split(' ')[0].toUpperCase()}`, categoria: 'MEME', data: new Date() }}
+        });
 
-        // B. Adiciona ao Meme (Market Cap)
         meme.investidores.push({ user_email: email, valor: valorInt, data: new Date() });
         meme.total_investido += valorInt;
         await meme.save();
 
         res.json({ success: true, novo_total: meme.total_investido });
-
-    } catch (error) {
-        console.error("Erro investirMeme:", error);
-        res.status(500).json({ error: "Erro ao processar ordem de compra" });
-    }
+    } catch (error) { res.status(500).json({ error: "Erro na ordem de compra" }); }
 };
 
-// 3. LISTAR (PREGÃO E HISTÓRICO)
+// 3. GET MEMES (Mantém igual)
 exports.getMemes = async (req, res) => {
+    // ... (Código igual ao anterior) ...
     try {
-        const { tipo } = req.query; // 'ativo' ou 'historico'
-        
-        let query = {};
-        if (tipo === 'historico') {
-            query = { status: 'fechado', vencedor: true }; // Só mostra os Blue Chips
-        } else {
-            query = { status: 'ativo' };
-        }
-
+        const { tipo } = req.query;
+        let query = (tipo === 'historico') ? { status: 'fechado', vencedor: true } : { status: 'ativo' };
         const memes = await MemeModel.find(query).sort({ total_investido: -1 });
         res.json(memes);
-    } catch (error) {
-        res.status(500).json({ error: "Erro ao buscar ativos" });
-    }
+    } catch (e) { res.status(500).json({ error: "Erro" }); }
 };
 
-// 4. CRON JOB: FECHAMENTO DE MERCADO (Às 21h)
+// 4. FECHAMENTO DO MERCADO (LÓGICA PARIMUTUEL)
 exports.finalizarDiaArena = async () => {
     console.log("🔔 Fechando Mercado de Memes...");
-    
-    // Pega todos ativos
     const memesAtivos = await MemeModel.find({ status: 'ativo' });
     if (memesAtivos.length === 0) return;
 
-    // Acha o vencedor (Maior Market Cap)
-    let vencedor = null;
-    if (memesAtivos.length > 0) {
-        vencedor = memesAtivos.reduce((prev, current) => (prev.total_investido > current.total_investido) ? prev : current);
-        // Se ninguém apostou nada, não tem vencedor
-        if (vencedor.total_investido === 0) vencedor = null;
-    }
+    // 1. Calcula o Pote Total do Dia
+    let totalMercado = 0;
+    memesAtivos.forEach(m => totalMercado += m.total_investido);
 
-    // Processa Pagamentos
+    // 2. Define o Vencedor
+    let vencedor = memesAtivos.reduce((prev, current) => (prev.total_investido > current.total_investido) ? prev : current);
+    if (vencedor.total_investido === 0) vencedor = null;
+
+    // 3. Distribuição
     for (let meme of memesAtivos) {
         meme.status = 'fechado';
         
         if (vencedor && meme._id.equals(vencedor._id)) {
             meme.vencedor = true;
             
-            // Paga Investidores (Stake + 20%)
+            // Pote dos Perdedores = Tudo - O que foi apostado no vencedor
+            const potePerdedores = totalMercado - vencedor.total_investido;
+            
+            // Paga os Acionistas do Vencedor
             for (let investidor of meme.investidores) {
-                const lucro = Math.floor(investidor.valor * 0.20); // 20% Yield
+                // Sua % no vencedor
+                const share = investidor.valor / vencedor.total_investido; 
+                
+                // Seu lucro = Sua % * Pote dos Perdedores
+                const lucro = Math.floor(share * potePerdedores);
+                
+                // Retorno = O que você pôs + Lucro
                 const retorno = investidor.valor + lucro;
 
                 await UsuarioModel.updateOne({ email: investidor.user_email }, {
                     $inc: { saldo_coins: retorno },
                     $push: { extrato: { 
-                        tipo: 'ENTRADA', 
-                        valor: retorno, 
-                        descricao: `Dividendo: $${meme.autor_nome.split(' ')[0].toUpperCase()} Winner`, 
-                        categoria: 'MEME', 
-                        data: new Date() 
+                        tipo: 'ENTRADA', valor: retorno, 
+                        descricao: `Dividendo: $${meme.autor_nome.split(' ')[0]} (Yield ${(share*potePerdedores/investidor.valor*100).toFixed(0)}%)`, 
+                        categoria: 'MEME', data: new Date() 
                     }}
                 });
             }
             
-            // Paga o Criador (Royalty)
+            // Royalty Criador (Fixo ou % do pote? Vamos manter fixo 100 por enquanto)
             await UsuarioModel.updateOne({ _id: meme.usuario_id }, {
                 $inc: { saldo_coins: 100, xp: 200 },
-                $push: { extrato: { 
-                    tipo: 'ENTRADA', 
-                    valor: 100, 
-                    descricao: 'Royalty: Meme Blue Chip', 
-                    categoria: 'MEME', 
-                    data: new Date() 
-                }}
+                $push: { extrato: { tipo: 'ENTRADA', valor: 100, descricao: 'Royalty: Blue Chip', categoria: 'MEME', data: new Date() }}
             });
-
-        } else {
-            // Perdedores: Devolve o dinheiro (Reembolso Principal)
-            for (let investidor of meme.investidores) {
-                await UsuarioModel.updateOne({ email: investidor.user_email }, {
-                    $inc: { saldo_coins: investidor.valor },
-                    $push: { extrato: { 
-                        tipo: 'ENTRADA', 
-                        valor: investidor.valor, 
-                        descricao: `Reembolso: $${meme.autor_nome.split(' ')[0].toUpperCase()}`, 
-                        categoria: 'MEME',
-                        data: new Date() 
-                    }}
-                });
-            }
         }
+        // Perdedores: NÃO recebem nada. O dinheiro foi para os vencedores.
+        // Isso cria risco real e emoção.
         await meme.save();
     }
-    console.log(`🏆 Meme Vencedor: ${vencedor ? vencedor.legenda : 'Nenhum'}`);
+    console.log(`🏆 Mercado Fechado. Vencedor: ${vencedor?.legenda}`);
 };

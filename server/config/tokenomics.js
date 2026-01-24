@@ -17,11 +17,15 @@ module.exports = {
         MEME_POSTADO: 50,
         GAME_WIN: 50,    // Vitória no Arcade
         GAME_LOSS: 10,   // Consolação
+        SPOTTED_POST: 30
     },
 
     INCEPTION: {
         MULTIPLIER_BET: 1.5, 
         MULTIPLIER_MEME: 1.2, 
+    },
+    COSTS: {
+        SPOTTED_COMMENT: 5 // Custa 5 coins para comentar
     },
 
     // --- NOVA SEÇÃO: ARCADE ---

@@ -21,7 +21,7 @@ const adminController = require('./controllers/adminController');
 const productController = require('./controllers/productController');
 const configController = require('./controllers/configController');
 const statsController = require('./controllers/statsController');
-
+const spottedController = require('./controllers/spottedController');
 
 const app = express();
 
@@ -115,6 +115,11 @@ app.get('/api/arena/perfil/:id', arenaController.getPerfilPublico);
 app.put('/api/arena/perfil', arenaController.updatePerfil);
 app.get('/api/arena/quests', questController.getQuests);
 app.post('/api/arena/quests/claim', questController.claimQuest);
+
+
+app.get('/api/arena/spotted', spottedController.getSpotteds);
+app.post('/api/arena/spotted', spottedController.postarSpotted);
+app.post('/api/arena/spotted/comentar', spottedController.comentarSpotted);
 
 // 🔥 ROTA FALTANTE ADICIONADA AQUI 🔥
 // Certifique-se que no arenaController existe a função 'transferirCoins' (ou o nome que você deu)
