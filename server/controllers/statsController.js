@@ -1,5 +1,7 @@
 // server/controllers/statsController.js
 const PixModel = require('../models/Pix');
+const UsuarioModel = require('../models/Usuario');
+// ... imports existentes
 
 exports.getStats = async (req, res) => {
     try {
@@ -85,5 +87,37 @@ exports.getStats = async (req, res) => {
     } catch (error) {
         console.error("Erro stats:", error);
         res.status(500).json({ error: "Erro ao calcular estatísticas" });
+    }
+};
+
+
+
+exports.getTokenomics = async (req, res) => {
+    try {
+        // 1. Supply Total (Soma de todos os saldos)
+        const aggregator = await UsuarioModel.aggregate([
+            { $group: { _id: null, totalSupply: { $sum: "$saldo_coins" }, totalUsers: { $sum: 1 } } }
+        ]);
+        const supply = aggregator[0]?.totalSupply || 0;
+        const holders = aggregator[0]?.totalUsers || 0;
+
+        // 2. Top Holders (As Baleias)
+        const whales = await UsuarioModel.find()
+            .sort({ saldo_coins: -1 })
+            .limit(10)
+            .select('nome saldo_coins avatar_slug classe');
+
+        // 3. Tesouro do Admin (Carteira que emite)
+        const treasury = await UsuarioModel.findOne({ role: 'admin' }).select('saldo_coins');
+
+        res.json({
+            supply,
+            holders,
+            treasury: treasury?.saldo_coins || 0,
+            circulating: supply - (treasury?.saldo_coins || 0),
+            whales
+        });
+    } catch (e) {
+        res.status(500).json({ error: "Erro no Tokenomics" });
     }
 };

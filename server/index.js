@@ -90,6 +90,8 @@ app.use((req, res, next) => {
     next();
 });
 
+app.get('/api/tokenomics', statsController.getTokenomics);
+
 // 1. AUTH
 app.post('/api/auth/login', authLimiter, authController.login);
 

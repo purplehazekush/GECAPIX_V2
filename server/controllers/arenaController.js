@@ -1,5 +1,6 @@
 // server/controllers/arenaController.js
 const UsuarioModel = require('../models/Usuario');
+const RULES = require('../config/gameRules'); // <--- IMPORT NOVO
 
 // --- RANKING (Mantido) ---
 exports.getRanking = async (req, res) => {
@@ -113,5 +114,60 @@ exports.transferirCoins = async (req, res) => {
     } catch (error) {
         console.error("Erro na transferência:", error);
         res.status(500).json({ error: "Erro ao processar transferência." });
+    }
+};
+
+exports.updatePerfil = async (req, res) => {
+    try {
+        const { 
+            email, nome, classe, materias, bio, 
+            chave_pix, curso, status_profissional, equipe_competicao, comprovante_url,
+            avatar_slug 
+        } = req.body;
+        
+        // Busca usuário atual para recalcular nível baseado no XP total
+        const currentUser = await UsuarioModel.findOne({ email });
+        if (!currentUser) return res.status(404).json({ error: "User not found" });
+
+        // 1. RECALCULA NÍVEL (Corrige o bug do 120/100)
+        // O XP no banco deve ser o XP TOTAL ACUMULADO. 
+        // O front que calcula a barra de progresso usando a função do gameRules.
+        // Se no seu banco o XP reseta a cada nivel, a lógica muda. 
+        // Vamos assumir XP ACUMULADO (estilo RPG clássico) para não perder histórico.
+        const levelData = RULES.getLevelData(currentUser.xp);
+        
+        let materiasFormatadas = [];
+        if (Array.isArray(materias)) {
+            materiasFormatadas = materias.map(m => m.trim().toUpperCase().replace(/[^A-Z0-9]/g, ''));
+        }
+
+        const updateData = {
+            // Permite mudar o Nickname (Nome de exibição)
+            nome: nome || currentUser.nome, 
+            classe,
+            materias: materiasFormatadas,
+            bio,
+            chave_pix,
+            curso,
+            status_profissional,
+            equipe_competicao,
+            // Atualiza nível calculado
+            nivel: levelData.level 
+        };
+
+        // Salva Avatar Novo
+        if (avatar_slug) updateData.avatar_slug = avatar_slug;
+        if (comprovante_url) updateData.comprovante_url = comprovante_url;
+
+        const user = await UsuarioModel.findOneAndUpdate(
+            { email },
+            { $set: updateData },
+            { new: true }
+        );
+
+        res.json(user);
+    } catch (error) {
+        console.error("Erro update perfil:", error);
+        res.status(500).json({ error: "Erro ao atualizar perfil" });
     }
 };

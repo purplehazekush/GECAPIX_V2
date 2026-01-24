@@ -1,30 +1,30 @@
-// client/src/pages/arena/Profile.tsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
 import toast from 'react-hot-toast';
 
-// IMPORTAÇÕES DOS NOVOS COMPONENTES SEPARADOS
+// Componentes
 import AvatarSection from '../../components/arena/Profile/AvatarSection';
 import AcademicSection from '../../components/arena/Profile/AcademicSection';
 import FinancialSection from '../../components/arena/Profile/FinancialSection';
 import SocialSection from '../../components/arena/Profile/SocialSection';
 
-import AVATAR_ASSETS from '../../data/avatarAssets.json'; // O JSON agora existe!
-
-import { Logout, VerifiedUser, Save } from '@mui/icons-material';
+import { Logout, VerifiedUser, Save, Badge } from '@mui/icons-material';
 import { CircularProgress } from '@mui/material';
 
 export default function ArenaProfile() {
     const { dbUser, setDbUser, logout } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    
+    // Estado de Edição do Avatar (Controlado aqui pelo Pai)
     const [isAvatarEditing, setIsAvatarEditing] = useState(false);
 
-    // Estado do Formulário Geral
+    // Estado do Formulário
     const [formData, setFormData] = useState({
-        classe: 'Mago',
+        nome: '', // Nickname
+        classe: 'Novato',
         curso: '',
         materias: '',
         chave_pix: '',
@@ -33,18 +33,14 @@ export default function ArenaProfile() {
         comprovante_url: ''
     });
 
-    // Estado Específico do Avatar Pixel
-    const [avatarConfig, setAvatarConfig] = useState<any>({
-        body: 'male_light',
-        hair: 'messy_raven',
-        torso: 'shirt_long_white_longsleeve',
-        hand_r: 'none'
-    });
+    const [avatarSlug, setAvatarSlug] = useState('default');
 
+    // Carrega dados iniciais
     useEffect(() => {
         if (dbUser) {
             setFormData({
-                classe: dbUser.classe || 'Mago',
+                nome: dbUser.nome || '',
+                classe: dbUser.classe || 'Novato',
                 curso: dbUser.curso || '',
                 materias: dbUser.materias?.join(', ') || '',
                 chave_pix: dbUser.chave_pix || '',
@@ -52,17 +48,7 @@ export default function ArenaProfile() {
                 equipe_competicao: dbUser.equipe_competicao || 'Nenhuma',
                 comprovante_url: dbUser.comprovante_url || ''
             });
-
-            if (dbUser.avatar_layers && Object.keys(dbUser.avatar_layers).length > 0) {
-                setAvatarConfig(dbUser.avatar_layers);
-            } else {
-                setAvatarConfig({
-                    body: AVATAR_ASSETS.body?.[0] || 'skin_light',
-                    hair: AVATAR_ASSETS.hair?.[0] || 'messy_raven',
-                    torso: AVATAR_ASSETS.torso?.[0] || 'shirt_white',
-                    hand_r: 'none'
-                });
-            }
+            setAvatarSlug(dbUser.avatar_slug || 'default');
         }
     }, [dbUser]);
 
@@ -71,23 +57,20 @@ export default function ArenaProfile() {
         try {
             const arrayMaterias = formData.materias.split(',').filter(m => m.trim().length > 0);
 
-            // Dentro de handleSave em ArenaProfile.tsx
             const payload = {
                 email: dbUser?.email,
                 ...formData,
                 materias: arrayMaterias,
-                // SE o avatarConfig tiver slug, enviamos como avatar_slug. Se for layers antigas, enviamos layers.
-                avatar_slug: avatarConfig.slug || dbUser?.avatar_slug,
-                avatar_layers: avatarConfig // Mantém por segurança
+                avatar_slug: avatarSlug // Manda o slug que veio do componente filho
             };
 
             const res = await api.put('arena/perfil', payload);
 
             setDbUser(res.data);
-            setIsAvatarEditing(false);
-            toast.success("Perfil atualizado! 🔥");
+            setIsAvatarEditing(false); // <--- FECHA O EDITOR AQUI
+            toast.success("Perfil atualizado com sucesso! 🔥");
         } catch (e) {
-            toast.error("Erro ao salvar.");
+            toast.error("Erro ao salvar alterações.");
         } finally {
             setLoading(false);
         }
@@ -96,19 +79,30 @@ export default function ArenaProfile() {
     return (
         <div className="pb-32 animate-fade-in p-4 space-y-6 max-w-md mx-auto">
 
-            {/* 1. SEÇÃO DE AVATAR */}
+            {/* 1. SEÇÃO DE AVATAR (Passamos setAvatarConfig como prop) */}
             <AvatarSection
                 user={dbUser}
-                avatarConfig={avatarConfig}
-                setAvatarConfig={setAvatarConfig}
-                // ADICIONE ISTO:                // ...
                 isEditing={isAvatarEditing}
                 setIsEditing={setIsAvatarEditing}
+                setAvatarConfig={(cfg: any) => setAvatarSlug(cfg.slug)} // Callback simples
             />
 
-            {/* Se estiver editando o avatar, esconde o resto */}
+            {/* Se estiver editando avatar, esconde o resto para focar */}
             {!isAvatarEditing && (
                 <>
+                    {/* CAMPO DE NICKNAME (NOVO) */}
+                    <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
+                        <label className="text-[10px] uppercase font-bold text-slate-500 ml-1 flex items-center gap-1 mb-1">
+                            <Badge sx={{ fontSize: 12 }} /> Nickname (Nome de Guerra)
+                        </label>
+                        <input
+                            type="text"
+                            value={formData.nome}
+                            onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white font-bold text-center outline-none focus:border-purple-500 transition-colors"
+                        />
+                    </div>
+
                     <AcademicSection formData={formData} setFormData={setFormData} />
                     <FinancialSection formData={formData} setFormData={setFormData} />
                     <SocialSection formData={formData} setFormData={setFormData} />
@@ -116,9 +110,9 @@ export default function ArenaProfile() {
                     <button
                         onClick={handleSave}
                         disabled={loading}
-                        className="w-full bg-green-500 hover:bg-green-600 text-white py-4 rounded-2xl font-black text-sm shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2"
+                        className="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-900 py-4 rounded-2xl font-black text-sm shadow-xl shadow-emerald-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
                     >
-                        {loading ? <CircularProgress size={20} color="inherit" /> : <><Save /> SALVAR ALTERAÇÕES</>}
+                        {loading ? <CircularProgress size={20} color="inherit" /> : <><Save /> SALVAR TUDO</>}
                     </button>
 
                     {dbUser?.role === 'admin' && (
