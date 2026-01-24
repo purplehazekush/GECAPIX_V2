@@ -163,3 +163,35 @@ exports.getHistoricalStats = async (req, res) => {
         res.json(history);
     } catch (e) { res.status(500).json({ error: "Erro histórico" }); }
 };
+
+// ...
+exports.getGlobalTransactions = async (req, res) => {
+    try {
+        const limit = 20;
+        const page = parseInt(req.query.page) || 0;
+
+        // Pipeline agressivo para extrair extratos de todos os usuários
+        const transactions = await UsuarioModel.aggregate([
+            { $unwind: "$extrato" }, // Explode o array de extratos
+            { $sort: { "extrato.data": -1 } }, // Ordena globalmente por data
+            { $skip: page * limit },
+            { $limit: limit },
+            { 
+                $project: { 
+                    _id: 0,
+                    usuario: "$nome",
+                    avatar: "$avatar_slug",
+                    tipo: "$extrato.tipo",
+                    valor: "$extrato.valor",
+                    descricao: "$extrato.descricao",
+                    data: "$extrato.data"
+                } 
+            }
+        ]);
+
+        res.json(transactions);
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: "Erro ao buscar ledger" });
+    }
+};

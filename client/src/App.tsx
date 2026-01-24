@@ -23,6 +23,7 @@ import ValidationPanel from './pages/admin/ValidationPanel';
 import GamesLobby from './pages/arena/GamesLobby'; // <--- IMPORTE ISSO
 import GameRoom from './pages/arena/GameRoom';     // <--- E ISSO
 import Tokenomics from './pages/arena/Tokenomics';
+import Ledger from './pages/arena/Ledger';
 
 function AppRoutes() {
   const { user, dbUser, loading } = useAuth();
@@ -63,6 +64,7 @@ function AppRoutes() {
         <Route path="laboratorio" element={<Laboratorio />} />
         <Route path="games" element={<GamesLobby />} />
         <Route path="tokenomics" element={<Tokenomics />} />
+        <Route path="ledger" element={<Ledger />} />
         <Route path="games/play/:roomId" element={<GameRoom />} />
         
         {/* Rota do Xerife */}

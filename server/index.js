@@ -93,6 +93,7 @@ app.use((req, res, next) => {
 
 app.get('/api/tokenomics', statsController.getTokenomics);
 app.get('/api/tokenomics/history', statsController.getHistoricalStats); // <--- NOVA ROTA
+app.get('/api/tokenomics/ledger', statsController.getGlobalTransactions);
 
 // 1. AUTH
 app.post('/api/auth/login', authLimiter, authController.login);
