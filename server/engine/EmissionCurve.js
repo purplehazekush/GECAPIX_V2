@@ -1,3 +1,4 @@
+// server/engine/EmissionCurve.js
 const TOKEN = require('../config/tokenomics');
 
 class EmissionCurve {

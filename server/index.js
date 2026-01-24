@@ -25,6 +25,7 @@ const spottedController = require('./controllers/spottedController');
 const aiController = require('./controllers/aiController')
 const DailyTreasury = require('./engine/DailyTreasury'); // <--- Importe
 const SystemState = require('./models/SystemState'); // <--- Importe
+const storeController = require('./controllers/storeController');
 
 const app = express();
 
@@ -168,6 +169,12 @@ cron.schedule('0 21 * * *', () => { // Todo dia às 21h
     statsController.snapshotEconomy(); 
     DailyTreasury.runDailyClosing(); // <--- O MOTOR ECONÔMICO RODA AQUI
 }, { timezone: "America/Sao_Paulo" });
+
+// 8. LOJA & CÂMBIO
+app.get('/api/store/p2p', storeController.getOfertasP2P);
+app.post('/api/store/p2p/criar', storeController.criarOfertaP2P);
+app.post('/api/store/p2p/comprar', storeController.comprarOfertaP2P);
+app.post('/api/store/p2p/cancelar', storeController.cancelarOfertaP2P);
 
 // --- SOCKET.IO SETUP (SUBSTITUI O app.listen) ---
 const http = require('http');

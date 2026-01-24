@@ -1,3 +1,4 @@
+// server/controllers/aiController.js
 const UsuarioModel = require('../models/Usuario');
 const ChatModel = require('../models/Mensagem'); // <--- CORREÇÃO DO CAMINHO
 const TOKEN = require('../config/tokenomics');

@@ -1,3 +1,4 @@
+// server/controllers/authController.js
 const UsuarioModel = require('../models/Usuario');
 const SystemState = require('../models/SystemState'); // <--- Importante
 const TOKEN = require('../config/tokenomics'); 

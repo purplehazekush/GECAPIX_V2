@@ -1,3 +1,4 @@
+// server/engine/DailyTreasure.js
 const SystemState = require('../models/SystemState');
 const EmissionCurve = require('./EmissionCurve');
 const TOKEN = require('../config/tokenomics');
