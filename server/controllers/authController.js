@@ -1,37 +1,41 @@
-// server/controllers/authController.js
 const UsuarioModel = require('../models/Usuario');
-const SystemState = require('../models/SystemState'); // <--- Importante
+const SystemState = require('../models/SystemState'); 
 const TOKEN = require('../config/tokenomics'); 
 
+// Adicione seu email e o do Caio aqui para garantir acesso Admin
 const EMAILS_ADMINS = ["joaovictorrabelo95@gmail.com", "caiogcosta03@gmail.com"];
 
-// Helper para gerar código único (EX: JOAO95X)
+// --- HELPERS ---
+
+// Gera código único: JOAO + 4 números aleatórios
 const gerarCodigo = (nome) => {
-    const prefixo = nome.split(' ')[0].toUpperCase().substring(0, 4);
+    const prefixo = (nome || "USER").split(' ')[0].toUpperCase().substring(0, 4).replace(/[^A-Z]/g, 'X');
     const random = Math.floor(1000 + Math.random() * 9000);
     return `${prefixo}${random}`;
 };
 
-// Helper de Nível (Recalcula nível baseado no XP total)
+// Recalcula nível baseado no XP total (Curva simples: 100xp por nível progressivo)
 const calcularNivel = (xpTotal) => {
-    // Exemplo simples: Nível 1 (0-100), Nível 2 (101-300), Nível 3 (301-600)...
-    // Fórmula: XP necessário para o próximo nível cresce
     let nivel = 1;
     let xpRequerido = 100;
+    let auxXp = xpTotal;
     
-    while (xpTotal >= xpRequerido) {
-        xpTotal -= xpRequerido;
+    while (auxXp >= xpRequerido) {
+        auxXp -= xpRequerido;
         nivel++;
-        xpRequerido = nivel * 100; // Dificuldade aumenta a cada nível
+        xpRequerido = nivel * 100; 
     }
     return nivel;
 };
+
+// --- LOGIN PRINCIPAL ---
 
 exports.login = async (req, res) => {
     try {
         const { email, nome, codigo_convite } = req.body;
         
-        // Busca estado da economia para saber quanto pagar de referral HOJE
+        // 1. Busca o valor do Referral de HOJE no Banco Central (SystemState)
+        // Se não tiver estado (primeiro boot), usa o valor máximo do tokenomics
         let state = await SystemState.findOne({ season_id: 1 });
         const premioReferralHoje = state ? state.current_referral_reward : TOKEN.COINS.MAX_REFERRAL_REWARD;
 
@@ -39,7 +43,9 @@ exports.login = async (req, res) => {
         let mensagem_bonus = null;
         let teveAlteracao = false;
 
-        // 1. CRIAÇÃO DE USUÁRIO (REGISTRO)
+        // ======================================================
+        // CENÁRIO A: NOVO USUÁRIO (REGISTRO)
+        // ======================================================
         if (!user) {
             try {
                 const totalUsers = await UsuarioModel.countDocuments();
@@ -51,44 +57,52 @@ exports.login = async (req, res) => {
                     role: isAdmin ? 'admin' : 'membro',
                     status: isAdmin ? 'ativo' : 'pendente',
                     saldo_coins: TOKEN.COINS.WELCOME_BONUS, 
+                    saldo_glue: 0,
                     xp: 0,
                     nivel: 1,
                     avatar_slug: 'default',
-                    // GERA O CÓDIGO DELE AGORA
+                    // Gera o código DELE agora
                     codigo_referencia: gerarCodigo(nome),
                     extrato: [{ tipo: 'ENTRADA', valor: TOKEN.COINS.WELCOME_BONUS, descricao: 'Bônus de Boas Vindas', data: new Date() }]
                 });
 
-                // Processa quem indicou (Padrinho)
+                // Lógica de Padrinho (Quem indicou)
                 if (codigo_convite) {
                     const padrinho = await UsuarioModel.findOne({ codigo_referencia: codigo_convite.toUpperCase() });
                     if (padrinho) {
                         user.indicado_por = padrinho.email;
                         
-                        // O Novato ganha o fixo de boas-vindas extra
+                        // 1. O Novato ganha bônus extra (Fixo)
                         user.saldo_coins += TOKEN.COINS.REFERRAL_WELCOME;
                         user.extrato.push({ tipo: 'ENTRADA', valor: TOKEN.COINS.REFERRAL_WELCOME, descricao: 'Bônus Código Convite', data: new Date() });
 
-                        // O Padrinho ganha o valor DINÂMICO do dia (Economia)
+                        // 2. O Padrinho ganha o valor DINÂMICO do dia
+                        // Atualização atômica para não precisar carregar o padrinho inteiro
                         await UsuarioModel.updateOne({ _id: padrinho._id }, {
                             $inc: { saldo_coins: premioReferralHoje, xp: TOKEN.XP.REFERRAL },
                             $push: { extrato: { tipo: 'ENTRADA', valor: premioReferralHoje, descricao: `Indicou ${nome.split(' ')[0]}`, data: new Date() } }
                         });
                     }
                 }
+
                 await user.save();
                 
                 const userData = user.toObject();
-                userData.mensagem_bonus = "Bem-vindo ao GECA!";
+                userData.mensagem_bonus = "Bem-vindo ao GECA! Conta criada.";
                 return res.json(userData);
 
             } catch (err) {
-                if (err.code === 11000) user = await UsuarioModel.findOne({ email }); // Retry se der colisão de email
+                // Se der erro de chave duplicada (raro), tenta buscar de novo
+                if (err.code === 11000) user = await UsuarioModel.findOne({ email });
                 else throw err; 
             }
         }
 
-        // 2. CORREÇÕES DE LEGADO (Para usuários antigos sem código)
+        // ======================================================
+        // CENÁRIO B: USUÁRIO EXISTENTE (LOGIN)
+        // ======================================================
+
+        // 1. Correções de Legado (Se o usuário for antigo e não tiver esses campos)
         if (!user.codigo_referencia) {
             user.codigo_referencia = gerarCodigo(user.nome);
             teveAlteracao = true;
@@ -98,14 +112,16 @@ exports.login = async (req, res) => {
             teveAlteracao = true;
         }
 
-        // 3. LÓGICA DE LOGIN DIÁRIO
+        // 2. Login Diário
         const hoje = new Date().setHours(0,0,0,0);
         const ultimo = user.ultimo_login ? new Date(user.ultimo_login).setHours(0,0,0,0) : 0;
 
         if (hoje > ultimo) {
             const ontem = new Date(); ontem.setDate(ontem.getDate() - 1); ontem.setHours(0,0,0,0);
             
-            user.sequencia_login = (ultimo === ontem.getTime()) ? user.sequencia_login + 1 : 1;
+            // Se logou ontem, aumenta streak. Se não, reseta para 1.
+            user.sequencia_login = (ultimo === ontem.getTime()) ? (user.sequencia_login || 0) + 1 : 1;
+            
             const coinsBonus = TOKEN.COINS.DAILY_LOGIN_BASE + (user.sequencia_login * TOKEN.COINS.DAILY_LOGIN_STEP);
             
             user.saldo_coins += coinsBonus;
@@ -120,20 +136,20 @@ exports.login = async (req, res) => {
             teveAlteracao = true;
         }
 
-        // 4. ATUALIZAÇÃO DE NÍVEL (Recalcula sempre que loga pra garantir)
+        // 3. Recalculo de Nível (Garante consistência)
         const novoNivel = calcularNivel(user.xp);
         if (novoNivel !== user.nivel) {
             user.nivel = novoNivel;
             teveAlteracao = true;
-            // Opcional: Dar prêmio de Level Up aqui
         }
 
-        // 5. SINCRONIZA ADMIN
+        // 4. Admin Sync (Garante que você não perca acesso)
         if (EMAILS_ADMINS.includes(email) && user.role !== 'admin') {
             user.role = 'admin'; user.status = 'ativo'; 
             teveAlteracao = true;
         }
 
+        // Salva apenas se mudou algo (economiza banco)
         if (teveAlteracao) await user.save();
 
         const userData = user.toObject();
