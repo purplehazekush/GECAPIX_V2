@@ -1,3 +1,4 @@
+// client/src/pages/arena/Home.tsx
 import { useAuth } from '../../context/AuthContext';
 import UserAvatar from '../../components/arena/UserAvatar'; // Seu novo componente pixelado
 import { 

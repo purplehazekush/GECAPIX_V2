@@ -1,3 +1,4 @@
+// client/src/components/arena/games/Connect4Board.tsx
 interface Props {
     board: Array<'red' | 'yellow' | null>; // Array 42
     mySymbol: 'red' | 'yellow';

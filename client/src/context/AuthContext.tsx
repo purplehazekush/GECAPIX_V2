@@ -1,3 +1,4 @@
+// client/src/context/AuthContext.tsx
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { 
   GoogleAuthProvider, 
@@ -50,7 +51,6 @@ export interface User {
   // 🔥 A CORREÇÃO DO ERRO 1 ESTÁ AQUI:
   extrato?: ExtratoItem[]; 
 }
-
 interface AuthContextType {
   user: FirebaseUser | null;
   dbUser: User | null;
@@ -70,17 +70,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const syncWithBackend = async (firebaseUser: FirebaseUser) => {
       try {
         const inviteCode = localStorage.getItem('gecapix_invite_code');
+        
+        // 1. LOGIN PADRÃO
         const res = await api.post('/auth/login', {
           email: firebaseUser.email,
           nome: firebaseUser.displayName,
           codigo_convite: inviteCode
         });
-        localStorage.removeItem('gecapix_invite_code');
-        setDbUser(res.data);
-        if (res.data.mensagem_bonus) {
-          // Pequeno hack para usar alert ou toast aqui se quiser, ou deixar pro componente
-           console.log("Bonus:", res.data.mensagem_bonus);
+
+        // 2. SAFETY CHECK (CORREÇÃO DO BUG)
+        // Se o avatar vier 'default' ou vazio, tenta buscar o perfil completo para garantir
+        // que não estamos pegando um cache ou versão desatualizada
+        let finalUser = res.data;
+        
+        if (!finalUser.avatar_slug || finalUser.avatar_slug === 'default') {
+             try {
+                 // Tenta buscar o perfil específico se tiver ID
+                 if (finalUser._id) {
+                    const perfilRes = await api.get(`/arena/perfil/${finalUser._id}`);
+                    if (perfilRes.data && perfilRes.data.avatar_slug !== 'default') {
+                        console.log("AuthContext: Perfil atualizado recuperado com sucesso.");
+                        finalUser = perfilRes.data;
+                    }
+                 }
+             } catch (err) {
+                 // Silencioso: falha na recuperação extra não deve travar o login
+                 console.warn("AuthContext: Não foi possível recuperar perfil detalhado.");
+             }
         }
+
+        localStorage.removeItem('gecapix_invite_code');
+        setDbUser(finalUser);
+
+        if (res.data.mensagem_bonus) {
+           // Aqui você pode disparar um evento global ou toast se quiser
+           console.log("Bônus:", res.data.mensagem_bonus);
+        }
+
       } catch (error) {
         console.error("Erro ao sincronizar:", error);
       }

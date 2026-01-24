@@ -1,3 +1,4 @@
+// client/src/components/arena/Profile/AvatarSection.tsx
 import { useState } from 'react';
 import { Edit, Casino, CheckCircle } from '@mui/icons-material';
 

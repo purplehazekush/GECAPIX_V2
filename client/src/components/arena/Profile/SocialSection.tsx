@@ -1,3 +1,4 @@
+// client/src/components/arena/Profile/SocialSection.tsx
 import { Groups, Work } from '@mui/icons-material';
 
 interface SectionProps {

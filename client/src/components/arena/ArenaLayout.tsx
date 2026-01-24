@@ -1,3 +1,4 @@
+// client/src/components/arena/ArenaLayout.tsx
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { 
@@ -49,9 +50,13 @@ export default function ArenaLayout() {
               </div>
            </div>
 
-           {/* Avatar Unificado */}
            <div onClick={() => navigate('/arena/perfil')} className="cursor-pointer active:scale-95 transition-transform">
-             <UserAvatar user={dbUser} size="md" className="ring-2 ring-purple-500/50" />
+             <UserAvatar 
+                key={dbUser?.avatar_slug} // <--- O SEGREDO ESTÁ AQUI
+                user={dbUser} 
+                size="md" 
+                className="ring-2 ring-purple-500/50" 
+             />
            </div>
         </div>
       </nav>

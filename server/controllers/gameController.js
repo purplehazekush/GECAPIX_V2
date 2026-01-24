@@ -1,3 +1,4 @@
+// server/controllers/gameController.js
 const UsuarioModel = require('../models/Usuario');
 const TOKEN = require('../config/tokenomics'); 
 

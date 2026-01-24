@@ -1,3 +1,4 @@
+// client/src/components/arena/games/TicTacToeBoard.tsx
 import { Close, Circle } from '@mui/icons-material';
 
 interface Props {

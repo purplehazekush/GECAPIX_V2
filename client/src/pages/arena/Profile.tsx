@@ -1,3 +1,4 @@
+// client/src/pages/arena/Profile.tsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -55,21 +56,26 @@ export default function ArenaProfile() {
     const handleSave = async () => {
         setLoading(true);
         try {
+            console.log("Salvando avatar:", avatarSlug); // DEBUG
+
             const arrayMaterias = formData.materias.split(',').filter(m => m.trim().length > 0);
 
             const payload = {
                 email: dbUser?.email,
                 ...formData,
                 materias: arrayMaterias,
-                avatar_slug: avatarSlug // Manda o slug que veio do componente filho
+                avatar_slug: avatarSlug // <--- GARANTA QUE ISSO ESTÁ AQUI
             };
 
             const res = await api.put('arena/perfil', payload);
-
-            setDbUser(res.data);
-            setIsAvatarEditing(false); // <--- FECHA O EDITOR AQUI
-            toast.success("Perfil atualizado com sucesso! 🔥");
+            
+            // ATUALIZA O CONTEXTO GLOBAL IMEDIATAMENTE
+            setDbUser(res.data); 
+            
+            setIsAvatarEditing(false);
+            toast.success("Perfil atualizado! 🔥");
         } catch (e) {
+            console.error(e); // DEBUG
             toast.error("Erro ao salvar alterações.");
         } finally {
             setLoading(false);

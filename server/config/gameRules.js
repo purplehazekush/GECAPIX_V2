@@ -1,3 +1,4 @@
+// server/config/gameRules.js
 module.exports = {
     // 1. CURVA DE EXPERIÊNCIA (Exponencial Suave)
     // Nível 1: 0 - 100 XP

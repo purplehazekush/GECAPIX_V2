@@ -1,3 +1,4 @@
+// server/config/tokenomics.js
 module.exports = {
     // ECONOMIA BASE
     COINS: {

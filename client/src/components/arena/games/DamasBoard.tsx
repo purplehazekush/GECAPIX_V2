@@ -1,3 +1,4 @@
+// client/src/components/arena/games/DamasBoard.tsx
 import { useState, useEffect } from 'react';
 import { Circle } from '@mui/icons-material';
 

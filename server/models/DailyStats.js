@@ -1,3 +1,4 @@
+// server/models/DailyStats.js
 const mongoose = require('mongoose');
 
 const DailyStatsSchema = new mongoose.Schema({

@@ -1,3 +1,4 @@
+// client/src/components/arena/Profile/AcademicSection.tsx
 import { School, UploadFile } from '@mui/icons-material';
 
 interface SectionProps {

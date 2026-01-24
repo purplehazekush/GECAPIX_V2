@@ -1,3 +1,4 @@
+// server/controllers/pixController.js
 const PixModel = require('../models/Pix');
 const UsuarioModel = require('../models/Usuario');
 

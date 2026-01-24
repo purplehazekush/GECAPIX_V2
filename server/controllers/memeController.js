@@ -1,3 +1,4 @@
+// server/controllers/memeController.js
 const MemeModel = require('../models/Meme');
 const UsuarioModel = require('../models/Usuario');
 const TOKEN = require('../config/tokenomics');

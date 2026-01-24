@@ -1,3 +1,4 @@
+// client/src/pages/arena/GameRoom.tsx
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { io, Socket } from 'socket.io-client';

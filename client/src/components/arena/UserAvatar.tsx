@@ -1,3 +1,4 @@
+// client/src/components/arena/UserAvatar.tsx
 interface UserAvatarProps {
   user?: {
     nome?: string;
