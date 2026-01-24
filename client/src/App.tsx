@@ -18,7 +18,7 @@ import TransferCoins from './pages/arena/Transfer';
 import ArenaProfile from './pages/arena/Profile';
 import ArenaMemes from './pages/arena/Memes'; 
 import ArenaQuests from './pages/arena/Quests';
-import Laboratorio from './pages/arena/Laboratorio';
+//import Laboratorio from './pages/arena/Laboratorio';
 import ValidationPanel from './pages/admin/ValidationPanel';
 import GamesLobby from './pages/arena/GamesLobby'; // <--- IMPORTE ISSO
 import GameRoom from './pages/arena/GameRoom';     // <--- E ISSO
@@ -63,7 +63,8 @@ function AppRoutes() {
         <Route path="perfil" element={<ArenaProfile />} />
         <Route path="memes" element={<ArenaMemes />} />
         <Route path="quests" element={<ArenaQuests />} />
-        <Route path="laboratorio" element={<Laboratorio />} />
+        {/*//<Route path="laboratorio" element={<Laboratorio />} /> */}
+        
         <Route path="games" element={<GamesLobby />} />
         <Route path="tokenomics" element={<Tokenomics />} />
         <Route path="ledger" element={<Ledger />} />
