@@ -104,10 +104,11 @@ app.post('/api/pix', pixController.createWebhook);
 app.put('/api/pix/:id', pixController.updatePix);
 app.post('/api/vendas/manual', pixController.createManual);
 
+
 // 3. ARENA & GAMIFICATION
 app.get('/api/arena/memes', memeController.getMemes);
-app.post('/api/arena/memes', memeController.postMeme);
-app.post('/api/arena/memes/votar', memeController.votarMeme);
+app.post('/api/arena/memes', memeController.postarMeme); // Mudou de postMeme para postarMeme
+app.post('/api/arena/memes/invest', memeController.investirMeme); // NOVA ROTA DE INVESTIMENTO
 
 app.get('/api/arena/ranking', arenaController.getRanking);
 app.get('/api/arena/perfil/:id', arenaController.getPerfilPublico);
