@@ -1,3 +1,4 @@
+// server/controllers/spottedController.js
 const SpottedModel = require('../models/Spotted');
 const UsuarioModel = require('../models/Usuario');
 const TOKEN = require('../config/tokenomics');

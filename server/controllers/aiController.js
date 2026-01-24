@@ -1,3 +1,4 @@
+// server/controllers/aiController.js
 const UsuarioModel = require('../models/Usuario');
 const TOKEN = require('../config/tokenomics');
 const OpenAI = require('openai');

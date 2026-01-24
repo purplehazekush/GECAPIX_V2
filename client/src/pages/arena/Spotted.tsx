@@ -1,3 +1,4 @@
+// client/src/pages/arena/Spotted.tsx
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';

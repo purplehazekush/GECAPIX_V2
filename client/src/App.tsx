@@ -18,15 +18,14 @@ import TransferCoins from './pages/arena/Transfer';
 import ArenaProfile from './pages/arena/Profile';
 import ArenaMemes from './pages/arena/Memes'; 
 import ArenaQuests from './pages/arena/Quests';
-//import Laboratorio from './pages/arena/Laboratorio';
+import Laboratorio from './pages/arena/Laboratorio';
+import ArenaSolver from './pages/arena/Solver'; // A página da IA
 import ValidationPanel from './pages/admin/ValidationPanel';
 import GamesLobby from './pages/arena/GamesLobby'; // <--- IMPORTE ISSO
 import GameRoom from './pages/arena/GameRoom';     // <--- E ISSO
 import Tokenomics from './pages/arena/Tokenomics';
 import Ledger from './pages/arena/Ledger';
 import ArenaSpotted from './pages/arena/Spotted';
-import ArenaSolver from './pages/arena/Solver';
-
 function AppRoutes() {
   const { user, dbUser, loading } = useAuth();
 
@@ -63,13 +62,13 @@ function AppRoutes() {
         <Route path="perfil" element={<ArenaProfile />} />
         <Route path="memes" element={<ArenaMemes />} />
         <Route path="quests" element={<ArenaQuests />} />
-        {/*//<Route path="laboratorio" element={<Laboratorio />} /> */}
+        <Route path="laboratorio" element={<Laboratorio />} />
         
         <Route path="games" element={<GamesLobby />} />
         <Route path="tokenomics" element={<Tokenomics />} />
         <Route path="ledger" element={<Ledger />} />
         <Route path="spotted" element={<ArenaSpotted />} />
-        <Route path="laboratorio" element={<ArenaSolver />} />
+        <Route path="oraculo" element={<ArenaSolver />} />
         <Route path="games/play/:roomId" element={<GameRoom />} />
         
         {/* Rota do Xerife */}

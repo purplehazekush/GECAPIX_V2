@@ -1,3 +1,4 @@
+// client/src/components/arena/NewSpottedModal.tsx
 import { useState } from 'react';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';

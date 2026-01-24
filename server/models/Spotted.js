@@ -1,3 +1,4 @@
+// server/models/Spotted.js
 const mongoose = require('mongoose');
 
 const SpottedSchema = new mongoose.Schema({
