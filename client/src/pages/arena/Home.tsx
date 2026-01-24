@@ -1,22 +1,39 @@
 // client/src/pages/arena/Home.tsx
 import { useAuth } from '../../context/AuthContext';
 import UserAvatar from '../../components/arena/UserAvatar'; // Seu novo componente pixelado
-import { 
-    MonetizationOn, LocalActivity, 
+import {
+    MonetizationOn, LocalActivity,
     SportsEsports, Science, RocketLaunch, Assignment,
     ContentCopy, WhatsApp, QrCodeScanner, ArrowForward
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
+// Função auxiliar visual (apenas para renderizar a barra)
+const getLevelInfo = (totalXp: number) => {
+    let nivel = 1;
+    let xpNecessario = 100;
+    let xpRestante = totalXp;
+
+    while (xpRestante >= xpNecessario) {
+        xpRestante -= xpNecessario;
+        nivel++;
+        xpNecessario = nivel * 100;
+    }
+
+    // Retorna: 
+    // current: quanto tem na barra atual (ex: 40)
+    // max: quanto precisa pra encher (ex: 300)
+    // level: nível atual calculado
+    return { current: xpRestante, max: xpNecessario, level: nivel };
+};
+
+
 export default function ArenaHome() {
     const { dbUser } = useAuth();
     const navigate = useNavigate();
-
-    // Cálculos de XP
-    const xpAtual = dbUser?.xp || 0;
-    const xpProxNivel = (dbUser?.nivel || 1) * 100;
-    const progresso = Math.min((xpAtual / xpProxNivel) * 100, 100);
+    const { current, max, level } = getLevelInfo(dbUser?.xp || 0);
+    const progresso = Math.min((current / max) * 100, 100);
 
     const copyCode = () => {
         navigator.clipboard.writeText(dbUser?.codigo_referencia || "");
@@ -35,7 +52,7 @@ export default function ArenaHome() {
 
     return (
         <div className="pb-28 space-y-6 animate-fade-in relative">
-            
+
             {/* 1. TICKER DE NOTÍCIAS */}
             <div className="bg-yellow-500/10 border-y border-yellow-500/20 overflow-hidden py-1 whitespace-nowrap">
                 <div className="animate-marquee inline-block text-[10px] font-mono text-yellow-500 font-bold uppercase tracking-widest px-4">
@@ -46,9 +63,9 @@ export default function ArenaHome() {
             {/* 2. HUD PRINCIPAL */}
             <div className="px-4 pt-2 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    {/* Agora usa o Avatar Pixelado que configuramos */}
                     <div onClick={() => navigate('/arena/perfil')}>
-                        <UserAvatar user={dbUser} size="lg" showLevel={true} />
+                        {/* Mostra o Nível Calculado */}
+                        <UserAvatar user={{...dbUser, nivel: level}} size="lg" showLevel={true} />
                     </div>
                     <div>
                         <h1 className="text-2xl font-black text-white italic leading-none uppercase">
@@ -56,7 +73,7 @@ export default function ArenaHome() {
                         </h1>
                         <div className="flex items-center gap-1 text-slate-400 text-xs font-mono mt-1">
                             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                            {dbUser?.classe || 'Novato'}
+                            {dbUser?.classe || 'Novato'} • Lvl {level}
                         </div>
                     </div>
                 </div>
@@ -64,7 +81,7 @@ export default function ArenaHome() {
                 {/* BANCO */}
                 <div className="text-right">
                     <p className="text-[9px] text-cyan-400 font-black tracking-widest uppercase mb-1">SALDO</p>
-                    <div 
+                    <div
                         onClick={() => navigate('/arena/transferir')}
                         className="bg-slate-900 border border-cyan-500/30 rounded-xl px-3 py-2 flex items-center gap-2 shadow-[0_0_15px_rgba(34,211,238,0.1)] active:scale-95 transition-transform cursor-pointer"
                     >
@@ -76,31 +93,34 @@ export default function ArenaHome() {
                 </div>
             </div>
 
-            {/* 3. XP BAR */}
+            {/* 3. XP BAR (CORRIGIDA) */}
             <div className="px-4 -mt-2">
                 <div className="flex justify-between text-[9px] font-bold text-slate-500 mb-1 uppercase">
-                    <span>Nível {dbUser?.nivel}</span>
-                    <span className="text-purple-400">{xpAtual}/{xpProxNivel} XP</span>
+                    <span>Nível {level}</span>
+                    <span className="text-purple-400">{Math.floor(current)}/{max} XP</span>
                 </div>
-                <div className="h-2 w-full bg-slate-900 rounded-full overflow-hidden relative">
+                <div className="h-2 w-full bg-slate-900 rounded-full overflow-hidden relative border border-slate-800">
                     <div 
-                        className="h-full bg-gradient-to-r from-purple-600 to-pink-500 transition-all duration-1000"
+                        className="h-full bg-gradient-to-r from-purple-600 to-pink-500 transition-all duration-1000 shadow-[0_0_10px_rgba(168,85,247,0.5)]"
                         style={{ width: `${progresso}%` }}
                     ></div>
                 </div>
+                <p className="text-right text-[8px] text-slate-600 mt-1">
+                    Faltam {max - current} XP para o nível {level + 1}
+                </p>
             </div>
 
             {/* 4. BANNER DE EVENTOS (NOVIDADE) */}
             <div className="px-4">
                 <div className="relative w-full h-32 rounded-2xl overflow-hidden group cursor-pointer border border-white/10 shadow-lg">
                     {/* Imagem de Fundo (Placeholder de festa) */}
-                    <img 
-                        src="https://images.unsplash.com/photo-1514525253440-b393452e3726?q=80&w=1000&auto=format&fit=crop" 
+                    <img
+                        src="https://images.unsplash.com/photo-1514525253440-b393452e3726?q=80&w=1000&auto=format&fit=crop"
                         className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-500"
                         alt="Festa"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
-                    
+
                     <div className="absolute bottom-4 left-4">
                         <span className="bg-red-600 text-white text-[9px] px-2 py-0.5 rounded font-bold uppercase tracking-wider mb-1 inline-block animate-pulse">
                             Evento Oficial
@@ -122,28 +142,28 @@ export default function ArenaHome() {
             <div className="px-4">
                 <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 ml-1">Central de Apps</h3>
                 <div className="grid grid-cols-2 gap-3">
-                    <QuickApp 
+                    <QuickApp
                         icon={<SportsEsports className="text-yellow-400" fontSize="large" />}
                         title="Arcade"
                         desc="Xadrez, Velha & Lig 4"
                         color="border-yellow-500/20 bg-yellow-500/5 hover:bg-yellow-500/10"
                         onClick={() => navigate('/arena/games')}
                     />
-                    <QuickApp 
+                    <QuickApp
                         icon={<RocketLaunch className="text-pink-400" fontSize="large" />}
                         title="Memes"
                         desc="Feed da Engenharia"
                         color="border-pink-500/20 bg-pink-500/5 hover:bg-pink-500/10"
                         onClick={() => navigate('/arena/memes')}
                     />
-                    <QuickApp 
+                    <QuickApp
                         icon={<Science className="text-cyan-400" fontSize="large" />}
                         title="Lab"
                         desc="Chat Anônimo"
                         color="border-cyan-500/20 bg-cyan-500/5 hover:bg-cyan-500/10"
                         onClick={() => navigate('/arena/laboratorio')}
                     />
-                    <QuickApp 
+                    <QuickApp
                         icon={<Assignment className="text-emerald-400" fontSize="large" />}
                         title="Missões"
                         desc="Tasks & Recompensas"
@@ -171,7 +191,7 @@ export default function ArenaHome() {
 
                         <div className="flex flex-col gap-3">
                             {/* O Código */}
-                            <div 
+                            <div
                                 onClick={copyCode}
                                 className="flex items-center justify-between bg-black/40 border border-slate-700 rounded-xl px-4 py-3 cursor-pointer hover:border-purple-500 transition-colors group"
                             >
@@ -185,7 +205,7 @@ export default function ArenaHome() {
                             </div>
 
                             {/* Botão Zap */}
-                            <button 
+                            <button
                                 onClick={shareWhatsapp}
                                 className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95"
                             >
@@ -198,7 +218,7 @@ export default function ArenaHome() {
 
             {/* 7. LINK RANKING */}
             <div className="px-4 pb-4">
-                <div 
+                <div
                     onClick={() => navigate('/arena/ranking')}
                     className="flex items-center justify-between p-4 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 cursor-pointer transition-colors"
                 >
@@ -214,7 +234,7 @@ export default function ArenaHome() {
 // Subcomponente para o Grid de Apps
 function QuickApp({ icon, title, desc, color, onClick }: any) {
     return (
-        <button 
+        <button
             onClick={onClick}
             className={`flex flex-col items-start p-4 rounded-2xl border transition-all active:scale-95 text-left ${color}`}
         >

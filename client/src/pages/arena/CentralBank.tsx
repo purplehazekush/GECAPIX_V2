@@ -5,7 +5,7 @@ import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine 
 } from 'recharts';
 import { 
-    AccountBalance, TrendingDown, TrendingUp, Whatshot, 
+    AccountBalance, TrendingDown, Whatshot, 
     LockClock, InfoOutlined, MonetizationOn 
 } from '@mui/icons-material';
 import { CircularProgress } from '@mui/material';
@@ -38,7 +38,7 @@ const generateCurveData = (currentDay: number) => {
 };
 
 export default function CentralBank() {
-    const { dbUser } = useAuth();
+    useAuth();
     const [status, setStatus] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [graphData, setGraphData] = useState<any[]>([]);

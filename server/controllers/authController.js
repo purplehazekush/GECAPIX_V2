@@ -1,57 +1,97 @@
-// server/controllers/authController.js
 const UsuarioModel = require('../models/Usuario');
+const SystemState = require('../models/SystemState'); // <--- Importante
 const TOKEN = require('../config/tokenomics'); 
 
 const EMAILS_ADMINS = ["joaovictorrabelo95@gmail.com", "caiogcosta03@gmail.com"];
+
+// Helper para gerar código único (EX: JOAO95X)
+const gerarCodigo = (nome) => {
+    const prefixo = nome.split(' ')[0].toUpperCase().substring(0, 4);
+    const random = Math.floor(1000 + Math.random() * 9000);
+    return `${prefixo}${random}`;
+};
+
+// Helper de Nível (Recalcula nível baseado no XP total)
+const calcularNivel = (xpTotal) => {
+    // Exemplo simples: Nível 1 (0-100), Nível 2 (101-300), Nível 3 (301-600)...
+    // Fórmula: XP necessário para o próximo nível cresce
+    let nivel = 1;
+    let xpRequerido = 100;
+    
+    while (xpTotal >= xpRequerido) {
+        xpTotal -= xpRequerido;
+        nivel++;
+        xpRequerido = nivel * 100; // Dificuldade aumenta a cada nível
+    }
+    return nivel;
+};
 
 exports.login = async (req, res) => {
     try {
         const { email, nome, codigo_convite } = req.body;
         
+        // Busca estado da economia para saber quanto pagar de referral HOJE
+        let state = await SystemState.findOne({ season_id: 1 });
+        const premioReferralHoje = state ? state.current_referral_reward : TOKEN.COINS.MAX_REFERRAL_REWARD;
+
         let user = await UsuarioModel.findOne({ email });
         let mensagem_bonus = null;
-        let teveAlteracao = false; // Flag para saber se precisamos salvar
+        let teveAlteracao = false;
 
-        // 1. CRIA SE NÃO EXISTIR
+        // 1. CRIAÇÃO DE USUÁRIO (REGISTRO)
         if (!user) {
             try {
                 const totalUsers = await UsuarioModel.countDocuments();
                 const isAdmin = EMAILS_ADMINS.includes(email) || totalUsers === 0;
                 
                 user = new UsuarioModel({
-                    email, nome, role: isAdmin ? 'admin' : 'membro',
+                    email, 
+                    nome, 
+                    role: isAdmin ? 'admin' : 'membro',
                     status: isAdmin ? 'ativo' : 'pendente',
-                    saldo_coins: TOKEN.COINS.WELCOME_BONUS, xp: 0,
-                    avatar_slug: 'default', // Garante que nasce com avatar
+                    saldo_coins: TOKEN.COINS.WELCOME_BONUS, 
+                    xp: 0,
+                    nivel: 1,
+                    avatar_slug: 'default',
+                    // GERA O CÓDIGO DELE AGORA
+                    codigo_referencia: gerarCodigo(nome),
                     extrato: [{ tipo: 'ENTRADA', valor: TOKEN.COINS.WELCOME_BONUS, descricao: 'Bônus de Boas Vindas', data: new Date() }]
                 });
 
+                // Processa quem indicou (Padrinho)
                 if (codigo_convite) {
                     const padrinho = await UsuarioModel.findOne({ codigo_referencia: codigo_convite.toUpperCase() });
                     if (padrinho) {
                         user.indicado_por = padrinho.email;
+                        
+                        // O Novato ganha o fixo de boas-vindas extra
                         user.saldo_coins += TOKEN.COINS.REFERRAL_WELCOME;
                         user.extrato.push({ tipo: 'ENTRADA', valor: TOKEN.COINS.REFERRAL_WELCOME, descricao: 'Bônus Código Convite', data: new Date() });
 
+                        // O Padrinho ganha o valor DINÂMICO do dia (Economia)
                         await UsuarioModel.updateOne({ _id: padrinho._id }, {
-                            $inc: { saldo_coins: TOKEN.COINS.REFERRAL_BONUS, xp: TOKEN.XP.REFERRAL },
-                            $push: { extrato: { tipo: 'ENTRADA', valor: TOKEN.COINS.REFERRAL_BONUS, descricao: `Indicou ${nome.split(' ')[0]}`, data: new Date() } }
+                            $inc: { saldo_coins: premioReferralHoje, xp: TOKEN.XP.REFERRAL },
+                            $push: { extrato: { tipo: 'ENTRADA', valor: premioReferralHoje, descricao: `Indicou ${nome.split(' ')[0]}`, data: new Date() } }
                         });
                     }
                 }
                 await user.save();
-                // Retorna direto pois é usuário novo
+                
                 const userData = user.toObject();
                 userData.mensagem_bonus = "Bem-vindo ao GECA!";
                 return res.json(userData);
 
             } catch (err) {
-                if (err.code === 11000) user = await UsuarioModel.findOne({ email });
+                if (err.code === 11000) user = await UsuarioModel.findOne({ email }); // Retry se der colisão de email
                 else throw err; 
             }
         }
 
-        // 2. AUTO-MIGRAÇÃO DE AVATAR (CORREÇÃO DO BUG DO F5)
+        // 2. CORREÇÕES DE LEGADO (Para usuários antigos sem código)
+        if (!user.codigo_referencia) {
+            user.codigo_referencia = gerarCodigo(user.nome);
+            teveAlteracao = true;
+        }
         if (!user.avatar_slug) {
             user.avatar_slug = 'default';
             teveAlteracao = true;
@@ -79,16 +119,21 @@ exports.login = async (req, res) => {
             teveAlteracao = true;
         }
 
-        // 4. SINCRONIZA ADMIN
+        // 4. ATUALIZAÇÃO DE NÍVEL (Recalcula sempre que loga pra garantir)
+        const novoNivel = calcularNivel(user.xp);
+        if (novoNivel !== user.nivel) {
+            user.nivel = novoNivel;
+            teveAlteracao = true;
+            // Opcional: Dar prêmio de Level Up aqui
+        }
+
+        // 5. SINCRONIZA ADMIN
         if (EMAILS_ADMINS.includes(email) && user.role !== 'admin') {
             user.role = 'admin'; user.status = 'ativo'; 
             teveAlteracao = true;
         }
 
-        // 5. SALVA SE HOUVE QUALQUER MUDANÇA (CRÍTICO!)
-        if (teveAlteracao) {
-            await user.save();
-        }
+        if (teveAlteracao) await user.save();
 
         const userData = user.toObject();
         userData.mensagem_bonus = mensagem_bonus; 
