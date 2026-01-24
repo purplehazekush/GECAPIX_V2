@@ -1,5 +1,5 @@
 const UsuarioModel = require('../models/Usuario');
-const ChatModel = require('../models/Chat'); // <--- IMPORTANTE: Importe seu Model de Chat/Mensagem
+const ChatModel = require('../models/Mensagem'); // <--- CORREÇÃO DO CAMINHO
 const TOKEN = require('../config/tokenomics');
 const OpenAI = require('openai');
 
@@ -7,24 +7,24 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 exports.resolverQuestao = async (req, res) => {
     try {
-        // Recebemos também a 'materia' para saber onde postar
         const { email, imagem_url, materia } = req.body;
         
         const user = await UsuarioModel.findOne({ email });
         if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
 
-        // 1. COBRANÇA (1 GLUE)
+        // 1. COBRANÇA
         const custoGlue = TOKEN.COSTS.AI_SOLVER_GLUE;
         if (user.saldo_glue < custoGlue) {
             return res.status(402).json({ error: "Sem GLUE suficiente." });
         }
 
+        // Debita GLUE e COINS (Se tiver custo em coins tb)
         await UsuarioModel.updateOne({ email }, {
             $inc: { saldo_glue: -custoGlue },
-            // ... (log extrato)
+            $push: { extrato: { tipo: 'SAIDA', valor: 0, descricao: 'IA: Oráculo Invocado', categoria: 'SYSTEM', data: new Date() }}
         });
 
-        // 2. PROMPT ENGENHEIRO (LaTeX Mode)
+        // 2. PROMPT ENGENHEIRO
         const promptSystem = `
             Você é o 'Oráculo do Geca', uma IA especialista em exatas.
             FORMATO DE RESPOSTA: Retorne APENAS um JSON cru (sem markdown, sem \`\`\`).
@@ -49,7 +49,7 @@ exports.resolverQuestao = async (req, res) => {
                 { 
                     role: "user", 
                     content: [
-                        { type: "text", text: "Resolva para a turma de engenharia:" },
+                        { type: "text", text: "Resolva esta questão acadêmica:" },
                         { type: "image_url", image_url: { url: imagem_url } }
                     ] 
                 }
@@ -59,16 +59,20 @@ exports.resolverQuestao = async (req, res) => {
 
         const resultadoAI = JSON.parse(response.choices[0].message.content);
 
-        // 3. POSTAR NO CHAT (A Mágica)
-        // Criamos uma mensagem especial do tipo 'resolucao_ia'
-        const novaMensagem = await ChatModel.create({
-            materia: materia, // Sala onde foi pedido
-            autor_real_id: user._id, // Quem pagou (para receber doação)
-            autor_nome: "Oráculo IA", // Nome de exibição
-            autor_avatar: "robot_01", // Avatar da IA
-            texto: JSON.stringify(resultadoAI), // Guardamos o JSON stringificado no texto
-            tipo: "resolucao_ia", // <--- TIPO ESPECIAL
-            imagem_original: imagem_url, // Para verem a pergunta
+        // 3. SALVAR NO CHAT
+        await ChatModel.create({
+            materia: materia,
+            autor_real_id: user._id,
+            
+            // Identidade da IA
+            autor_fake: "Oráculo IA", 
+            autor_avatar: "robot_01",
+            
+            // Conteúdo
+            texto: JSON.stringify(resultadoAI), 
+            tipo: "resolucao_ia", 
+            imagem_original: imagem_url,
+            
             data: new Date()
         });
 
@@ -76,6 +80,6 @@ exports.resolverQuestao = async (req, res) => {
 
     } catch (error) {
         console.error("Erro IA:", error);
-        res.status(500).json({ error: "O Oráculo falhou." });
+        res.status(500).json({ error: "O Oráculo falhou. Tente novamente." });
     }
 };

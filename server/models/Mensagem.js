@@ -1,18 +1,24 @@
-// server/models/Mensagem.js
 const mongoose = require('mongoose');
 
 const MensagemSchema = new mongoose.Schema({
-    materia: { type: String, required: true }, // ex: DCC034
-    texto: String,
-    arquivo_url: String, // Link do PDF ou Imagem
-    tipo_arquivo: String, // 'imagem' ou 'documento'
+    materia: { type: String, required: true },
+    texto: String, // Aqui vai o JSON da IA ou o texto do aluno
     
-    // Identidade Anônima
-    autor_fake: String, // Ex: "Mago Sombrio"
-    autor_classe: String, // Para mostrarmos o emoji certo (🧙‍♂️)
+    arquivo_url: String,
+    tipo_arquivo: String,
     
-    // Controle (Oculto dos outros usuários)
-    autor_real_id: String, 
+    // Identidade
+    autor_fake: String, // Nome de exibição (ex: "Mago" ou "Oráculo IA")
+    autor_classe: String,
+    autor_avatar: String, // <--- ADICIONADO (Para o robô ter ícone)
+
+    // Controle
+    autor_real_id: String,
+    
+    // --- CAMPOS NOVOS PARA A IA ---
+    tipo: { type: String, default: 'mensagem' }, // 'mensagem' ou 'resolucao_ia'
+    imagem_original: String, // A foto da questão que originou a resposta da IA
+    
     data: { type: Date, default: Date.now }
 });
 
