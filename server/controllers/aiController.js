@@ -1,86 +1,81 @@
-// server/controllers/aiController.js
 const UsuarioModel = require('../models/Usuario');
+const ChatModel = require('../models/Chat'); // <--- IMPORTANTE: Importe seu Model de Chat/Mensagem
 const TOKEN = require('../config/tokenomics');
 const OpenAI = require('openai');
 
-// Inicializa OpenAI (Certifique-se de ter OPENAI_API_KEY no .env)
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 exports.resolverQuestao = async (req, res) => {
     try {
-        const { email, imagem_url } = req.body;
+        // Recebemos também a 'materia' para saber onde postar
+        const { email, imagem_url, materia } = req.body;
         
         const user = await UsuarioModel.findOne({ email });
         if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
 
-        // 1. VERIFICAÇÃO DE SALDO (Dual Currency)
+        // 1. COBRANÇA (1 GLUE)
         const custoGlue = TOKEN.COSTS.AI_SOLVER_GLUE;
-        const custoCoins = TOKEN.COSTS.AI_SOLVER_COINS;
-
         if (user.saldo_glue < custoGlue) {
-            return res.status(402).json({ error: "Você precisa de GLUE para usar a IA. Compre via Pix." });
-        }
-        if (user.saldo_coins < custoCoins) {
-            return res.status(402).json({ error: "GecaCoins insuficientes para completar a operação." });
+            return res.status(402).json({ error: "Sem GLUE suficiente." });
         }
 
-        // 2. COBRANÇA ANTECIPADA (Para evitar fraude se a IA demorar)
         await UsuarioModel.updateOne({ email }, {
-            $inc: { saldo_glue: -custoGlue, saldo_coins: -custoCoins },
-            $push: { extrato: { 
-                tipo: 'SAIDA', 
-                valor: custoCoins, 
-                descricao: 'IA: Resolução de Questão', 
-                categoria: 'SYSTEM', // Usando nossas categorias novas
-                data: new Date() 
-            }}
+            $inc: { saldo_glue: -custoGlue },
+            // ... (log extrato)
         });
 
-        // 3. CHAMADA PARA A IA (GPT-4o Vision)
-        // O Prompt deve forçar JSON estrito.
+        // 2. PROMPT ENGENHEIRO (LaTeX Mode)
+        const promptSystem = `
+            Você é o 'Oráculo do Geca', uma IA especialista em exatas.
+            FORMATO DE RESPOSTA: Retorne APENAS um JSON cru (sem markdown, sem \`\`\`).
+            
+            REGRAS DE MATEMÁTICA:
+            - Use sintaxe LaTeX para TODAS as fórmulas matemáticas.
+            - Envolva expressões inline com um cifrão: $E=mc^2$
+            - Envolva blocos de equação com dois cifrões: $$ \\int_0^\\infty x^2 dx $$
+            
+            JSON Schema:
+            {
+                "resolucao_rapida": "Resposta final direta (ex: x = 42) com LaTeX se precisar",
+                "passo_a_passo": "Explicação didática. Use LaTeX para as contas.",
+                "gabarito": "Letra ou Valor Final"
+            }
+        `;
+
         const response = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [
-                {
-                    role: "system",
-                    content: `Você é uma IA especialista em resolver provas de engenharia e exatas. 
-                    Sua saída DEVE ser estritamente um JSON válido, sem markdown (backticks), sem texto antes ou depois.
-                    
-                    Formato do JSON esperado:
-                    {
-                        "multipla_escolha": "Letra da resposta (ex: A) ou 'N/A' se for discursiva",
-                        "resolucao_rapida": "Resolução direta em 1 linha",
-                        "resolucao_eficiente": "Passo a passo resumido (máx 3 linhas)",
-                        "resolucao_completa": "Explicação detalhada da teoria e cálculo",
-                        "dica_extra": "Uma dica de ouro sobre o conceito"
-                    }`
-                },
-                {
-                    role: "user",
+                { role: "system", content: promptSystem },
+                { 
+                    role: "user", 
                     content: [
-                        { type: "text", text: "Resolva esta questão acadêmica. Retorne apenas o JSON." },
+                        { type: "text", text: "Resolva para a turma de engenharia:" },
                         { type: "image_url", image_url: { url: imagem_url } }
-                    ]
+                    ] 
                 }
             ],
-            max_tokens: 1000,
-            response_format: { type: "json_object" } // Força JSON (Feature nova da OpenAI)
+            response_format: { type: "json_object" }
         });
 
-        const resultado = JSON.parse(response.choices[0].message.content);
+        const resultadoAI = JSON.parse(response.choices[0].message.content);
 
-        // 4. RETORNA RESULTADO
-        // Opcional: Salvar histórico de resoluções no banco (novo Model 'Resolucao')
-        
-        res.json({
-            success: true,
-            saldo_restante_glue: user.saldo_glue - custoGlue,
-            data: resultado
+        // 3. POSTAR NO CHAT (A Mágica)
+        // Criamos uma mensagem especial do tipo 'resolucao_ia'
+        const novaMensagem = await ChatModel.create({
+            materia: materia, // Sala onde foi pedido
+            autor_real_id: user._id, // Quem pagou (para receber doação)
+            autor_nome: "Oráculo IA", // Nome de exibição
+            autor_avatar: "robot_01", // Avatar da IA
+            texto: JSON.stringify(resultadoAI), // Guardamos o JSON stringificado no texto
+            tipo: "resolucao_ia", // <--- TIPO ESPECIAL
+            imagem_original: imagem_url, // Para verem a pergunta
+            data: new Date()
         });
+
+        res.json({ success: true });
 
     } catch (error) {
-        console.error("Erro na IA:", error);
-        // Opcional: Reembolsar em caso de erro da API
-        res.status(500).json({ error: "A IA falhou. Tente novamente (Seus créditos não foram gastos se falhou aqui)." });
+        console.error("Erro IA:", error);
+        res.status(500).json({ error: "O Oráculo falhou." });
     }
 };

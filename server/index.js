@@ -135,6 +135,7 @@ app.post('/api/chat', chatLimiter, chatController.enviarMensagem);
 // 5. ADMINISTRAÇÃO
 app.get('/api/admin/validacao', adminController.getFilaValidacao);
 app.post('/api/admin/validacao', adminController.moderarUsuario);
+app.post('/api/admin/recursos', adminController.darRecursos);
 
 // Rotas Legado/Simples
 const UsuarioModel = require('./models/Usuario');

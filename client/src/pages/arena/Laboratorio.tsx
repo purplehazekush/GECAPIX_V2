@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom'; // <--- IMPORTANTE
 import ImageViewer from '../../components/ui/ImageViewer';
 import MessageBubble from '../../components/arena/Chat/MessageBubble';
 import ChatInput from '../../components/arena/Chat/ChatInput';
+import SolutionBubble from '../../components/arena/Chat/SolutionBubble';
 import { Science, ArrowBack, AutoAwesome, Bolt } from '@mui/icons-material';
 
 const CLOUD_NAME = "dcetrqazm"; 
@@ -178,14 +179,22 @@ export default function Laboratorio() {
 
             {/* Lista de Mensagens */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-950/50">
-                {msgs.map((msg, idx) => (
-                    <MessageBubble 
-                        key={idx} 
-                        msg={msg} 
-                        souEu={msg.autor_real_id === dbUser?._id} 
-                        onImageClick={setImagemExpandida}
-                    />
-                ))}
+                {msgs.map((msg, idx) => {
+                    // SE FOR RESOLUÇÃO DA IA, USA O COMPONENTE NOVO
+                    if (msg.tipo === 'resolucao_ia') {
+                        return <SolutionBubble key={idx} msg={msg} />;
+                    }
+
+                    // SE FOR MENSAGEM NORMAL
+                    return (
+                        <MessageBubble 
+                            key={idx} 
+                            msg={msg} 
+                            souEu={msg.autor_real_id === dbUser?._id} 
+                            onImageClick={setImagemExpandida}
+                        />
+                    );
+                })}
                 <div ref={bottomRef} />
             </div>
 
