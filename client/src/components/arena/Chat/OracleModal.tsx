@@ -8,20 +8,12 @@ import toast from 'react-hot-toast';
 interface Props {
     open: boolean;
     onClose: () => void;
-    sala: string; // A sala onde a mágica vai acontecer
-    onSuccess: () => void; // Para recarregar o chat depois
+    sala: string;
+    onSuccess: () => void;
 }
 
-// Configs Cloudinary
 const CLOUD_NAME = "dcetrqazm"; 
 const UPLOAD_PRESET = "gecapix_preset"; 
-
-// Estilo do Modal
-const style = {
-    position: 'absolute' as 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-    width: '95%', maxWidth: 450, bgcolor: '#0f172a', border: '1px solid #a855f7', borderRadius: '24px',
-    boxShadow: '0 0 50px rgba(168, 85, 247, 0.2)', p: 0, outline: 'none', maxHeight: '90vh', overflowY: 'auto'
-};
 
 export default function OracleModal({ open, onClose, sala, onSuccess }: Props) {
     const { dbUser, setDbUser } = useAuth();
@@ -29,7 +21,7 @@ export default function OracleModal({ open, onClose, sala, onSuccess }: Props) {
     const [preview, setPreview] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
-    // Custos Visuais
+    // Custos
     const CUSTO_GLUE = 1;
     const CUSTO_COINS = 50;
 
@@ -44,7 +36,6 @@ export default function OracleModal({ open, onClose, sala, onSuccess }: Props) {
     const handleSummon = async () => {
         if (!image) return toast.error("Tire foto da questão!");
         
-        // Verifica Saldo
         if ((dbUser?.saldo_glue || 0) < CUSTO_GLUE) return toast.error("Você precisa de 1 GLUE!");
         if ((dbUser?.saldo_coins || 0) < CUSTO_COINS) return toast.error("GecaCoins insuficientes!");
 
@@ -60,14 +51,14 @@ export default function OracleModal({ open, onClose, sala, onSuccess }: Props) {
             const dataCloud = await resCloud.json();
             if (!dataCloud.secure_url) throw new Error("Erro upload");
 
-            // 2. Chamar IA (Passando a Sala/Matéria)
+            // 2. IA
             await api.post('/arena/ai/solve', {
                 email: dbUser?.email,
                 imagem_url: dataCloud.secure_url,
-                materia: sala // <--- O PULO DO GATO: A IA VAI POSTAR NESSA SALA
+                materia: sala
             });
 
-            // 3. Atualiza Saldo Local
+            // 3. Saldo
             if (dbUser) {
                 setDbUser({ 
                     ...dbUser, 
@@ -77,7 +68,7 @@ export default function OracleModal({ open, onClose, sala, onSuccess }: Props) {
             }
 
             toast.success("Resolvido! Veja no chat.", { id: toastId });
-            onSuccess(); // Recarrega o chat
+            onSuccess();
             handleClose();
 
         } catch (e: any) {
@@ -95,8 +86,17 @@ export default function OracleModal({ open, onClose, sala, onSuccess }: Props) {
     };
 
     return (
-        <Modal open={open} onClose={handleClose}>
-            <Box sx={style} className="animate-fade-in">
+        <Modal 
+            open={open} 
+            onClose={handleClose}
+            // FLEXBOX SHIELD: Centralização perfeita em qualquer tela
+            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}
+        >
+            <Box 
+                className="bg-slate-900 border border-purple-500/50 rounded-3xl overflow-hidden shadow-2xl outline-none w-full max-w-md animate-fade-in"
+                // SCROLL SHIELD: Garante que nada corte se a tela for pequena
+                sx={{ maxHeight: '90vh', overflowY: 'auto' }}
+            >
                 {/* Header Bonitão */}
                 <div className="bg-gradient-to-r from-purple-900 to-slate-900 p-6 relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-4 opacity-20">

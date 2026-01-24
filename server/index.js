@@ -23,6 +23,8 @@ const configController = require('./controllers/configController');
 const statsController = require('./controllers/statsController');
 const spottedController = require('./controllers/spottedController');
 const aiController = require('./controllers/aiController')
+const DailyTreasury = require('./engine/DailyTreasury'); // <--- Importe
+const SystemState = require('./models/SystemState'); // <--- Importe
 
 const app = express();
 
@@ -160,10 +162,11 @@ app.put('/api/config/modo-aberto', configController.setModoAberto);
 app.get('/api/stats', statsController.getStats);
 
 // 7. CRON JOB
-cron.schedule('0 21 * * *', () => {
+cron.schedule('0 21 * * *', () => { // Todo dia às 21h
     console.log('⏰ Rotina das 21h...');
     memeController.finalizarDiaArena();
-    statsController.snapshotEconomy(); // <--- ADICIONE ISSO
+    statsController.snapshotEconomy(); 
+    DailyTreasury.runDailyClosing(); // <--- O MOTOR ECONÔMICO RODA AQUI
 }, { timezone: "America/Sao_Paulo" });
 
 // --- SOCKET.IO SETUP (SUBSTITUI O app.listen) ---
@@ -204,6 +207,25 @@ io.on('connection', (socket) => {
         gameController.handleDisconnect(io, socket);
     });
 });
+
+// ROTA PÚBLICA DE STATUS ECONÔMICO (Para o Dashboard)
+app.get('/api/tokenomics/status', async (req, res) => {
+    try {
+        let state = await SystemState.findOne({ season_id: 1 });
+        if (!state) {
+            // Se não existir, força uma inicialização rápida
+            await DailyTreasury.runDailyClosing();
+            state = await SystemState.findOne({ season_id: 1 });
+        }
+        res.json(state);
+    } catch (e) { res.status(500).json({ error: "Erro status eco" }); }
+});
+
+
+
+// INICIALIZAÇÃO NO BOOT (Para garantir que sempre tenha dados)
+// Adicione isso antes do server.listen
+DailyTreasury.runDailyClosing().then(() => console.log("💰 Economia Sincronizada."));
 
 const PORT = process.env.PORT || 3001;
 // MUITO IMPORTANTE: Mudar de app.listen para server.listen

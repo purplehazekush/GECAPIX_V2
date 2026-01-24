@@ -1,57 +1,91 @@
 // server/config/tokenomics.js
+
+/**
+ * 📊 GECAPIX TOKENOMICS - SEASON 1 CONFIGURATION
+ * Calibrado em: 24/01/2026
+ * Status: LOCKED 🔒
+ */
+
+const SEASON_LENGTH = 180; // 6 Meses aprox.
+
 module.exports = {
-    // ECONOMIA BASE
+    // --- 1. MACROECONOMIA (SEASON) ---
+    SEASON: {
+        ID: 1,
+        START_DATE: "2026-02-01T00:00:00Z", // Data do Lançamento Oficial
+        LENGTH: SEASON_LENGTH,
+        CROSSOVER_DAY: 68 // O dia que o Cashback ultrapassa o Referral em volume
+    },
+    
+    // --- 2. HARD CAPS (Limites de Emissão) ---
+    CAPS: {
+        TOTAL_SUPPLY: 1_000_000_000,   // 1 Bilhão (Teto absoluto)
+        REFERRAL_POOL: 60_000_000,     // 6% do Supply (Growth)
+        CASHBACK_POOL: 200_000_000     // 20% do Supply (Utility)
+    },
+
+    // --- 3. CURVAS MATEMÁTICAS (Engine) ---
+    CURVES: {
+        // Referral: Decaimento Exponencial Rápido
+        // Cria urgência. "Entre agora ou ganhe menos amanhã".
+        REFERRAL_K: 0.024,          
+        REFERRAL_A_CONST: 1459558,  // Pote do Dia 0
+
+        // Cashback: Power Law (Convexa)
+        // Acompanha a adoção lenta do varejo físico.
+        CASHBACK_SLOPE: 8.2,
+        CASHBACK_P_EXP: 2.7333      
+    },
+
+    // --- 4. FLUXO DE CAIXA (MICROECONOMIA) ---
+    
+    // [ENTRADAS] - Faucets
     COINS: {
-        WELCOME_BONUS: 100,
-        DAILY_LOGIN_BASE: 50,
-        DAILY_LOGIN_STEP: 10, // Max cap pode ser definido no controller
-        REFERRAL_BONUS: 500,
-        REFERRAL_WELCOME: 200,
-        SALE_PROCESSED: 5,
+        // Boas-vindas generosas para permitir experimentação imediata
+        WELCOME_BONUS: 200,      // Suficiente para 2 IPOs ou 20 apostas baixas
+        
+        // Retenção
+        DAILY_LOGIN_BASE: 50,    
+        DAILY_LOGIN_STEP: 10,    // Dia 7 = 110 GC. Incentiva streaks curtos.
+        
+        // Viralidade (Valores Teto - Decaem com o tempo via Engine)
+        MAX_REFERRAL_REWARD: 1000, // Começa em 1000 GC. No dia 68, estará em ~190 GC.
+        REFERRAL_WELCOME: 250,     // O amigo indicado ganha isso fixo
     },
 
+    // [ENGAGEMENT] - XP (Progressão de Nível)
     XP: {
+        MEME_POSTADO: 150,       // Alta recompensa por criar conteúdo
+        SPOTTED_POST: 50,        // Média recompensa (conteúdo de texto)
         DAILY_LOGIN: 20,
-        SALE_PROCESSED: 10,
-        REFERRAL: 100,
-        MEME_POSTADO: 50,
-        GAME_WIN: 50,    // Vitória no Arcade
-        GAME_LOSS: 10,   // Consolação
-        SPOTTED_POST: 30
+        REFERRAL: 200,           // XP alto para quem traz gente
+        GAME_WIN: 50,
+        GAME_LOSS: 10
     },
 
-    INCEPTION: {
-        MULTIPLIER_BET: 1.5, 
-        MULTIPLIER_MEME: 1.2, 
-    },
+    // [SAÍDAS] - Sinks (Drenagem de Liquidez)
     COSTS: {
-        SPOTTED_COMMENT: 5, // Custa 5 coins para comentar
-        AI_SOLVER_GLUE: 1, 
-        AI_SOLVER_COINS: 50
+        SPOTTED_COMMENT: 5,     // Barato, mas drena no volume (fofoca custa)
+        
+        // Custo Híbrido da IA
+        AI_SOLVER_GLUE: 1,      // Hard Currency
+        AI_SOLVER_COINS: 100    // Taxa administrativa em Soft Currency (aumentei para drenar mais)
     },
 
-    // --- NOVA SEÇÃO: ARCADE ---
+    // --- 5. ECONOMIA REAL (HARD CURRENCY) ---
+    PRICE: {
+        GLUE_BRL: 4.20          // Preço Fixo (Ancoragem psicológica)
+    },
+
+    // --- 6. GAMEPLAY ---
     GAMES: {
-        // Limite de partidas valendo prêmio por dia (anti-vício/anti-farm)
-        DAILY_LIMIT: 5, 
-        
-        // Taxa da Casa (Quanto o sistema queima/retém)
-        // Se 2 jogadores apostam 10 (Total 20):
-        // WIN_PERCENT 0.9 = Vencedor leva 18 (Lucro 8), Casa queima 2.
-        // WIN_PERCENT 1.0 = Vencedor leva 20 (Lucro 10).
-        // WIN_PERCENT 1.5 = Vencedor leva 30 (Inflação! Lucro 20).
-        
-        // Vamos usar um modelo levemente inflacionário para atrair jogadores
-        WIN_MULTIPLIER: 1.8, // Apostou 10 -> Ganha 18 (Lucro 8). Perdedor mantém aposta?
-        
-        // REVISÃO DA SUA LÓGICA ORIGINAL:
-        // "Vencedor fica com 60% do pote acumulado, e o perdedor com sua aposta original"
-        // Ex: P1 aposta 10, P2 aposta 10. Pote 20.
-        // Vencedor leva 60% de 20 = 12.
-        // Perdedor leva 10 (de volta).
-        // Total pago: 22. 
-        // Resultado: Sistema criou 2 coins. (INFLAÇÃO CONTROLADA - BOM PARA ENGAGEMENT)
-        
-        WIN_RATE: 0.60, // 60% do pote total
+        DAILY_LIMIT: 30,        // Evita bots farmando o dia todo
+        MIN_BET: 10,            // Aposta mínima acessível
+        TAX_RATE: 0.05          // 5% da casa (Queima) em cada jogo PvP
+    },
+    
+    MEME_MARKET: {
+        CREATOR_ROYALTY: 150,   // Criador do meme vencedor ganha fixo
+        YIELD_PERCENT: 0.20     // Vencedores ganham +20% sobre a aposta
     }
 };
