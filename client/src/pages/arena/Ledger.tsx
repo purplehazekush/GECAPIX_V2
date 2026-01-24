@@ -4,7 +4,7 @@ import {
     History, ArrowUpward, ArrowDownward, 
     SportsEsports, SwapHoriz, Refresh,
     ChevronLeft, ChevronRight,
-    RocketLaunch, EmojiEvents, Storefront, AutoAwesome
+    RocketLaunch, Storefront, AutoAwesome
 } from '@mui/icons-material';
 import UserAvatar from '../../components/arena/UserAvatar';
 import { format } from 'date-fns';
