@@ -32,7 +32,8 @@ export default function GameRoom() {
     const [opponentName, setOpponentName] = useState<string>('Esperando...');
 
     useEffect(() => {
-        if (!dbUser || !roomId) return;
+        // TRAVA DE SEGURANÇA: Só roda se tiver usuário e ID
+        if (!dbUser || !roomId) return; 
 
         const newSocket = io(SOCKET_URL);
         setSocket(newSocket);

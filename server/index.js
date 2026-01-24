@@ -22,6 +22,7 @@ const productController = require('./controllers/productController');
 const configController = require('./controllers/configController');
 const statsController = require('./controllers/statsController');
 
+
 const app = express();
 
 // 1. Configurações Básicas
@@ -36,8 +37,8 @@ app.use(cors({
 }));
 
 // 2. Limitadores (Rate Limiting)
-const generalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300 });
-const authLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 20 });
+const generalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 1000 });
+const authLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 100 });
 const chatLimiter = rateLimit({ windowMs: 60 * 1000, max: 15 });
 
 app.use('/api', generalLimiter);
@@ -91,6 +92,7 @@ app.use((req, res, next) => {
 });
 
 app.get('/api/tokenomics', statsController.getTokenomics);
+app.get('/api/tokenomics/history', statsController.getHistoricalStats); // <--- NOVA ROTA
 
 // 1. AUTH
 app.post('/api/auth/login', authLimiter, authController.login);
@@ -148,8 +150,9 @@ app.get('/api/stats', statsController.getStats);
 
 // 7. CRON JOB
 cron.schedule('0 21 * * *', () => {
-    console.log('⏰ Encerramento diário...');
+    console.log('⏰ Rotina das 21h...');
     memeController.finalizarDiaArena();
+    statsController.snapshotEconomy(); // <--- ADICIONE ISSO
 }, { timezone: "America/Sao_Paulo" });
 
 // --- SOCKET.IO SETUP (SUBSTITUI O app.listen) ---

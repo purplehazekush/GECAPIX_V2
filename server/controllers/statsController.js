@@ -1,6 +1,7 @@
 // server/controllers/statsController.js
 const PixModel = require('../models/Pix');
 const UsuarioModel = require('../models/Usuario');
+const DailyStatsModel = require('../models/DailyStats');
 // ... imports existentes
 
 exports.getStats = async (req, res) => {
@@ -120,4 +121,45 @@ exports.getTokenomics = async (req, res) => {
     } catch (e) {
         res.status(500).json({ error: "Erro no Tokenomics" });
     }
+};
+
+exports.snapshotEconomy = async () => {
+    try {
+        console.log("📸 Tirando foto da economia...");
+        
+        // 1. Calcula Supply
+        const aggregator = await UsuarioModel.aggregate([
+            { $group: { _id: null, totalSupply: { $sum: "$saldo_coins" }, count: { $sum: 1 } } }
+        ]);
+        const supply = aggregator[0]?.totalSupply || 0;
+        
+        // 2. Calcula Tesouro
+        const admin = await UsuarioModel.findOne({ role: 'admin' });
+        const treasury = admin ? admin.saldo_coins : 0;
+
+        // 3. Usuários Ativos (Logaram nas ultimas 24h)
+        const ontem = new Date(new Date().getTime() - 24 * 60 * 60 * 1000);
+        const activeUsers = await UsuarioModel.countDocuments({ ultimo_login: { $gte: ontem } });
+
+        // 4. Salva
+        await DailyStatsModel.create({
+            total_supply: supply,
+            circulating_supply: supply - treasury,
+            active_users: activeUsers,
+            data: new Date()
+        });
+
+        console.log("✅ Snapshot salvo.");
+    } catch (e) {
+        console.error("❌ Erro snapshot:", e);
+    }
+};
+
+// Endpoint para o Front pegar o histórico
+exports.getHistoricalStats = async (req, res) => {
+    try {
+        // Pega os ultimos 30 dias
+        const history = await DailyStatsModel.find().sort({ data: 1 }).limit(30);
+        res.json(history);
+    } catch (e) { res.status(500).json({ error: "Erro histórico" }); }
 };
