@@ -3,8 +3,8 @@ import { useAuth } from '../../context/AuthContext';
 import UserAvatar from '../../components/arena/UserAvatar'; // Seu novo componente pixelado
 import {
     MonetizationOn, LocalActivity,
-    SportsEsports, Science, RocketLaunch, Assignment,
-    ContentCopy, WhatsApp, QrCodeScanner, ArrowForward
+    VisibilityOff, ShoppingCart, AccountBalance, Assignment,
+    ContentCopy, WhatsApp, QrCodeScanner, ArrowForward, EmojiEvents, SwapHoriz
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -138,37 +138,63 @@ export default function ArenaHome() {
                 </div>
             </div>
 
-            {/* 5. GRID DE APPS (NAVEGAÇÃO RÁPIDA) */}
+            {/* 5. CENTRAL DE UTILITÁRIOS (HOME GRID) */}
             <div className="px-4">
-                <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 ml-1">Central de Apps</h3>
+                <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 ml-1">Utilidades</h3>
                 <div className="grid grid-cols-2 gap-3">
-                    <QuickApp
-                        icon={<SportsEsports className="text-yellow-400" fontSize="large" />}
-                        title="Arcade"
-                        desc="Xadrez, Velha & Lig 4"
-                        color="border-yellow-500/20 bg-yellow-500/5 hover:bg-yellow-500/10"
-                        onClick={() => navigate('/arena/games')}
-                    />
-                    <QuickApp
-                        icon={<RocketLaunch className="text-pink-400" fontSize="large" />}
-                        title="Memes"
-                        desc="Feed da Engenharia"
-                        color="border-pink-500/20 bg-pink-500/5 hover:bg-pink-500/10"
-                        onClick={() => navigate('/arena/memes')}
-                    />
-                    <QuickApp
-                        icon={<Science className="text-cyan-400" fontSize="large" />}
-                        title="Lab"
-                        desc="Chat Anônimo"
-                        color="border-cyan-500/20 bg-cyan-500/5 hover:bg-cyan-500/10"
-                        onClick={() => navigate('/arena/laboratorio')}
-                    />
-                    <QuickApp
-                        icon={<Assignment className="text-emerald-400" fontSize="large" />}
-                        title="Missões"
-                        desc="Tasks & Recompensas"
+                    
+                    {/* BANCO CENTRAL */}
+                    <QuickApp 
+                        icon={<AccountBalance className="text-emerald-400" fontSize="large" />}
+                        title="Banco Central"
+                        desc="Inflação & Emissão"
                         color="border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10"
+                        onClick={() => navigate('/arena/bank')}
+                    />
+
+                    {/* LOJA */}
+                    <QuickApp 
+                        icon={<ShoppingCart className="text-pink-400" fontSize="large" />}
+                        title="Loja & Câmbio"
+                        desc="Compre GLUE / P2P"
+                        color="border-pink-500/20 bg-pink-500/5 hover:bg-pink-500/10"
+                        onClick={() => navigate('/arena/loja')}
+                    />
+
+                    {/* QUESTS */}
+                    <QuickApp 
+                        icon={<Assignment className="text-yellow-400" fontSize="large" />}
+                        title="Missões"
+                        desc="Daily Tasks"
+                        color="border-yellow-500/20 bg-yellow-500/5 hover:bg-yellow-500/10"
                         onClick={() => navigate('/arena/quests')}
+                    />
+
+                    {/* SPOTTED */}
+                    <QuickApp 
+                        icon={<VisibilityOff className="text-cyan-400" fontSize="large" />}
+                        title="Spotted"
+                        desc="Fofoca Anônima"
+                        color="border-cyan-500/20 bg-cyan-500/5 hover:bg-cyan-500/10"
+                        onClick={() => navigate('/arena/spotted')}
+                    />
+
+                    {/* RANKING */}
+                    <QuickApp 
+                        icon={<EmojiEvents className="text-purple-400" fontSize="large" />}
+                        title="Ranking"
+                        desc="Top 50"
+                        color="border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10"
+                        onClick={() => navigate('/arena/ranking')}
+                    />
+
+                     {/* TRANSFERÊNCIA */}
+                     <QuickApp 
+                        icon={<SwapHoriz className="text-slate-400" fontSize="large" />}
+                        title="Transferir"
+                        desc="Enviar Coins"
+                        color="border-slate-500/20 bg-slate-500/5 hover:bg-slate-500/10"
+                        onClick={() => navigate('/arena/transferir')}
                     />
                 </div>
             </div>
