@@ -74,22 +74,29 @@ exports.investirMeme = async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Erro na ordem de compra" }); }
 };
 
-// 3. GET MEMES (Mantém igual)
+// 3. GET MEMES (Com Filtro)
 exports.getMemes = async (req, res) => {
     try {
-        const hoje = new Date();
-        hoje.setHours(0,0,0,0); // Meia-noite de hoje
+        const { mode } = req.query;
+        let filtro = {};
 
-        const memes = await MemeModel.find({ 
-            data: { $gte: hoje } // Só pega de hoje pra frente
-        })
-        .sort({ score: -1, data: -1 }) // Mais populares primeiro
-        .limit(50);
-        
+        if (mode === 'history') {
+            // Histórico: Apenas os fechados, ordenados do mais recente para o antigo
+            filtro = { status: 'fechado' };
+        } else {
+            // Live: Apenas os ativos (do dia atual)
+            // Nota: Se quiser mostrar memes ativos de dias anteriores (bug do cron), remova a data.
+            // Por segurança, vamos pegar TODOS os 'ativo' independente da data para não sumir dinheiro.
+            filtro = { status: 'ativo' }; 
+        }
+
+        const memes = await MemeModel.find(filtro)
+            .sort(mode === 'history' ? { data: -1 } : { score: -1, data: -1 })
+            .limit(50);
+            
         res.json(memes);
     } catch (e) { res.status(500).json({ error: "Erro ao buscar memes" }); }
 };
-
 // 4. FECHAMENTO DO MERCADO (LÓGICA PARIMUTUEL)
 exports.finalizarDiaArena = async () => {
     console.log("🔔 Fechando Mercado de Memes...");
