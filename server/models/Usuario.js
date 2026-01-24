@@ -9,6 +9,7 @@ const UsuarioSchema = new mongoose.Schema({
     
     // --- GAMIFICATION & ECONOMIA (O COFRE) ---
     saldo_coins: { type: Number, default: 0 }, // Mantemos Number, mas cuidado com decimais
+    saldo_glue: { type: Number, default: 0 }, // Moeda Premium (R$ 4.20)
     xp: { type: Number, default: 0 },
     nivel: { type: Number, default: 1 },
     badges: [String],

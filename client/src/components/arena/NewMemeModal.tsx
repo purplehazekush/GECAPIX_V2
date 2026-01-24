@@ -18,13 +18,19 @@ const style = {
   transform: 'translate(-50%, -50%)',
   width: '90%',
   maxWidth: 400,
-  bgcolor: '#0f172a', // slate-900
-  border: '1px solid #1e293b', // slate-800
+  
+  // --- O FIX ESTÁ AQUI ---
+  maxHeight: '85vh', // Ocupa no máximo 85% da altura da tela
+  overflowY: 'auto', // Cria barra de rolagem se o conteúdo for maior
+  // -----------------------
+  
+  bgcolor: '#0f172a',
+  border: '1px solid #1e293b',
   borderRadius: '24px',
   boxShadow: 24,
   p: 4,
   outline: 'none'
-};
+}
 
 export default function NewMemeModal({ open, onClose, onRefresh }: Props) {
     const { dbUser } = useAuth();

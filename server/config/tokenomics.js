@@ -25,13 +25,15 @@ module.exports = {
         MULTIPLIER_MEME: 1.2, 
     },
     COSTS: {
-        SPOTTED_COMMENT: 5 // Custa 5 coins para comentar
+        SPOTTED_COMMENT: 5, // Custa 5 coins para comentar
+        AI_SOLVER_GLUE: 1, 
+        AI_SOLVER_COINS: 50
     },
 
     // --- NOVA SEÇÃO: ARCADE ---
     GAMES: {
         // Limite de partidas valendo prêmio por dia (anti-vício/anti-farm)
-        DAILY_LIMIT: 20, 
+        DAILY_LIMIT: 5, 
         
         // Taxa da Casa (Quanto o sistema queima/retém)
         // Se 2 jogadores apostam 10 (Total 20):

@@ -22,6 +22,7 @@ const productController = require('./controllers/productController');
 const configController = require('./controllers/configController');
 const statsController = require('./controllers/statsController');
 const spottedController = require('./controllers/spottedController');
+const aiController = require('./controllers/aiController')
 
 const app = express();
 
@@ -124,6 +125,8 @@ app.post('/api/arena/spotted/comentar', spottedController.comentarSpotted);
 // 🔥 ROTA FALTANTE ADICIONADA AQUI 🔥
 // Certifique-se que no arenaController existe a função 'transferirCoins' (ou o nome que você deu)
 app.post('/api/arena/transferir', arenaController.transferirCoins); 
+
+app.post('/api/arena/ai/solve', aiController.resolverQuestao);
 
 // 4. CHAT
 app.get('/api/chat/:materia', chatController.getMensagens);

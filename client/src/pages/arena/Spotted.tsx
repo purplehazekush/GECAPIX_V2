@@ -3,7 +3,7 @@ import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { 
     VisibilityOff, Comment, Add, Send, 
-    FilterList, CalendarMonth, Whatshot, AccessTime
+    Whatshot, AccessTime
 } from '@mui/icons-material';
 import UserAvatar from '../../components/arena/UserAvatar';
 import NewSpottedModal from '../../components/arena/NewSpottedModal';
