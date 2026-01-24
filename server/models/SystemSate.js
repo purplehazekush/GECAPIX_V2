@@ -1,4 +1,4 @@
-// server/models/SystemSate.js
+// server/models/SystemState.js
 const mongoose = require('mongoose');
 
 const SystemStateSchema = new mongoose.Schema({
@@ -14,10 +14,10 @@ const SystemStateSchema = new mongoose.Schema({
     cashback_pool_available: { type: Number, default: 0 },
 
     // Valor Unitário Hoje (O que aparece na tela do usuário)
-    current_referral_reward: { type: Number, default: 500 }, // Começa com 500 ou valor calculado
+    current_referral_reward: { type: Number, default: 500 },
     
     // Status
     is_active: { type: Boolean, default: true }
 });
 
-module.exports = mongoose.model('SystemState', SystemStateSchema);
+module.exports = mongoose.models.SystemState || mongoose.model('SystemState', SystemStateSchema);
