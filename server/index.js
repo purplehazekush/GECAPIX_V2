@@ -183,7 +183,6 @@ cron.schedule('0 21 * * *', () => { // Todo dia às 21h
     memeController.finalizarDiaArena();
     statsController.snapshotEconomy(); 
     DailyTreasury.runDailyClosing(); // <--- O MOTOR ECONÔMICO RODA AQUI
-    InterestEngine.aplicarJurosDiarios(); // <--- Rende o dinheiro da galera
 }, { timezone: "America/Sao_Paulo" });
 
 

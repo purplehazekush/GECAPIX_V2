@@ -38,7 +38,7 @@ export default function CentralBank() {
     const { dbUser, setDbUser } = useAuth();
     
     // Estados Gerais
-    const [tab, setTab] = useState(0); // 0=Policy, 1=Liquid, 2=Locked
+    const [tab, setTab] = useState(0); 
     const [loading, setLoading] = useState(true);
     
     // Estados Tokenomics (Aba 0)
@@ -50,7 +50,10 @@ export default function CentralBank() {
     const [valorBond, setValorBond] = useState('');
     const [titulos, setTitulos] = useState<any[]>([]);
 
-    // 1. CARGA INICIAL (Tokenomics)
+    // Helper de Formatação
+    const fmtPct = (val: number) => (val * 100).toFixed(2) + '%';
+
+    // 1. CARGA INICIAL
     useEffect(() => {
         api.get('/tokenomics/status')
             .then(res => {
@@ -60,7 +63,7 @@ export default function CentralBank() {
             .finally(() => setLoading(false));
     }, []);
 
-    // 2. CARGA DE TÍTULOS (Quando muda para aba 2)
+    // 2. CARGA DE TÍTULOS
     const fetchTitulos = () => {
         if (dbUser?.email) {
             api.get(`/bank/bonds?email=${dbUser.email}`).then(res => setTitulos(res.data));
@@ -70,7 +73,6 @@ export default function CentralBank() {
 
     // --- AÇÕES BANCÁRIAS ---
 
-    // Staking Líquido
     const handleLiqAction = async (action: 'deposit' | 'withdraw') => {
         const val = parseInt(valorLiq);
         if (!val || val <= 0) return toast.error("Valor inválido");
@@ -79,7 +81,6 @@ export default function CentralBank() {
         try {
             await api.post(`/bank/${action}`, { email: dbUser?.email, valor: val });
             
-            // Atualização Otimista do UI
             if (dbUser) {
                 const novoSaldo = action === 'deposit' ? dbUser.saldo_coins - val : dbUser.saldo_coins + val;
                 const novoStaking = action === 'deposit' 
@@ -96,7 +97,6 @@ export default function CentralBank() {
         }
     };
 
-    // Compra de Título
     const handleBuyBond = async () => {
         const val = parseInt(valorBond);
         if (!val || val < 100) return toast.error("Investimento mínimo: 100 GC");
@@ -104,9 +104,7 @@ export default function CentralBank() {
         const toastId = toast.loading("Emitindo título...");
         try {
             await api.post('/bank/bond/buy', { email: dbUser?.email, valor: val });
-            
             if (dbUser) setDbUser({ ...dbUser, saldo_coins: dbUser.saldo_coins - val });
-            
             toast.success("Título comprado!", { id: toastId });
             setValorBond('');
             fetchTitulos();
@@ -115,16 +113,13 @@ export default function CentralBank() {
         }
     };
 
-    // Resgate de Título
     const handleRedeem = async (id: string) => {
-        if(!window.confirm("ATENÇÃO: Resgatar antes do vencimento cobra MULTA de até 40% sobre o valor. Deseja continuar?")) return;
+        if(!window.confirm("ATENÇÃO: Resgatar antes do vencimento cobra MULTA de até 40%. Continuar?")) return;
         
         const toastId = toast.loading("Processando resgate...");
         try {
             const res = await api.post('/bank/bond/redeem', { email: dbUser?.email, tituloId: id });
-            
             if (dbUser) setDbUser({ ...dbUser, saldo_coins: dbUser.saldo_coins + res.data.valor_recebido });
-
             toast.success(`Recebido: ${Math.floor(res.data.valor_recebido)} GC`, { id: toastId });
             fetchTitulos();
         } catch (e: any) { 
@@ -158,7 +153,6 @@ export default function CentralBank() {
                 </div>
             </header>
 
-            {/* Navegação de Abas */}
             <Tabs 
                 value={tab} 
                 onChange={(_, v) => setTab(v)} 
@@ -172,7 +166,7 @@ export default function CentralBank() {
                 <Tab label={<span className="text-[10px] font-black">TÍTULOS</span>} />
             </Tabs>
 
-            {/* --- ABA 0: POLÍTICA MONETÁRIA (Gráficos) --- */}
+            {/* --- ABA 0: POLÍTICA MONETÁRIA --- */}
             {tab === 0 && (
                 <div className="space-y-6 animate-fade-in">
                     {/* Ticker FOMO */}
@@ -244,7 +238,12 @@ export default function CentralBank() {
                         <div className="absolute top-0 right-0 p-4 opacity-10"><Savings sx={{fontSize: 100}}/></div>
                         
                         <h3 className="text-xl font-black text-white italic uppercase relative z-10">Staking Líquido</h3>
-                        <p className="text-emerald-200 text-xs mb-6 relative z-10">Rendimento diário (0.5%). Liquidez imediata.</p>
+                        
+                        {/* TAXA DINÂMICA AQUI */}
+                        <p className="text-emerald-200 text-xs mb-6 relative z-10">
+                            Rendimento Ontem: <span className="font-black text-white bg-white/20 px-2 py-0.5 rounded ml-1">{fmtPct(status?.last_apr_liquid || 0)}</span> a.d.
+                            <br/>Liquidez imediata.
+                        </p>
                         
                         <div className="bg-black/20 p-4 rounded-2xl inline-block mb-6 backdrop-blur-sm border border-emerald-500/20 relative z-10">
                             <p className="text-[10px] text-slate-300 font-bold uppercase">Seu Saldo Aplicado</p>
@@ -275,7 +274,7 @@ export default function CentralBank() {
                     
                     <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 text-xs text-slate-400 text-center">
                         <InfoOutlined sx={{fontSize:14, verticalAlign:'text-bottom', mr:1}}/>
-                        O rendimento é creditado automaticamente todo dia às 21h.
+                        O rendimento é recalculado diariamente com base na demanda.
                     </div>
                 </div>
             )}
@@ -290,8 +289,10 @@ export default function CentralBank() {
                         <h3 className="text-sm font-black text-white uppercase mb-1 flex items-center gap-2 relative z-10">
                             <Lock className="text-purple-400" fontSize="small"/> Novo Título Público
                         </h3>
+                        
+                        {/* TAXA DINÂMICA AQUI */}
                         <p className="text-[10px] text-slate-400 mb-4 relative z-10">
-                            Trava por 30 dias. Rendimento de 1.5% ao dia. Multa por saída antecipada.
+                            Trava por 30 dias. Rendimento Ontem: <span className="font-black text-purple-400">{fmtPct(status?.last_apr_locked || 0)}</span>.
                         </p>
                         
                         <div className="flex gap-2 relative z-10">

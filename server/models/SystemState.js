@@ -20,7 +20,14 @@ const SystemStateSchema = new mongoose.Schema({
     is_active: { type: Boolean, default: true },
     // --- LEDGER DO SISTEMA ---
     total_burned: { type: Number, default: 0 }, // Moedas destruídas
-    total_fees_collected: { type: Number, default: 0 } // Moedas no tesouro
+    total_fees_collected: { type: Number, default: 0 }, // Moedas no tesouro
+    // --- HISTÓRICO DE RENDIMENTO ---
+    last_apr_liquid: { type: Number, default: 0 }, // Ex: 0.005 (0.5%)
+    last_apr_locked: { type: Number, default: 0 }, // Ex: 0.015 (1.5%)
+    
+    // --- LEDGER ---
+    total_staked_liquid: { type: Number, default: 0 }, // TVL Liquido
+    total_staked_locked: { type: Number, default: 0 }, // TVL Locked
 });
 
 module.exports = mongoose.models.SystemState || mongoose.model('SystemState', SystemStateSchema);

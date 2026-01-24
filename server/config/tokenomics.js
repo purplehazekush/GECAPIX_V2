@@ -73,12 +73,23 @@ module.exports = {
     },
 
     // --- 7. SISTEMA BANCÁRIO (FALTAVA ISSO) ---
+    // --- 7. SISTEMA BANCÁRIO (DEFI DINÂMICO) ---
     BANK: {
-        LIQUID_APR_DAILY: 0.005, 
-        LOCKED_APR_DAILY: 0.015, 
-        LOCKED_PERIOD_DAYS: 30,  
-        PENALTY_MAX: 0.40, 
-        PENALTY_MIN: 0.10, 
+        // Alocação: Quanto da emissão diária de Cashback vai para juros?
+        STAKING_ALLOCATION: 0.30, // 30% do pote diário é distribuído
+
+        // Multiplicador de Risco (Locked ganha X vezes mais que Liquid)
+        LOCKED_WEIGHT: 3.0, // Quem trava ganha 3x mais yield
+
+        // Circuit Breaker (Teto Máximo de APR Diário)
+        MAX_DAILY_YIELD_LIQUID: 0.01, // Max 1% ao dia pro Líquido (365% a.a.)
+        MAX_DAILY_YIELD_LOCKED: 0.03, // Max 3% ao dia pro Locked (Explosivo)
+
+        LOCKED_PERIOD_DAYS: 30,
+        
+        // Multas (Mantém igual)
+        PENALTY_MAX: 0.40,
+        PENALTY_MIN: 0.10,
     },
     
     // --- 8. CARTEIRAS ---

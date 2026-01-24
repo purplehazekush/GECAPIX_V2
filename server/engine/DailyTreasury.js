@@ -2,6 +2,7 @@
 const SystemState = require('../models/SystemState');
 const EmissionCurve = require('./EmissionCurve');
 const TOKEN = require('../config/tokenomics');
+const InterestEngine = require('./InterestEngine'); // <--- Importe
 
 exports.runDailyClosing = async () => {
     console.log("🏦 [TREASURY] Iniciando fechamento diário...");
@@ -48,6 +49,8 @@ exports.runDailyClosing = async () => {
     state.current_day = effectiveDay;
     state.last_update = new Date();
     await state.save();
+
+    await InterestEngine.aplicarJurosDiarios(effectiveDay);
 
     console.log(`✅ [TREASURY] Dia ${effectiveDay} consolidado.`);
     console.log(`   -> Referral Reward Hoje: ${unitReward} GC`);
