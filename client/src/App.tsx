@@ -26,6 +26,8 @@ import GameRoom from './pages/arena/GameRoom';     // <--- E ISSO
 import Tokenomics from './pages/arena/Tokenomics';
 import Ledger from './pages/arena/Ledger';
 import ArenaSpotted from './pages/arena/Spotted';
+import CentralBank from './pages/arena/CentralBank';
+
 function AppRoutes() {
   const { user, dbUser, loading } = useAuth();
 
@@ -69,6 +71,7 @@ function AppRoutes() {
         <Route path="ledger" element={<Ledger />} />
         <Route path="spotted" element={<ArenaSpotted />} />
         <Route path="oraculo" element={<ArenaSolver />} />
+        <Route path="bank" element={<CentralBank />} />
         <Route path="games/play/:roomId" element={<GameRoom />} />
         
         {/* Rota do Xerife */}
