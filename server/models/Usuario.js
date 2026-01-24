@@ -48,7 +48,17 @@ const UsuarioSchema = new mongoose.Schema({
     status_profissional: { type: String },
     equipe_competicao: { type: String },
     
-    missoes_concluidas: { type: [String], default: [] },
+    // SUBSTITUI O ANTIGO array de strings 'missoes_concluidas'
+    // Agora temos histórico detalhado
+    quest_progress: [{
+        quest_id: String,
+        count: { type: Number, default: 1 }, // Quantas vezes já fez na vida
+        last_completed_at: Date
+    }],
+    
+    // Mantemos este apenas para compatibilidade legada se precisar, 
+    // mas o ideal é migrar tudo para quest_progress
+    missoes_concluidas: [String],
 
     jogos_hoje: { type: Number, default: 0 },
     ultimo_jogo_data: { type: Date },

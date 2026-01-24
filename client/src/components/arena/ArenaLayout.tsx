@@ -4,19 +4,20 @@ import {
     Home, RocketLaunch, SportsEsports, Science, Person 
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import DailyRewardModal from './DailyRewardModal'; // <--- O Modal de Login Diário fica aqui!
+import DailyRewardModal from './DailyRewardModal'; 
+import ClassSelectionModal from './ClassSelectionModal'; // <--- 1. IMPORT NOVO
 
 export default function ArenaLayout() {
     const navigate = useNavigate();
     const location = useLocation();
-    useAuth();
+    useAuth(); 
 
     // Menu Inferior Fixo
     const menuItems = [
         { icon: <Home />, label: 'Home', path: '/arena' },
         { icon: <RocketLaunch />, label: 'Memes', path: '/arena/memes' },
         { icon: <SportsEsports />, label: 'Games', path: '/arena/games' },
-        { icon: <Science />, label: 'Lab', path: '/arena/laboratorio' }, // Chat & Oráculo
+        { icon: <Science />, label: 'Lab', path: '/arena/laboratorio' }, 
         { icon: <Person />, label: 'Perfil', path: '/arena/perfil' },
     ];
 
@@ -31,8 +32,13 @@ export default function ArenaLayout() {
             {/* O Conteúdo das Páginas Renderiza Aqui */}
             <Outlet />
 
-            {/* Modal Global de Login Diário */}
+            {/* --- MODAIS GLOBAIS --- */}
+            
+            {/* 1. Login Diário (Checa extrato recente) */}
             <DailyRewardModal />
+            
+            {/* 2. Chapéu Seletor (Aparece se user for NOVATO) */}
+            <ClassSelectionModal /> 
 
             {/* Barra de Navegação Fixa */}
             <nav className="fixed bottom-0 left-0 right-0 bg-slate-900/90 backdrop-blur-md border-t border-slate-800 pb-safe-bottom z-50">
@@ -50,7 +56,6 @@ export default function ArenaLayout() {
                                 <div className={`p-1 rounded-xl transition-all ${active ? 'bg-cyan-500/10' : ''}`}>
                                     {item.icon}
                                 </div>
-                                {/* Label opcional em telas muito pequenas pode ser removido */}
                                 <span className="text-[9px] font-bold mt-0.5">{item.label}</span>
                             </button>
                         );
