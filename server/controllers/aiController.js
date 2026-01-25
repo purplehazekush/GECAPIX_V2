@@ -10,7 +10,7 @@ exports.resolverQuestao = async (req, res) => {
     try {
         const { email, imagem_url, materia } = req.body;
         
-        // --- VALIDAÇÕES E CUSTOS ---
+        // --- VALIDAÇÕES E CUSTOS (Mantidos) ---
         if (!email || !imagem_url) return res.status(400).json({ error: "Dados incompletos." });
         const user = await UsuarioModel.findOne({ email });
         if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
@@ -24,36 +24,47 @@ exports.resolverQuestao = async (req, res) => {
         if ((user.saldo_coins || 0) < custoCoins) return res.status(402).json({ error: "Sem Coins." });
 
         // =================================================================================
-        // 🧠 PROMPT V5: "TABLE MASTER"
+        // 🧠 PROMPT MASTER V6: "BLOCK STRUCTURED SOLVER"
         // =================================================================================
         const promptSystem = `
-            ATUE COMO: Monitor Chefe de Engenharia (UFMG).
-            OBJETIVO: Gabarito estruturado, visual e preciso.
+            ATUE COMO: O Monitor Chefe de Engenharia da UFMG.
+            OBJETIVO: Gerar gabarito estruturado, visual e organizado por itens.
 
-            --- REGRAS DE FORMATAÇÃO LATEX ---
-            1. USE '\\displaystyle' para frações/integrais.
-            2. USE '\\text{unidade}' para unidades físicas. Ex: "10 \\text{ m/s}".
-            3. NÃO use delimitadores ($$, \\[, \\() no JSON. Apenas o LaTeX puro.
+            --- REGRAS VISUAIS DE LATEX (OBRIGATÓRIO) ---
+            1. USE '\\displaystyle' no início de frações/integrais/limites.
+            2. USE '\\boxed{}' no resultado final de CADA bloco de roteiro.
+            3. USE '\\text{unidade}' para unidades (ex: 10 \\text{ m/s}).
+            4. NUNCA use delimitadores markdown ($$, \\[, \\() no JSON. Apenas LaTeX puro.
 
-            --- ESTRUTURA DA RESPOSTA (JSON) ---
+            --- LÓGICA DE ROTEIRO (CRUCIAL) ---
+            - SE FOR UMA ÚNICA QUESTÃO: Gere 1 bloco no 'roteiro_estruturado' com titulo: null.
+            - SE FOREM MÚLTIPLOS ITENS (a, b, c...): Gere 1 bloco PARA CADA ITEM. Titulo: "Item a)", "Item b)".
+            - CONTEÚDO DOS PASSOS: Apenas a sequência matemática lógica. Sem texto narrativo ("agora fazemos...").
+
+            --- ESTRUTURA JSON ---
             {
                 "sucesso": true,
-                "topico": "Ex: Física I - Dinâmica",
+                "topico": "Ex: Cálculo III",
                 "dificuldade": "Fácil / Médio / Difícil",
                 
-                // CAMPO HÍBRIDO:
-                // Se for UMA questão: coloque o resultado em 'resultado_principal'. Deixe 'itens' vazio.
-                // Se forem MÚLTIPLAS (a, b, c): Deixe 'resultado_principal' null e preencha 'itens'.
-                "resultado_principal": "LaTeX da resposta única (ou null)",
-                
-                "itens": [
-                    { "label": "a)", "valor": "LaTeX da resposta A" },
-                    { "label": "b)", "valor": "LaTeX da resposta B" }
+                // VISUALIZAÇÃO RÁPIDA (Escolha UMA das opções abaixo)
+                "resultado_unico": "LaTeX da resposta final (se for 1 questão)",
+                "itens_rapidos": [ { "label": "a)", "valor": "LaTeX" }, { "label": "b)", "valor": "LaTeX" } ],
+
+                // ROTEIRO DETALHADO (Lista de Blocos)
+                "roteiro_estruturado": [
+                    {
+                        "titulo": "Item a) Cálculo da Velocidade", // ou null se for questão única
+                        "passos": [
+                            "v(t) = \\displaystyle \\int a(t) dt",
+                            "v(t) = 2t + C",
+                            "\\boxed{v(5) = 10 \\text{ m/s}}"
+                        ]
+                    }
                 ],
 
-                "memoria_calculo": ["Passo 1", "Passo 2"],
-                "teoria": "Explicação conceitual.",
-                "alerta": "Aviso se imagem ruim ou ambígua."
+                "teoria": "Explicação conceitual completa. Use math inline '\\('",
+                "alerta": "Aviso curto ou null."
             }
         `;
 
@@ -62,7 +73,7 @@ exports.resolverQuestao = async (req, res) => {
             messages: [
                 { role: "system", content: promptSystem },
                 { role: "user", content: [
-                    { type: "text", text: "Resolva. Se houver itens a,b,c, separe-os." },
+                    { type: "text", text: "Resolva. Estruture o roteiro corretamente." },
                     { type: "image_url", image_url: { url: imagem_url } }
                 ]}
             ],
@@ -71,7 +82,7 @@ exports.resolverQuestao = async (req, res) => {
             max_tokens: 2500 
         });
 
-        console.log("🤖 Resposta AI V5:", response.choices[0].message.content); 
+        console.log("🤖 Resposta AI V6:", response.choices[0].message.content); 
 
         let resultadoAI;
         try {

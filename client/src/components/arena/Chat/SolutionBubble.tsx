@@ -17,7 +17,7 @@ interface SolutionProps {
 export default function SolutionBubble({ msg }: SolutionProps) {
     const [data, setData] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'rapida' | 'roteiro' | 'teoria'>('roteiro'); // Default: Roteiro
+    const [activeTab, setActiveTab] = useState<'rapida' | 'roteiro' | 'teoria'>('roteiro');
     const [showOriginalImage, setShowOriginalImage] = useState(false);
 
     useEffect(() => {
@@ -26,14 +26,21 @@ export default function SolutionBubble({ msg }: SolutionProps) {
             if (typeof rawData === 'string') rawData = JSON.parse(rawData);
             if (!rawData || typeof rawData !== 'object') throw new Error("Dados vazios.");
 
-            // Normalização Inteligente
+            // NORMALIZAÇÃO DE DADOS (Compatibilidade V5 -> V6)
+            // Se vier o formato antigo (memoria_calculo array de strings), transformamos num bloco único.
+            let roteiroFinal = [];
+            if (Array.isArray(rawData.roteiro_estruturado)) {
+                roteiroFinal = rawData.roteiro_estruturado;
+            } else if (Array.isArray(rawData.memoria_calculo)) {
+                roteiroFinal = [{ titulo: null, passos: rawData.memoria_calculo }];
+            }
+
             setData({
                 topico: rawData.topico || "Geral",
                 dificuldade: rawData.dificuldade || "N/A",
-                // Suporte legado para resposta_final antiga
-                resultado_principal: rawData.resultado_principal || rawData.resposta_final || null,
-                itens: Array.isArray(rawData.itens) ? rawData.itens : [],
-                memoria_calculo: Array.isArray(rawData.memoria_calculo) ? rawData.memoria_calculo : [],
+                resultado_unico: rawData.resultado_unico || rawData.resultado_principal || null,
+                itens_rapidos: Array.isArray(rawData.itens_rapidos) ? rawData.itens_rapidos : (Array.isArray(rawData.itens) ? rawData.itens : []),
+                roteiro_estruturado: roteiroFinal,
                 teoria: rawData.teoria || "Sem teoria disponível.",
                 alerta: rawData.alerta || null
             });
@@ -44,7 +51,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
         }
     }, [msg.dados_ia]);
 
-    // Helpers de Renderização Segura
+    // --- RENDERIZADORES SEGUROS ---
     const SafeBlockMath = ({ children }: { children: string }) => {
         const cleanMath = children ? children.replace(/\$/g, '').trim() : '';
         if (!cleanMath) return null;
@@ -93,31 +100,34 @@ export default function SolutionBubble({ msg }: SolutionProps) {
         return 'bg-red-500/20 text-red-400 border-red-500/30';
     };
 
+    const getFontSizeClass = (text: string) => {
+        if (!text) return 'text-3xl';
+        if (text.length < 10) return 'text-4xl';
+        if (text.length < 30) return 'text-2xl';
+        return 'text-lg';
+    };
+
     if (error || !data) return null;
 
-    // Detecta se temos Múltiplos Itens (Lista) ou Resultado Único
-    const hasMultipleItems = data.itens && data.itens.length > 0;
-    const finalResult = data.resultado_principal || (hasMultipleItems ? null : "Ver Roteiro");
+    const hasMultipleItems = data.itens_rapidos && data.itens_rapidos.length > 0;
+    const finalResult = data.resultado_unico || (hasMultipleItems ? null : "Ver Roteiro");
 
     return (
         <div className="flex flex-col gap-2 max-w-[95%] w-full md:max-w-[480px] animate-fade-in-up self-start">
             
-            {/* Header com Badges */}
+            {/* Header + Badges */}
             <div className="flex justify-between items-end pl-1 pr-1 mb-1">
                 <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black uppercase bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">
                         Oráculo Solver
                     </span>
-                    <span className="text-[9px] text-slate-600">v3.0</span>
+                    <span className="text-[9px] text-slate-600">v3.1</span>
                 </div>
-                
                 <div className="flex gap-2">
-                    {/* Badge Tópico */}
                     <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700">
                         <LocalOffer sx={{fontSize: 10}} className="text-slate-400"/>
                         <span className="text-[9px] font-bold text-slate-300 uppercase max-w-[80px] truncate">{data.topico}</span>
                     </div>
-                    {/* Badge Dificuldade */}
                     <div className={`flex items-center gap-1 px-2 py-0.5 rounded-md border ${getDifficultyColor(data.dificuldade)}`}>
                         <Speed sx={{fontSize: 10}}/>
                         <span className="text-[9px] font-bold uppercase">{data.dificuldade}</span>
@@ -127,7 +137,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
 
             <div className="bg-slate-900 border border-purple-500/30 rounded-2xl overflow-hidden shadow-2xl">
                 
-                {/* Banner Imagem Expandível */}
+                {/* Imagem Banner */}
                 {msg.imagem_original && (
                     <div 
                         onClick={() => setShowOriginalImage(true)}
@@ -152,7 +162,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                     <TabButton active={activeTab === 'teoria'} onClick={() => setActiveTab('teoria')} icon={<School sx={{fontSize:16}}/>} label="Teoria" color="text-purple-400" />
                 </div>
 
-                {/* Conteúdo */}
+                {/* Conteúdo Principal */}
                 <div className="p-4 bg-slate-900 min-h-[160px]">
                     {data.alerta && (
                         <div className="mb-4 flex gap-2 bg-yellow-500/10 p-2 rounded-lg border border-yellow-500/20 items-start">
@@ -161,13 +171,12 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                         </div>
                     )}
 
-                    {/* === ABA RÁPIDA (Lógica de Tabela vs Único) === */}
+                    {/* === ABA RÁPIDA === */}
                     {activeTab === 'rapida' && (
                         <div className="animate-fade-in h-full flex flex-col justify-center">
                             {hasMultipleItems ? (
-                                // LAYOUT DE GRADE (Para a, b, c...)
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
-                                    {data.itens.map((item: any, idx: number) => (
+                                    {data.itens_rapidos.map((item: any, idx: number) => (
                                         <div key={idx} className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col items-center text-center relative overflow-hidden group hover:border-cyan-500/30 transition-colors">
                                             <span className="absolute top-2 left-2 text-[10px] font-black text-cyan-500 bg-cyan-900/20 px-1.5 rounded">{item.label}</span>
                                             <div className="mt-2 text-lg text-white font-bold w-full overflow-x-auto custom-scrollbar">
@@ -177,11 +186,10 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                                     ))}
                                 </div>
                             ) : (
-                                // LAYOUT ÚNICO (Destaque Gigante)
                                 <div className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl p-6 text-center shadow-inner relative overflow-hidden">
                                     <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-yellow-500 to-transparent opacity-50"></div>
                                     <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-2">Resultado Final</p>
-                                    <div className="text-2xl md:text-3xl font-black text-white w-full overflow-x-auto custom-scrollbar py-2">
+                                    <div className={`font-black text-white w-full overflow-x-auto custom-scrollbar py-2 ${getFontSizeClass(finalResult || '')}`}>
                                         {finalResult && finalResult.match(/[\\^_{}]/) ? (
                                             <SafeBlockMath>{finalResult}</SafeBlockMath>
                                         ) : (
@@ -193,22 +201,37 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                         </div>
                     )}
 
-                    {/* === ABA ROTEIRO === */}
+                    {/* === ABA ROTEIRO (Blocos Estruturados) === */}
                     {activeTab === 'roteiro' && (
-                        <div className="space-y-4 animate-fade-in">
-                            {data.memoria_calculo.length > 0 ? (
-                                data.memoria_calculo.map((step: string, idx: number) => (
-                                    <div key={idx} className="flex gap-3 group">
-                                        <div className="flex flex-col items-center gap-1">
-                                            <div className="w-5 h-5 rounded-full bg-cyan-900/30 text-cyan-400 flex items-center justify-center text-[10px] font-bold border border-cyan-500/20 mt-1">
-                                                {idx + 1}
+                        <div className="space-y-6 animate-fade-in">
+                            {data.roteiro_estruturado.length > 0 ? (
+                                data.roteiro_estruturado.map((bloco: any, bIdx: number) => (
+                                    <div key={bIdx} className="relative">
+                                        {/* Título do Bloco (Se houver, ex: Item A) */}
+                                        {bloco.titulo && (
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-cyan-500"></div>
+                                                <h4 className="text-xs font-black text-cyan-400 uppercase tracking-wide">{bloco.titulo}</h4>
+                                                <div className="flex-1 h-px bg-slate-800"></div>
                                             </div>
-                                            {idx !== data.memoria_calculo.length - 1 && <div className="w-0.5 h-full bg-slate-800 group-hover:bg-cyan-900/50 transition-colors"></div>}
-                                        </div>
-                                        <div className="flex-1 pb-2">
-                                            <div className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 overflow-x-auto custom-scrollbar hover:border-cyan-500/30 transition-colors">
-                                                <SafeBlockMath>{step}</SafeBlockMath>
-                                            </div>
+                                        )}
+                                        
+                                        {/* Passos do Bloco */}
+                                        <div className="space-y-3 pl-2 border-l border-slate-800/50">
+                                            {bloco.passos.map((step: string, sIdx: number) => (
+                                                <div key={sIdx} className="flex gap-3 group">
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <span className="text-[9px] font-mono text-slate-600 mt-2 select-none">
+                                                            {(sIdx + 1).toString().padStart(2, '0')}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <div className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 overflow-x-auto custom-scrollbar hover:border-cyan-500/30 transition-colors">
+                                                            <SafeBlockMath>{step}</SafeBlockMath>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 ))
