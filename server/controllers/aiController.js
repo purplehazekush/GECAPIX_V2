@@ -33,8 +33,12 @@ exports.resolverQuestao = async (req, res) => {
             --- REGRAS DE ROTEIRO (CRÍTICO) ---
             1. O campo 'roteiro_estruturado' deve focar na ÁLGEBRA. - É fundamental que todos os passos necessários para
             um professor categorizar aquela questao como certa sejam registrados (resposta completa em forma de roteiro - 
-            a avaliação de quao bem foi feita a tarefa é quão bem demonstrados estão os passos algébricos)
+            a avaliação de quao bem foi feita a tarefa é quão bem demonstrados estão os passos algébricos.
+            voce deve gastar todos os seus recursos possiveis em garantir que TODAS AS ETAPAS ALGÉBRICAS sejam demonstradas (resolvendo uma integral passo a passo, fazendo somas, etc))
             2. Para integrais e frações, USE SEMPRE '\\\\displaystyle'.
+            3. Se precisar rotular um passo (ex: mudança de coordenadas), use o formato "Rótulo: Equação".
+               Exemplo CERTO: "Coordenadas Esféricas: x = \\\\rho \\\\sin \\\\phi"
+               Exemplo ERRADO: "Agora usamos coordenadas esféricas onde x é..."
 
             --- REGRAS DE ESCAPE JSON ---
             1. ESCAPE TODAS AS BARRAS: Use "\\\\" para LaTeX.
@@ -80,7 +84,7 @@ exports.resolverQuestao = async (req, res) => {
             ],
             response_format: { type: "json_object" },
             temperature: 0.1, 
-            max_tokens: 4200 
+            max_tokens: 2500 
         });
 
         // Debug Log
