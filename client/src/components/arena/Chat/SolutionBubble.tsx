@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { 
-    Bolt, School, Assignment, 
-    WarningAmber, 
+import {
+    Bolt, School, Assignment,
+    WarningAmber,
     ZoomIn, LocalOffer, Speed
 } from '@mui/icons-material';
 import 'katex/dist/katex.min.css';
@@ -25,7 +25,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
             let rawData = msg.dados_ia;
             if (typeof rawData === 'string') {
                 const cleanString = rawData.replace(/[\n\r]/g, " ");
-                try { rawData = JSON.parse(cleanString); } 
+                try { rawData = JSON.parse(cleanString); }
                 catch (e) { rawData = JSON.parse(rawData.replace(/\\n/g, " ")); }
             }
 
@@ -60,10 +60,10 @@ export default function SolutionBubble({ msg }: SolutionProps) {
         if (!children) return null;
         const cleanMath = children.replace(/\$/g, '').replace(/\\\\ \n/g, '\\\\ ').trim();
         return (
-            <BlockMath 
-                errorColor={'#ef4444'} 
+            <BlockMath
+                errorColor={'#ef4444'}
                 renderError={() => <span className="text-red-400 text-xs font-mono break-all">{cleanMath}</span>}
-                settings={{ strict: false, trust: true }} 
+                settings={{ strict: false, trust: true }}
             >
                 {cleanMath}
             </BlockMath>
@@ -94,22 +94,36 @@ export default function SolutionBubble({ msg }: SolutionProps) {
         });
     };
 
-    // --- RENDERIZADOR INTELIGENTE V3 (Splitter de Rótulos) ---
+    // --- RENDERIZADOR INTELIGENTE V4 (Com removedor de \text{}) ---
     const RenderSmartStep = ({ step }: { step: string }) => {
-        // CASO 1: DETECTA RÓTULO "Texto: Equação"
-        // Verifica se tem ':' nos primeiros 30 caracteres
-        const colonIndex = step.indexOf(':');
-        const hasEarlyColon = colonIndex > -1 && colonIndex < 35;
-        
-        if (hasEarlyColon) {
-            const label = step.substring(0, colonIndex + 1); // "Substituição:"
-            const content = step.substring(colonIndex + 1).trim(); // "x = ..."
-            
-            // Se o conteúdo tiver matemática, renderizamos dividido
+
+        // LIMPEZA DE "VÍCIOS" DA IA:
+        // Se a string começar com "\text{Label: }", vamos arrancar o \text{ e ficar só com "Label: "
+        // Regex: Procura por \text{QualquerCoisa:} no inicio
+        let cleanStep = step;
+        const textCommandMatch = step.match(/^\\text\{(.+?)\}\s*(.*)/);
+
+        if (textCommandMatch) {
+            // Transforma "\text{Região: } Math" em "Região: Math"
+            cleanStep = textCommandMatch[1] + " " + textCommandMatch[2];
+        }
+
+        // AGORA APLICA A LÓGICA DE SPLIT NORMAL
+        const colonIndex = cleanStep.indexOf(':');
+        // Aceita rótulos um pouco maiores (até 40 chars) para pegar "Substituição u=...:"
+        const hasLabel = colonIndex > -1 && colonIndex < 40;
+
+        if (hasLabel) {
+            const label = cleanStep.substring(0, colonIndex + 1).replace(/\\/g, ''); // Remove barras sobrando no label
+            const content = cleanStep.substring(colonIndex + 1).trim();
+
             if (content.length > 0) {
                 return (
                     <div className="flex flex-col sm:flex-row sm:items-baseline gap-2 py-1 border-l-2 border-purple-500/30 pl-3 bg-purple-500/5 rounded-r-lg">
-                        <span className="text-xs font-bold text-purple-300 whitespace-nowrap">{label}</span>
+                        {/* Renderiza o Label como texto puro, forçando cor */}
+                        <span className="text-xs font-bold text-purple-300 whitespace-nowrap shrink-0">
+                            {label}
+                        </span>
                         <div className="flex-1 overflow-x-auto custom-scrollbar">
                             <SafeBlockMath>{content}</SafeBlockMath>
                         </div>
@@ -118,24 +132,20 @@ export default function SolutionBubble({ msg }: SolutionProps) {
             }
         }
 
-        // CASO 2: TEXTO EXPLÍCITO COM MATH INLINE
-        // Se a string tem delimitadores manuais ou parece muito texto
-        const hasDelimiters = step.includes('$') || step.includes('\\(');
-        const looksLikeSentence = step.split(' ').length > 6 && !step.includes('=');
-        
-        if (hasDelimiters || looksLikeSentence) {
+        // Resto da lógica (Texto vs Math Puro)...
+        const looksLikeText = cleanStep.split(' ').length > 6 && !cleanStep.includes('=') && !cleanStep.includes('\\');
+
+        if (looksLikeText) {
             return (
                 <div className="text-sm text-slate-300 leading-relaxed py-1">
-                    {renderTextWithMath(step)}
+                    {renderTextWithMath(cleanStep)}
                 </div>
             );
         }
 
-        // CASO 3: BLOCO MATEMÁTICO PURO (Padrão)
-        // Isso força até coisas sem '=' (como integrais soltas) a virarem bloco
         return (
             <div className="py-2 overflow-x-auto custom-scrollbar">
-                <SafeBlockMath>{step}</SafeBlockMath>
+                <SafeBlockMath>{cleanStep}</SafeBlockMath>
             </div>
         );
     };
@@ -161,7 +171,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
 
     return (
         <div className="flex flex-col gap-2 max-w-[95%] w-full md:max-w-[480px] animate-fade-in-up self-start">
-            
+
             {/* Header */}
             <div className="flex justify-between items-end pl-1 pr-1 mb-1">
                 <div className="flex items-center gap-2">
@@ -172,28 +182,28 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                 </div>
                 <div className="flex gap-2">
                     <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700">
-                        <LocalOffer sx={{fontSize: 10}} className="text-slate-400"/>
+                        <LocalOffer sx={{ fontSize: 10 }} className="text-slate-400" />
                         <span className="text-[9px] font-bold text-slate-300 uppercase max-w-[80px] truncate">{data.topico}</span>
                     </div>
                     <div className={`flex items-center gap-1 px-2 py-0.5 rounded-md border ${getDifficultyColor(data.dificuldade)}`}>
-                        <Speed sx={{fontSize: 10}}/>
+                        <Speed sx={{ fontSize: 10 }} />
                         <span className="text-[9px] font-bold uppercase">{data.dificuldade}</span>
                     </div>
                 </div>
             </div>
 
             <div className="bg-slate-900 border border-purple-500/30 rounded-2xl overflow-hidden shadow-2xl">
-                
+
                 {/* Imagem */}
                 {msg.imagem_original && (
-                    <div 
+                    <div
                         onClick={() => setShowOriginalImage(true)}
                         className="w-full h-32 md:h-40 bg-black/50 relative group cursor-pointer border-b border-purple-500/20 overflow-hidden"
                     >
-                        <img 
-                            src={msg.imagem_original} 
-                            alt="Questão" 
-                            className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all duration-500 transform group-hover:scale-105" 
+                        <img
+                            src={msg.imagem_original}
+                            alt="Questão"
+                            className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all duration-500 transform group-hover:scale-105"
                         />
                         <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
                             <ZoomIn className="text-white text-[12px]" />
@@ -204,16 +214,16 @@ export default function SolutionBubble({ msg }: SolutionProps) {
 
                 {/* Tabs */}
                 <div className="grid grid-cols-3 border-b border-slate-800 bg-slate-950">
-                    <TabButton active={activeTab === 'rapida'} onClick={() => setActiveTab('rapida')} icon={<Bolt sx={{fontSize:16}}/>} label="Rápida" color="text-yellow-400" />
-                    <TabButton active={activeTab === 'roteiro'} onClick={() => setActiveTab('roteiro')} icon={<Assignment sx={{fontSize:16}}/>} label="Roteiro" color="text-cyan-400" />
-                    <TabButton active={activeTab === 'teoria'} onClick={() => setActiveTab('teoria')} icon={<School sx={{fontSize:16}}/>} label="Teoria" color="text-purple-400" />
+                    <TabButton active={activeTab === 'rapida'} onClick={() => setActiveTab('rapida')} icon={<Bolt sx={{ fontSize: 16 }} />} label="Rápida" color="text-yellow-400" />
+                    <TabButton active={activeTab === 'roteiro'} onClick={() => setActiveTab('roteiro')} icon={<Assignment sx={{ fontSize: 16 }} />} label="Roteiro" color="text-cyan-400" />
+                    <TabButton active={activeTab === 'teoria'} onClick={() => setActiveTab('teoria')} icon={<School sx={{ fontSize: 16 }} />} label="Teoria" color="text-purple-400" />
                 </div>
 
                 {/* Body */}
                 <div className="p-4 bg-slate-900 min-h-[160px]">
                     {data.alerta && (
                         <div className="mb-4 flex gap-2 bg-yellow-500/10 p-2 rounded-lg border border-yellow-500/20 items-start">
-                            <WarningAmber className="text-yellow-500 shrink-0 mt-0.5" sx={{fontSize:16}} />
+                            <WarningAmber className="text-yellow-500 shrink-0 mt-0.5" sx={{ fontSize: 16 }} />
                             <p className="text-[10px] text-yellow-100/90 leading-tight">{data.alerta}</p>
                         </div>
                     )}
@@ -294,7 +304,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
             {showOriginalImage && (
                 <div className="fixed inset-0 z-[999] bg-black/95 flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowOriginalImage(false)}>
                     <img src={msg.imagem_original} className="max-w-full max-h-full object-contain" alt="Original" />
-                    <button className="absolute top-4 right-4 text-white bg-white/10 p-2 rounded-full"><ZoomIn/></button>
+                    <button className="absolute top-4 right-4 text-white bg-white/10 p-2 rounded-full"><ZoomIn /></button>
                 </div>
             )}
         </div>
