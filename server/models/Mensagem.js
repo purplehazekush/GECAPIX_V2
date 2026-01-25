@@ -15,9 +15,9 @@ const MensagemSchema = new mongoose.Schema({
     autor_real_id: String,
     
     // --- CAMPOS DA IA ---
-    tipo: { type: String, default: 'mensagem' }, // 'mensagem', 'resolucao_ia'
+    tipo: { type: String, default: 'texto' }, // 'mensagem', 'resolucao_ia'
     
-    // Use 'Mixed' para salvar JSON arbitrário sem esquema fixo
+    // Use 'Mixed' para salvar JSON arbitrário sem esquema fixo (Vital para o Oráculo)
     dados_ia: mongoose.Schema.Types.Mixed, 
     
     imagem_original: String, // Foto da pergunta

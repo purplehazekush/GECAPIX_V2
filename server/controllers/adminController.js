@@ -1,3 +1,4 @@
+// server/controllers/adminController.js
 const UsuarioModel = require('../models/Usuario');
 
 // 1. GET FILA (Apenas pendentes com comprovante)

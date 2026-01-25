@@ -3,6 +3,7 @@ const ChatModel = require('../models/Mensagem');
 const TOKEN = require('../config/tokenomics');
 const OpenAI = require('openai');
 
+// Inicializa OpenAI com a chave do .env
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 exports.resolverQuestao = async (req, res) => {
@@ -12,21 +13,54 @@ exports.resolverQuestao = async (req, res) => {
         const user = await UsuarioModel.findOne({ email });
         if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
 
-        // 1. CUSTOS & DESCONTOS
-        const custoGlue = TOKEN.COSTS.AI_SOLVER_GLUE || 1;
-        let custoCoins = TOKEN.COSTS.AI_SOLVER_COINS || 50;
+        // --- 1. CÁLCULO DE CUSTOS ---
+        const custoGlue = TOKEN.COSTS?.AI_SOLVER_GLUE || 1;
+        let custoCoins = TOKEN.COSTS?.AI_SOLVER_COINS || 50;
 
-        // Bônus de Classe: TECNOMANTE paga menos coins
+        // Bônus Tecnomante
         if (user.classe === 'TECNOMANTE') {
-            const desconto = 0.5; // 50% off
+            const desconto = 0.5;
             custoCoins = Math.floor(custoCoins * (1 - desconto));
         }
 
-        // Validação
-        if (user.saldo_glue < custoGlue) return res.status(402).json({ error: `Sem GLUE suficiente.` });
-        if (user.saldo_coins < custoCoins) return res.status(402).json({ error: `Sem GecaCoins suficientes.` });
+        // Validação de Saldo
+        if ((user.saldo_glue || 0) < custoGlue) return res.status(402).json({ error: "Sem GLUE suficiente." });
+        if ((user.saldo_coins || 0) < custoCoins) return res.status(402).json({ error: "Sem Coins suficientes." });
 
-        // 2. COBRANÇA
+        // --- 2. CHAMADA AI (GPT-4o) ---
+        const promptSystem = `
+            Você é o Oráculo do Geca (Engenharia UFMG).
+            Analise a imagem. Responda APENAS UM JSON válido:
+            {
+                "resolucao_rapida": "Resposta final (Use LaTeX)",
+                "multipla_escolha": "Letra ou Valor",
+                "resolucao_eficiente": "Passo a passo resumido",
+                "resolucao_completa": "Explicação detalhada",
+                "dica_extra": "Curiosidade ou macete"
+            }
+        `;
+
+        const response = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+                { role: "system", content: promptSystem },
+                { role: "user", content: [
+                    { type: "text", text: "Resolva:" },
+                    { type: "image_url", image_url: { url: imagem_url } }
+                ]}
+            ],
+            response_format: { type: "json_object" }
+        });
+
+        // Parse Seguro
+        let resultadoAI;
+        try {
+            resultadoAI = JSON.parse(response.choices[0].message.content);
+        } catch (e) {
+            return res.status(500).json({ error: "O Oráculo falou uma língua estranha (Erro JSON)." });
+        }
+
+        // --- 3. COBRANÇA ---
         await UsuarioModel.updateOne({ email }, {
             $inc: { saldo_glue: -custoGlue, saldo_coins: -custoCoins },
             $push: { extrato: { 
@@ -38,55 +72,20 @@ exports.resolverQuestao = async (req, res) => {
             }}
         });
 
-        // 3. CHAMADA OPENAI (GPT-4o)
-        const promptSystem = `
-            Você é o 'Oráculo do Geca', IA da UFMG.
-            MISSÃO: Analisar a imagem (questão) e resolver.
-            REGRAS:
-            1. JSON OBRIGATÓRIO.
-            2. Use LaTeX ($...$) para matemática.
-            3. Se for lista, resolva a marcada ou a primeira.
-            
-            JSON SCHEMA:
-            {
-                "resolucao_rapida": "Resposta final (LaTeX)",
-                "multipla_escolha": "Letra (ou N/A)",
-                "resolucao_eficiente": "Resumo lógico passo-a-passo",
-                "resolucao_completa": "Explicação teórica profunda",
-                "dica_extra": "Macete ou curiosidade"
-            }
-        `;
-
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-                { role: "system", content: promptSystem },
-                { role: "user", content: [
-                    { type: "text", text: "Resolva esta questão:" },
-                    { type: "image_url", image_url: { url: imagem_url } }
-                ]}
-            ],
-            response_format: { type: "json_object" }
-        });
-
-        const resultadoAI = JSON.parse(response.choices[0].message.content);
-
-        // 4. SALVAR NO CHAT DA SALA
+        // --- 4. SALVAR NO CHAT ---
         if (materia) {
             await ChatModel.create({
                 materia: materia,
                 autor_real_id: user._id,
                 
-                // Persona
                 autor_fake: "Oráculo IA", 
                 autor_avatar: "robot_01",
                 
-                // Conteúdo Híbrido
-                texto: "🔮 Resolução Disponível", // Texto fallback
-                dados_ia: resultadoAI, // Objeto JSON puro para o React renderizar
+                texto: "🔮 Resolução Disponível", // Fallback
+                dados_ia: resultadoAI,          // O JSON real vai aqui
                 
                 tipo: "resolucao_ia", 
-                imagem_original: imagem_url, // Guarda a foto da pergunta
+                imagem_original: imagem_url,
                 data: new Date()
             });
         }
@@ -95,6 +94,6 @@ exports.resolverQuestao = async (req, res) => {
 
     } catch (error) {
         console.error("Erro IA:", error);
-        res.status(500).json({ error: "O Oráculo falhou. Tente novamente." });
+        res.status(500).json({ error: "Erro interno no Oráculo." });
     }
 };
