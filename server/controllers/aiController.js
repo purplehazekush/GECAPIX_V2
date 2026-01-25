@@ -79,7 +79,7 @@ exports.resolverQuestao = async (req, res) => {
             ],
             response_format: { type: "json_object" },
             temperature: 0.1, 
-            max_tokens: 2500 
+            max_tokens: 4200 
         });
 
         // Debug Log
