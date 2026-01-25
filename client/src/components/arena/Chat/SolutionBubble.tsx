@@ -1,13 +1,10 @@
-// client/src/components/arena/Chat/SolutionBubble.tsx
 import { useState, useEffect } from 'react';
 import { 
     Bolt, School, Assignment, 
-    WarningAmber, ErrorOutline,
+    WarningAmber, 
     ZoomIn} from '@mui/icons-material';
-
-// Importando estilos e componentes do KaTeX
 import 'katex/dist/katex.min.css';
-import { BlockMath } from 'react-katex';
+import { BlockMath, InlineMath } from 'react-katex';
 
 interface SolutionProps {
     msg: {
@@ -17,214 +14,200 @@ interface SolutionProps {
 }
 
 export default function SolutionBubble({ msg }: SolutionProps) {
-    // Estado dos Dados
     const [data, setData] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
     
-    // Estado da Interface
-    const [activeTab, setActiveTab] = useState<'rapida' | 'roteiro' | 'teoria'>('rapida');
+    // REQUEST 2: Padrão agora é 'roteiro'
+    const [activeTab, setActiveTab] = useState<'rapida' | 'roteiro' | 'teoria'>('roteiro');
     const [showOriginalImage, setShowOriginalImage] = useState(false);
 
-    // PROCESSAMENTO DE DADOS (Blindagem)
     useEffect(() => {
         try {
             let rawData = msg.dados_ia;
+            if (typeof rawData === 'string') rawData = JSON.parse(rawData);
+            if (!rawData || typeof rawData !== 'object') throw new Error("Dados vazios.");
 
-            // 1. Parse se for string
-            if (typeof rawData === 'string') {
-                rawData = JSON.parse(rawData);
-            }
-
-            // 2. Validação
-            if (!rawData || typeof rawData !== 'object') {
-                throw new Error("Dados vazios.");
-            }
-
-            // 3. Normalização (Garante que as abas funcionem mesmo se a AI alucinar chaves)
             setData({
                 tipo: rawData.tipo || "ABERTA",
-                resposta_final: rawData.resposta_final || rawData.resumo_topo || "Ver Roteiro",
+                resposta_final: rawData.resposta_final || "Ver Roteiro",
                 memoria_calculo: Array.isArray(rawData.memoria_calculo) ? rawData.memoria_calculo : [],
-                teoria: rawData.teoria || rawData.explicacao_teorica || "Sem teoria disponível.",
+                teoria: rawData.teoria || "Sem teoria disponível.",
                 alerta: rawData.alerta || null
             });
             setError(null);
-
         } catch (err) {
-            console.error("Erro render SolutionBubble:", err);
-            setError("Erro ao processar resposta.");
+            console.error("Erro Bubble:", err);
+            setError("Erro ao processar.");
         }
     }, [msg.dados_ia]);
 
-    // RENDERIZAÇÃO DE ERRO
-    if (error || !data) {
-        return (
-            <div className="bg-red-900/20 border border-red-500/50 p-3 rounded-xl max-w-[90%] animate-fade-in flex items-center gap-3">
-                <ErrorOutline className="text-red-500" />
-                <p className="text-xs text-red-300">O Oráculo sussurrou algo ininteligível.</p>
-            </div>
-        );
-    }
+    // REQUEST 3: Parser para misturar Texto e LaTeX na teoria
+    const renderTextWithMath = (text: string) => {
+        if (!text) return null;
+        // Divide o texto onde encontrar \( ... \) ou \[ ... \]
+        const parts = text.split(/(\\\(.*?\\\)|\\\[.*?\\\])/g);
+        
+        return parts.map((part, index) => {
+            if (part.startsWith('\\(') && part.endsWith('\\)')) {
+                // Remove os delimitadores \( e \)
+                const math = part.slice(2, -2);
+                return <span key={index} className="text-purple-400 font-bold px-1"><InlineMath>{math}</InlineMath></span>;
+            } else if (part.startsWith('\\[') && part.endsWith('\\]')) {
+                const math = part.slice(2, -2);
+                return <div key={index} className="my-2 overflow-x-auto"><BlockMath>{math}</BlockMath></div>;
+            }
+            return <span key={index}>{part}</span>;
+        });
+    };
 
-    const isMultipla = data.tipo === 'MULTIPLA_ESCOLHA';
+    if (error || !data) return null;
 
     return (
-        <div className="flex flex-col gap-2 max-w-[95%] w-full md:max-w-[400px] animate-fade-in-up self-start">
+        <div className="flex flex-col gap-2 max-w-[95%] w-full md:max-w-[450px] animate-fade-in-up self-start">
             
-            {/* --- CABEÇALHO DO ORÁCULO --- */}
-            <div className="flex justify-between items-end pl-1 pr-1">
-                <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400">
-                        Oráculo IA
-                    </span>
-                    <span className="text-[9px] text-slate-600 font-mono">v2.0</span>
-                </div>
+            {/* Cabeçalho */}
+            <div className="flex items-center gap-2 pl-1 mb-1">
+                <span className="text-[10px] font-black uppercase bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">
+                    Oráculo Solver
+                </span>
+                <span className="text-[9px] text-slate-600">v2.1</span>
+            </div>
 
-                {/* MINIATURA DA IMAGEM ORIGINAL (Clicável) */}
+            <div className="bg-slate-900 border border-purple-500/30 rounded-2xl overflow-hidden shadow-2xl">
+                
+                {/* REQUEST 1: Imagem Grande (Banner Style) */}
                 {msg.imagem_original && (
-                    <button 
+                    <div 
                         onClick={() => setShowOriginalImage(true)}
-                        className="relative group overflow-hidden rounded-lg border border-slate-700 w-12 h-8 bg-slate-800 flex items-center justify-center transition-all hover:border-purple-500"
+                        className="w-full h-48 md:h-56 bg-black/50 relative group cursor-pointer border-b border-purple-500/20"
                     >
                         <img 
                             src={msg.imagem_original} 
                             alt="Questão" 
-                            className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity" 
+                            className="w-full h-full object-contain group-hover:opacity-80 transition-opacity" 
                         />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <ZoomIn sx={{ fontSize: 14 }} className="text-white" />
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-sm">
+                            <span className="text-white text-xs font-bold flex items-center gap-2">
+                                <ZoomIn /> Ampliar
+                            </span>
                         </div>
-                    </button>
+                    </div>
                 )}
-            </div>
 
-            {/* --- O BALÃO PRINCIPAL --- */}
-            <div className="bg-slate-900 border border-purple-500/40 rounded-2xl overflow-hidden shadow-[0_4px_20px_-5px_rgba(168,85,247,0.3)]">
-                
-                {/* 1. SELETOR DE ABAS (Top Navigation) */}
-                <div className="grid grid-cols-3 border-b border-slate-800 bg-slate-950/50">
-                    <button 
-                        onClick={() => setActiveTab('rapida')}
-                        className={`py-3 text-[10px] font-black uppercase tracking-wider transition-colors relative ${
-                            activeTab === 'rapida' ? 'text-white' : 'text-slate-600 hover:text-slate-400'
-                        }`}
-                    >
-                        <Bolt sx={{ fontSize: 14 }} className={`mb-0.5 ${activeTab === 'rapida' ? 'text-yellow-400' : ''}`} />
-                        <span className="block">Rápida</span>
-                        {activeTab === 'rapida' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-yellow-400 shadow-[0_-2px_8px_rgba(250,204,21,0.5)]"></div>}
-                    </button>
-
-                    <button 
-                        onClick={() => setActiveTab('roteiro')}
-                        className={`py-3 text-[10px] font-black uppercase tracking-wider transition-colors relative ${
-                            activeTab === 'roteiro' ? 'text-white' : 'text-slate-600 hover:text-slate-400'
-                        }`}
-                    >
-                        <Assignment sx={{ fontSize: 14 }} className={`mb-0.5 ${activeTab === 'roteiro' ? 'text-cyan-400' : ''}`} />
-                        <span className="block">Roteiro</span>
-                        {activeTab === 'roteiro' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-cyan-400 shadow-[0_-2px_8px_rgba(34,211,238,0.5)]"></div>}
-                    </button>
-
-                    <button 
-                        onClick={() => setActiveTab('teoria')}
-                        className={`py-3 text-[10px] font-black uppercase tracking-wider transition-colors relative ${
-                            activeTab === 'teoria' ? 'text-white' : 'text-slate-600 hover:text-slate-400'
-                        }`}
-                    >
-                        <School sx={{ fontSize: 14 }} className={`mb-0.5 ${activeTab === 'teoria' ? 'text-purple-400' : ''}`} />
-                        <span className="block">Teoria</span>
-                        {activeTab === 'teoria' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-purple-400 shadow-[0_-2px_8px_rgba(168,85,247,0.5)]"></div>}
-                    </button>
+                {/* Navegação */}
+                <div className="grid grid-cols-3 border-b border-slate-800 bg-slate-950">
+                    <TabButton 
+                        active={activeTab === 'rapida'} 
+                        onClick={() => setActiveTab('rapida')} 
+                        icon={<Bolt sx={{fontSize:16}}/>} 
+                        label="Rápida" 
+                        color="text-yellow-400" 
+                    />
+                    <TabButton 
+                        active={activeTab === 'roteiro'} 
+                        onClick={() => setActiveTab('roteiro')} 
+                        icon={<Assignment sx={{fontSize:16}}/>} 
+                        label="Roteiro" 
+                        color="text-cyan-400" 
+                    />
+                    <TabButton 
+                        active={activeTab === 'teoria'} 
+                        onClick={() => setActiveTab('teoria')} 
+                        icon={<School sx={{fontSize:16}}/>} 
+                        label="Teoria" 
+                        color="text-purple-400" 
+                    />
                 </div>
 
-                {/* 2. ÁREA DE CONTEÚDO */}
-                <div className="p-4 min-h-[120px] bg-slate-900 relative">
-                    
-                    {/* ALERTA DE MÚLTIPLAS QUESTÕES (Aparece em todas as abas se existir) */}
+                {/* Conteúdo */}
+                <div className="p-5 bg-slate-900 min-h-[150px]">
                     {data.alerta && (
-                        <div className="mb-4 flex items-start gap-2 bg-yellow-500/5 p-2 rounded border border-yellow-500/10">
-                            <WarningAmber className="text-yellow-500 mt-0.5" sx={{fontSize: 14}} />
-                            <p className="text-[10px] text-yellow-200/80 leading-tight">{data.alerta}</p>
+                        <div className="mb-4 flex gap-3 bg-yellow-500/10 p-3 rounded-xl border border-yellow-500/20 items-start">
+                            <WarningAmber className="text-yellow-500 shrink-0" sx={{fontSize:18}} />
+                            <p className="text-[11px] text-yellow-100/80 leading-snug">{data.alerta}</p>
                         </div>
                     )}
 
-                    {/* --- ABA 1: RÁPIDA (Foco Total) --- */}
+                    {/* ABA RÁPIDA (Novo Design) */}
                     {activeTab === 'rapida' && (
-                        <div className="flex flex-col items-center justify-center h-full py-2 animate-fade-in">
-                            <p className="text-[9px] text-slate-500 font-bold uppercase mb-2 tracking-widest">
-                                {isMultipla ? 'Gabarito Sugerido' : 'Resultado Final'}
-                            </p>
-                            
-                            <div className="text-2xl md:text-3xl font-black text-white text-center tracking-tight">
-                                {/* Tenta renderizar LaTeX se detectar cifrão, senão texto puro */}
-                                {data.resposta_final.includes('$') || data.resposta_final.includes('\\') ? (
-                                    <div className="latex-render-huge text-emerald-400">
+                        <div className="flex flex-col items-center justify-center py-4 animate-fade-in">
+                            <div className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl p-6 text-center shadow-inner relative overflow-hidden">
+                                {/* Efeito de fundo */}
+                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-yellow-500 to-transparent opacity-50"></div>
+                                
+                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-3">
+                                    Resultado Final
+                                </p>
+                                <div className="text-3xl md:text-4xl font-black text-white latex-render-huge">
+                                    {data.resposta_final.includes('\\') || data.resposta_final.includes('$') ? (
                                         <BlockMath>{data.resposta_final.replace(/\$/g, '')}</BlockMath>
-                                    </div>
-                                ) : (
-                                    <span className="text-emerald-400">{data.resposta_final}</span>
-                                )}
+                                    ) : (
+                                        <span className="text-emerald-400">{data.resposta_final}</span>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )}
 
-                    {/* --- ABA 2: ROTEIRO (Passo a Passo Matemático) --- */}
+                    {/* ABA ROTEIRO */}
                     {activeTab === 'roteiro' && (
-                        <div className="space-y-3 animate-fade-in">
-                            {data.memoria_calculo && data.memoria_calculo.length > 0 ? (
+                        <div className="space-y-4 animate-fade-in">
+                            {data.memoria_calculo.length > 0 ? (
                                 data.memoria_calculo.map((step: string, idx: number) => (
-                                    <div key={idx} className="flex items-start gap-3 group">
-                                        <span className="text-[10px] font-mono text-slate-600 mt-2 select-none group-hover:text-cyan-400 transition-colors">
-                                            {(idx + 1).toString().padStart(2, '0')}
-                                        </span>
-                                        <div className="flex-1 bg-slate-950/50 rounded-lg px-3 py-1 border border-slate-800/50 text-sm text-slate-200 overflow-x-auto custom-scrollbar">
-                                            {/* Renderiza o passo. Removemos $ extras para o BlockMath não bugar */}
-                                            <BlockMath>{step.replace(/\$/g, '')}</BlockMath>
+                                    <div key={idx} className="flex gap-3 group">
+                                        <div className="flex flex-col items-center gap-1">
+                                            <div className="w-5 h-5 rounded-full bg-cyan-900/30 text-cyan-400 flex items-center justify-center text-[10px] font-bold border border-cyan-500/20">
+                                                {idx + 1}
+                                            </div>
+                                            {idx !== data.memoria_calculo.length - 1 && (
+                                                <div className="w-0.5 h-full bg-slate-800 group-hover:bg-cyan-900/50 transition-colors"></div>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 pb-4">
+                                            <div className="bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-sm text-slate-200 overflow-x-auto custom-scrollbar hover:border-cyan-500/30 transition-colors">
+                                                <BlockMath>{step.replace(/\$/g, '')}</BlockMath>
+                                            </div>
                                         </div>
                                     </div>
                                 ))
                             ) : (
-                                <p className="text-xs text-slate-500 text-center italic py-4">
-                                    Nenhum cálculo intermediário necessário.
-                                </p>
+                                <p className="text-center text-slate-500 text-xs italic">Verifique a aba Rápida ou Teoria.</p>
                             )}
                         </div>
                     )}
 
-                    {/* --- ABA 3: TEORIA (Texto Explicativo) --- */}
+                    {/* ABA TEORIA */}
                     {activeTab === 'teoria' && (
                         <div className="animate-fade-in">
-                            <div className="prose prose-invert prose-sm max-w-none">
-                                <p className="text-xs text-slate-300 leading-6 text-justify whitespace-pre-line">
-                                    {data.teoria}
-                                </p>
-                            </div>
-                            <div className="mt-4 pt-3 border-t border-slate-800 text-center">
-                                <p className="text-[9px] text-slate-600 italic">
-                                    Explicação gerada pelo Oráculo v2.0
-                                </p>
+                            <div className="text-xs text-slate-300 leading-7 text-justify whitespace-pre-line font-light">
+                                {renderTextWithMath(data.teoria)}
                             </div>
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* MODAL DE IMAGEM ORIGINAL (Full Screen) */}
+            {/* Modal Fullscreen */}
             {showOriginalImage && (
-                <div 
-                    className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 animate-fade-in"
-                    onClick={() => setShowOriginalImage(false)}
-                >
-                    <img 
-                        src={msg.imagem_original} 
-                        className="max-w-full max-h-full rounded-lg shadow-2xl" 
-                        alt="Original" 
-                    />
-                    <button className="absolute top-4 right-4 text-white p-2 bg-white/10 rounded-full">
-                        <ZoomIn />
-                    </button>
+                <div className="fixed inset-0 z-[999] bg-black/95 flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowOriginalImage(false)}>
+                    <img src={msg.imagem_original} className="max-w-full max-h-full object-contain" alt="Original" />
                 </div>
             )}
         </div>
     );
+}
+
+function TabButton({ active, onClick, icon, label, color }: any) {
+    return (
+        <button 
+            onClick={onClick}
+            className={`py-3 flex flex-col items-center justify-center gap-1 transition-all relative ${active ? 'bg-slate-900' : 'bg-slate-950 hover:bg-slate-900/50'}`}
+        >
+            <div className={`${active ? color : 'text-slate-600'} transition-colors`}>{icon}</div>
+            <span className={`text-[9px] font-bold uppercase tracking-wider ${active ? 'text-white' : 'text-slate-600'}`}>
+                {label}
+            </span>
+            {active && <div className={`absolute bottom-0 w-full h-0.5 ${color.replace('text-', 'bg-')} shadow-[0_-2px_6px_currentColor]`}></div>}
+        </button>
+    )
 }

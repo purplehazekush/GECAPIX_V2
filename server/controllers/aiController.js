@@ -28,50 +28,46 @@ exports.resolverQuestao = async (req, res) => {
         // =================================================================================
         // 🧠 ENGENHARIA DE PROMPT V2: O "SHARP SHOOTER" ACADÊMICO
         // =================================================================================
+        // =================================================================================
+        // 🧠 PROMPT V3: O "MULTITASKER" RESILIENTE
+        // =================================================================================
         const promptSystem = `
-            ATUE COMO: Um monitor de cálculo/física da UFMG focado em gabaritos oficiais.
-            OBJETIVO: Gerar a resolução exata que o aluno precisa escrever na prova para ganhar nota total, SEM ENROLAÇÃO.
+            ATUE COMO: Monitor de exatas da UFMG.
+            OBJETIVO: Gerar gabarito prático para prova.
 
-            ANALISE A IMAGEM E GERE APENAS UM JSON COM ESTA ESTRUTURA:
+            CONTEXTO DA IMAGEM:
+            - Pode conter UMA questão ou MÚLTIPLAS (a, b, c...).
+            - Pode ser texto manuscrito ou digitado.
+
+            ESTRATÉGIA DE RESPOSTA (RESILIÊNCIA):
+            1. SE TIVER APENAS UMA QUESTÃO: Resolva normalmente.
+            2. SE TIVER MÚLTIPLAS (Ex: a, b, c):
+               - No campo 'resposta_final', liste os resultados de TODAS de forma compacta (Ex: "a) 10, b) 20").
+               - No campo 'memoria_calculo', resolva passo-a-passo APENAS A MAIS COMPLEXA ou A PRIMEIRA.
+               - No campo 'alerta', avise: "Resolvi a (a) detalhada. As outras estão no resultado final."
+
+            SAÍDA JSON OBRIGATÓRIA:
             {
                 "tipo": "MULTIPLA_ESCOLHA" ou "ABERTA",
-                
-                // 1. SOLUÇÃO RÁPIDA (O que ele olha em 1 segundo)
-                "resposta_final": "Somente o resultado final. Ex: '42 m/s' ou 'Letra C'. Use LaTeX.",
-                
-                // 2. ROTEIRO DE PROVA (O 'caminho das pedras' para transcrever)
-                // IMPORTANTE: NÃO explique com texto narrativo ("Primeiro integramos..."). 
-                // Coloque APENAS a sequência lógica matemática necessária para validar a questão.
-                // Ex: ["F = ma", "10 = 2a", "a = 5 m/s^2"].
-                "memoria_calculo": ["passo matemático 1 (LaTeX)", "passo matemático 2 (LaTeX)", ...],
-                
-                // 3. TEORIA UNIFICADA (Para quem não entendeu nada)
-                // Aqui sim você explica o conceito, o porquê das fórmulas e a lógica. Texto corrido.
-                "teoria": "Explicação didática e conceitual completa do problema.",
-                
-                "alerta": "Mensagem curta caso haja múltiplas questões (foque na primeira) ou imagem ruim."
+                "resposta_final": "O resultado final. Se houver itens, liste: a) ..., b) ... (Use LaTeX)",
+                "memoria_calculo": ["Passo 1 (LaTeX)", "Passo 2 (LaTeX)"], 
+                "teoria": "Explicação conceitual. Se usar matemática aqui, envolva em \\( ... \\) para inline e \\[ ... \\] para bloco.",
+                "alerta": "Aviso curto caso tenha ignorado itens ou imagem ruim."
             }
-
-            REGRAS DE OURO:
-            - USE LaTeX SEMPRE para matemática. Ex: $\\int_{0}^{1} x^2 dx$.
-            - SEJA ECONÔMICO. O aluno tem pressa.
-            - Se for múltipla escolha, 'resposta_final' deve ser a Letra + Valor.
         `;
-
-        console.log("🔮 Invocando Oráculo V2...");
 
         const response = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [
                 { role: "system", content: promptSystem },
                 { role: "user", content: [
-                    { type: "text", text: "Gere o gabarito." },
+                    { type: "text", text: "Resolva." },
                     { type: "image_url", image_url: { url: imagem_url } }
                 ]}
             ],
             response_format: { type: "json_object" },
-            temperature: 0.1, // Temperatura baixa = Mais precisão, menos criatividade
-            max_tokens: 1000
+            temperature: 0.1, 
+            max_tokens: 1200 // Limite de segurança financeira e técnica
         });
 
         // Debug para garantir que o formato está vindo certo
