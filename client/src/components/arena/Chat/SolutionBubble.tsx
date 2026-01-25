@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { 
-    Bolt, School, Assignment, 
-    WarningAmber, 
+import {
+    Bolt, School, Assignment,
+    WarningAmber,
     ZoomIn
 } from '@mui/icons-material';
 import 'katex/dist/katex.min.css';
@@ -14,10 +14,18 @@ interface SolutionProps {
     };
 }
 
+const getFontSizeClass = (text: string) => {
+    if (!text) return 'text-3xl';
+    if (text.length < 10) return 'text-4xl'; // Curta (42)
+    if (text.length < 30) return 'text-2xl'; // Média (x = 10m/s)
+    return 'text-lg'; // Longa (Matrizes, Integrais complexas)
+};
+
+
 export default function SolutionBubble({ msg }: SolutionProps) {
     const [data, setData] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
-    
+
     // Padrão: Roteiro
     const [activeTab, setActiveTab] = useState<'rapida' | 'roteiro' | 'teoria'>('roteiro');
     const [showOriginalImage, setShowOriginalImage] = useState(false);
@@ -48,15 +56,15 @@ export default function SolutionBubble({ msg }: SolutionProps) {
         // Remove cifrões extras e limpa espaços vazios que quebram o parser
         const cleanMath = children.replace(/\$/g, '').trim();
         return (
-            <BlockMath 
-                errorColor={'#ef4444'} 
+            <BlockMath
+                errorColor={'#ef4444'}
                 renderError={(err) => (
                     <span className="text-red-400 text-xs font-mono break-all" title={err.message}>
                         {cleanMath}
                     </span>
                 )}
                 // Desativa avisos estritos para acentos em modo math
-                settings={{ strict: false, trust: true }} 
+                settings={{ strict: false, trust: true }}
             >
                 {cleanMath}
             </BlockMath>
@@ -66,7 +74,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
     const SafeInlineMath = ({ children }: { children: string }) => {
         const cleanMath = children.replace(/\$/g, '').trim();
         return (
-            <InlineMath 
+            <InlineMath
                 errorColor={'#ef4444'}
                 renderError={() => <span className="text-purple-300">{cleanMath}</span>}
                 settings={{ strict: false, trust: true }}
@@ -80,13 +88,13 @@ export default function SolutionBubble({ msg }: SolutionProps) {
         if (!text) return null;
         // Regex poderoso: detecta \(...\), \[...\], ou até $...$ se a IA mandar errado
         const parts = text.split(/(\\\(.*?\\\)|\\\[.*?\\\]|\$.*?\$)/g);
-        
+
         return parts.map((part, index) => {
             // Inline Math: \( ... \) ou $ ... $
             if ((part.startsWith('\\(') && part.endsWith('\\)')) || (part.startsWith('$') && part.endsWith('$'))) {
                 const math = part.replace(/^\\\(|^\\\[|^\$|\\\)$|\\\]$|\$$/g, ''); // Remove delimitadores
                 return <span key={index} className="text-purple-400 font-bold px-1"><SafeInlineMath>{math}</SafeInlineMath></span>;
-            } 
+            }
             // Block Math: \[ ... \]
             else if (part.startsWith('\\[') && part.endsWith('\\]')) {
                 const math = part.slice(2, -2);
@@ -101,7 +109,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
 
     return (
         <div className="flex flex-col gap-2 max-w-[95%] w-full md:max-w-[450px] animate-fade-in-up self-start">
-            
+
             {/* Header */}
             <div className="flex items-center gap-2 pl-1 mb-1">
                 <span className="text-[10px] font-black uppercase bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">
@@ -111,17 +119,17 @@ export default function SolutionBubble({ msg }: SolutionProps) {
             </div>
 
             <div className="bg-slate-900 border border-purple-500/30 rounded-2xl overflow-hidden shadow-2xl">
-                
+
                 {/* Banner Imagem */}
                 {msg.imagem_original && (
-                    <div 
+                    <div
                         onClick={() => setShowOriginalImage(true)}
                         className="w-full h-48 md:h-56 bg-black/50 relative group cursor-pointer border-b border-purple-500/20"
                     >
-                        <img 
-                            src={msg.imagem_original} 
-                            alt="Questão" 
-                            className="w-full h-full object-contain group-hover:opacity-80 transition-opacity" 
+                        <img
+                            src={msg.imagem_original}
+                            alt="Questão"
+                            className="w-full h-full object-contain group-hover:opacity-80 transition-opacity"
                         />
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-sm">
                             <span className="text-white text-xs font-bold flex items-center gap-2">
@@ -133,30 +141,38 @@ export default function SolutionBubble({ msg }: SolutionProps) {
 
                 {/* Tabs */}
                 <div className="grid grid-cols-3 border-b border-slate-800 bg-slate-950">
-                    <TabButton active={activeTab === 'rapida'} onClick={() => setActiveTab('rapida')} icon={<Bolt sx={{fontSize:16}}/>} label="Rápida" color="text-yellow-400" />
-                    <TabButton active={activeTab === 'roteiro'} onClick={() => setActiveTab('roteiro')} icon={<Assignment sx={{fontSize:16}}/>} label="Roteiro" color="text-cyan-400" />
-                    <TabButton active={activeTab === 'teoria'} onClick={() => setActiveTab('teoria')} icon={<School sx={{fontSize:16}}/>} label="Teoria" color="text-purple-400" />
+                    <TabButton active={activeTab === 'rapida'} onClick={() => setActiveTab('rapida')} icon={<Bolt sx={{ fontSize: 16 }} />} label="Rápida" color="text-yellow-400" />
+                    <TabButton active={activeTab === 'roteiro'} onClick={() => setActiveTab('roteiro')} icon={<Assignment sx={{ fontSize: 16 }} />} label="Roteiro" color="text-cyan-400" />
+                    <TabButton active={activeTab === 'teoria'} onClick={() => setActiveTab('teoria')} icon={<School sx={{ fontSize: 16 }} />} label="Teoria" color="text-purple-400" />
                 </div>
 
                 {/* Conteúdo */}
                 <div className="p-5 bg-slate-900 min-h-[150px]">
                     {data.alerta && (
                         <div className="mb-4 flex gap-3 bg-yellow-500/10 p-3 rounded-xl border border-yellow-500/20 items-start">
-                            <WarningAmber className="text-yellow-500 shrink-0" sx={{fontSize:18}} />
+                            <WarningAmber className="text-yellow-500 shrink-0" sx={{ fontSize: 18 }} />
                             <p className="text-[11px] text-yellow-100/80 leading-snug">{data.alerta}</p>
                         </div>
                     )}
 
-                    {/* RÁPIDA */}
+                    {/* ABA RÁPIDA */}
                     {activeTab === 'rapida' && (
                         <div className="flex flex-col items-center justify-center py-4 animate-fade-in">
-                            <div className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl p-6 text-center shadow-inner relative overflow-hidden">
+                            <div className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl p-6 text-center shadow-inner relative overflow-hidden flex flex-col items-center justify-center min-h-[120px]">
+                                {/* Efeito de fundo */}
                                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-yellow-500 to-transparent opacity-50"></div>
-                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-3">Resultado Final</p>
-                                <div className="text-3xl md:text-4xl font-black text-white latex-render-huge overflow-x-hidden text-ellipsis">
-                                    {data.resposta_final.match(/[\\$]/) ? (
+
+                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-3">
+                                    {data.tipo === 'MULTIPLA_ESCOLHA' ? 'Gabarito' : 'Resultado Final'}
+                                </p>
+
+                                {/* APLICAÇÃO DA FONTE DINÂMICA AQUI */}
+                                <div className={`font-black text-white latex-render-huge overflow-x-hidden w-full ${getFontSizeClass(data.resposta_final)}`}>
+                                    {data.resposta_final.match(/[\\^_{}]/) ? (
+                                        // Se tiver caracteres de LaTeX, usa o BlockMath
                                         <SafeBlockMath>{data.resposta_final}</SafeBlockMath>
                                     ) : (
+                                        // Se for texto puro (Letra A), usa span
                                         <span className="text-emerald-400 break-words">{data.resposta_final}</span>
                                     )}
                                 </div>
@@ -212,7 +228,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
 
 function TabButton({ active, onClick, icon, label, color }: any) {
     return (
-        <button 
+        <button
             onClick={onClick}
             className={`py-3 flex flex-col items-center justify-center gap-1 transition-all relative ${active ? 'bg-slate-900' : 'bg-slate-950 hover:bg-slate-900/50'}`}
         >
