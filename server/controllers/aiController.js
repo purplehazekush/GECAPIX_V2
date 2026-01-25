@@ -34,10 +34,7 @@ exports.resolverQuestao = async (req, res) => {
             1. O campo 'roteiro_estruturado' deve focar na ÁLGEBRA. - É fundamental que todos os passos necessários para
             um professor categorizar aquela questao como certa sejam registrados (resposta completa em forma de roteiro - 
             a avaliação de quao bem foi feita a tarefa é quão bem demonstrados estão os passos algébricos)
-            2. Se precisar rotular um passo (ex: mudança de coordenadas), use o formato "Rótulo: Equação".
-               Exemplo CERTO: "Coordenadas Esféricas: x = \\\\rho \\\\sin \\\\phi"
-               Exemplo ERRADO: "Agora usamos coordenadas esféricas onde x é..."
-            3. Para integrais e frações, USE SEMPRE '\\\\displaystyle'.
+            2. Para integrais e frações, USE SEMPRE '\\\\displaystyle'.
 
             --- REGRAS DE ESCAPE JSON ---
             1. ESCAPE TODAS AS BARRAS: Use "\\\\" para LaTeX.
@@ -63,9 +60,13 @@ exports.resolverQuestao = async (req, res) => {
                     }
                 ],
 
-                "teoria": "Explicação completa.",
+                "teoria": "alguma nota de explicação adicional curta.",
                 "alerta": "Aviso ou null"
             }
+
+            ========<><><><>=======
+            Mensagem adicional do operador - no seu processo recursivo, sempre verifique se as regras de formatação foram atendidas,
+            pois se o frontend quebrar, é um erro crítico e envolve perda financeira pra nós.
         `;
 
         const response = await openai.chat.completions.create({
