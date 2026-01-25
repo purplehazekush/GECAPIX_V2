@@ -63,6 +63,7 @@ exports.resolverQuestao = async (req, res) => {
         let resultadoAI;
         try {
             resultadoAI = JSON.parse(response.choices[0].message.content);
+            console.log("🤖 JSON RAW DA IA:", response.choices[0].message.content);
         } catch (e) {
             console.error("Erro JSON AI:", e);
             // Fallback manual caso a AI falhe no JSON (raro com gpt-4o e json_object)
