@@ -72,8 +72,10 @@ exports.resolverQuestao = async (req, res) => {
             Antes de preencher o roteiro final, você DEVE calcular passo a passo no campo 'rascunho_verificacao'.
             1. Verifique cada sinal (+/-).
             2. Verifique cada multiplicação de fração (ex: 1/3 * 1/4 = 1/12).
-            3. Se a integral for trigonométrica, revise a identidade usada.
-            4. NÃO ALUCINE NÚMEROS MÁGICOS. Se a conta deu 1/12, escreva 1/12.
+            3. Se for uma integral for trigonométrica, revise a identidade usada. Se nao for uma questão matemática,
+            adapte o estilo de escrita, mas garanta que a saída será similar em estrutura da exemplificada aqui
+            4. independentemente da matéria, tente aplicar esse mesmo espirito das ordens anteriores.
+            5. para objetos como seno, e cosseno, utlize sin, cos (padrão em ingles - o latex nao sabe o que é um 'sen').
 
             --- REGRAS DE VISUALIZAÇÃO (LATEX) ---
             1. Use '\\\\displaystyle' para frações e integrais.
