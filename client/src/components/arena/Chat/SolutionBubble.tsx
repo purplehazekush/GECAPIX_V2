@@ -24,24 +24,20 @@ export default function SolutionBubble({ msg }: SolutionProps) {
         try {
             let rawData = msg.dados_ia;
 
-            // 1. LIMPEZA DE STRING (Se vier como string suja)
+            // 1. Limpeza de String Suja
             if (typeof rawData === 'string') {
-                // Remove quebras de linha literais que quebram JSON
-                // Substitui \n real por nada ou espaço
                 const cleanString = rawData.replace(/[\n\r]/g, " ");
                 try {
                     rawData = JSON.parse(cleanString);
                 } catch (e) {
-                    console.error("Erro JSON Parse Inicial:", e);
-                    // Tenta uma limpeza mais agressiva se falhar
-                    // (Ex: as vezes a IA manda escapes malucos)
+                    // Fallback agressivo para escapes quebrados
                     rawData = JSON.parse(rawData.replace(/\\n/g, " "));
                 }
             }
 
             if (!rawData || typeof rawData !== 'object') throw new Error("Dados vazios.");
 
-            // 2. NORMALIZAÇÃO (Fallbacks)
+            // 2. Normalização
             let roteiroFinal = [];
             if (Array.isArray(rawData.roteiro_estruturado)) {
                 roteiroFinal = rawData.roteiro_estruturado;
@@ -66,16 +62,12 @@ export default function SolutionBubble({ msg }: SolutionProps) {
         }
     }, [msg.dados_ia]);
 
-    // --- RENDERIZADORES SEGUROS ---
+    // --- RENDERIZADORES CORE ---
+
     const SafeBlockMath = ({ children }: { children: string }) => {
         if (!children) return null;
-        // Limpeza final para o KaTeX: Remove cifrões e espaços extras
-        // Remove também quebras de linha explícitas que o LaTeX não gosta em modo inline/block simples
-        const cleanMath = children
-            .replace(/\$/g, '')
-            .replace(/\\\\ \n/g, '\\\\ ') // Corrige o padrão do seu log: \\ \n -> \\
-            .trim();
-
+        // Limpa cifrões e espaços duvidosos
+        const cleanMath = children.replace(/\$/g, '').replace(/\\\\ \n/g, '\\\\ ').trim();
         return (
             <BlockMath 
                 errorColor={'#ef4444'} 
@@ -90,28 +82,56 @@ export default function SolutionBubble({ msg }: SolutionProps) {
     const SafeInlineMath = ({ children }: { children: string }) => {
         const cleanMath = children ? children.replace(/\$/g, '').trim() : '';
         return (
-            <InlineMath 
-                errorColor={'#ef4444'}
-                settings={{ strict: false, trust: true }}
-            >
+            <InlineMath errorColor={'#ef4444'} settings={{ strict: false, trust: true }}>
                 {cleanMath}
             </InlineMath>
         );
     };
 
+    // Parser que mistura Texto + LaTeX Inline
     const renderTextWithMath = (text: string) => {
         if (!text) return null;
+        // Divide por delimitadores \(...\), \[...\], $...$
         const parts = text.split(/(\\\(.*?\\\)|\\\[.*?\\\]|\$.*?\$)/g);
+        
         return parts.map((part, index) => {
             if ((part.startsWith('\\(') && part.endsWith('\\)')) || (part.startsWith('$') && part.endsWith('$'))) {
                 const math = part.replace(/^\\\(|^\\\[|^\$|\\\)$|\\\]$|\$$/g, '');
                 return <span key={index} className="text-purple-400 font-bold px-1"><SafeInlineMath>{math}</SafeInlineMath></span>;
-            } else if (part.startsWith('\\[') && part.endsWith('\\]')) {
+            } 
+            else if (part.startsWith('\\[') && part.endsWith('\\]')) {
                 const math = part.slice(2, -2);
                 return <div key={index} className="my-2 overflow-x-auto"><SafeBlockMath>{math}</SafeBlockMath></div>;
             }
             return <span key={index}>{part}</span>;
         });
+    };
+
+    // --- NOVO: RENDERIZADOR INTELIGENTE DE PASSOS ---
+    // Decide se o passo é uma Equação Pura ou Texto Explicativo com Math
+    const RenderSmartStep = ({ step }: { step: string }) => {
+        // Heurística: Se tiver letras normais (não comandos LaTeX) e espaços, é texto misto.
+        // Se começar com \ ou tiver muitos símbolos, é bloco.
+        
+        // Remove comandos LaTeX comuns para testar se sobra "texto humano"
+        const textCheck = step.replace(/\\[a-zA-Z]+/g, '').replace(/[^a-zA-ZáàâãéèêíïóôõöúçñÁÀÂÃÉÈÍÏÓÔÕÖÚÇÑ ]/g, '');
+        const looksLikeSentence = textCheck.length > 5 && step.includes(' ');
+
+        if (looksLikeSentence && !step.trim().startsWith('\\')) {
+            // Renderiza como texto explicativo (esquerda)
+            return (
+                <div className="text-sm text-slate-300 leading-relaxed py-1">
+                    {renderTextWithMath(step)}
+                </div>
+            );
+        } else {
+            // Renderiza como bloco matemático (centro)
+            return (
+                <div className="py-2 overflow-x-auto custom-scrollbar">
+                    <SafeBlockMath>{step}</SafeBlockMath>
+                </div>
+            );
+        }
     };
 
     const getDifficultyColor = (diff: string) => {
@@ -128,14 +148,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
         return 'text-lg';
     };
 
-    if (error || !data) {
-        // Fallback visual silencioso ou alerta
-        return (
-            <div className="bg-red-900/10 border border-red-500/30 p-2 rounded-lg max-w-[80%] animate-pulse">
-               <p className="text-[10px] text-red-400 font-mono">Processando resposta complexa...</p>
-            </div>
-        );
-    }
+    if (error || !data) return null; // Fallback silencioso
 
     const hasMultipleItems = data.itens_rapidos && data.itens_rapidos.length > 0;
     const finalResult = data.resultado_unico || (hasMultipleItems ? null : "Ver Roteiro");
@@ -149,7 +162,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                     <span className="text-[10px] font-black uppercase bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">
                         Oráculo Solver
                     </span>
-                    <span className="text-[9px] text-slate-600">v3.2</span>
+                    <span className="text-[9px] text-slate-600">v3.3</span>
                 </div>
                 <div className="flex gap-2">
                     <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700">
@@ -165,7 +178,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
 
             <div className="bg-slate-900 border border-purple-500/30 rounded-2xl overflow-hidden shadow-2xl">
                 
-                {/* Banner */}
+                {/* Imagem Banner */}
                 {msg.imagem_original && (
                     <div 
                         onClick={() => setShowOriginalImage(true)}
@@ -190,7 +203,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                     <TabButton active={activeTab === 'teoria'} onClick={() => setActiveTab('teoria')} icon={<School sx={{fontSize:16}}/>} label="Teoria" color="text-purple-400" />
                 </div>
 
-                {/* Body */}
+                {/* Conteúdo */}
                 <div className="p-4 bg-slate-900 min-h-[160px]">
                     {data.alerta && (
                         <div className="mb-4 flex gap-2 bg-yellow-500/10 p-2 rounded-lg border border-yellow-500/20 items-start">
@@ -199,7 +212,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                         </div>
                     )}
 
-                    {/* === RÁPIDA === */}
+                    {/* ABA RÁPIDA */}
                     {activeTab === 'rapida' && (
                         <div className="animate-fade-in h-full flex flex-col justify-center">
                             {hasMultipleItems ? (
@@ -225,30 +238,37 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                         </div>
                     )}
 
-                    {/* === ROTEIRO === */}
+                    {/* ABA ROTEIRO (Com Smart Renderer) */}
                     {activeTab === 'roteiro' && (
                         <div className="space-y-6 animate-fade-in">
                             {data.roteiro_estruturado.length > 0 ? (
                                 data.roteiro_estruturado.map((bloco: any, bIdx: number) => (
                                     <div key={bIdx} className="relative">
+                                        {/* Título do Bloco */}
                                         {bloco.titulo && (
-                                            <div className="flex items-center gap-2 mb-3">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-cyan-500"></div>
+                                            <div className="flex items-center gap-2 mb-3 bg-slate-950/50 p-2 rounded-lg border border-slate-800/50">
+                                                <div className="w-2 h-2 rounded-full bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.5)]"></div>
                                                 <h4 className="text-xs font-black text-cyan-400 uppercase tracking-wide">{bloco.titulo}</h4>
-                                                <div className="flex-1 h-px bg-slate-800"></div>
                                             </div>
                                         )}
-                                        <div className="space-y-3 pl-2 border-l border-slate-800/50">
+                                        
+                                        {/* Passos do Bloco */}
+                                        <div className="space-y-3 pl-2 border-l-2 border-slate-800/50 ml-1">
                                             {bloco.passos.map((step: string, sIdx: number) => (
-                                                <div key={sIdx} className="flex gap-3 group">
-                                                    <div className="flex flex-col items-center gap-1">
-                                                        <span className="text-[9px] font-mono text-slate-600 mt-2 select-none">
+                                                <div key={sIdx} className="flex gap-3 group items-baseline">
+                                                    {/* Contador */}
+                                                    <div className="flex flex-col items-center min-w-[20px]">
+                                                        <span className="text-[9px] font-mono text-slate-600 select-none group-hover:text-cyan-400 transition-colors">
                                                             {(sIdx + 1).toString().padStart(2, '0')}
                                                         </span>
                                                     </div>
-                                                    <div className="flex-1">
-                                                        <div className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 overflow-x-auto custom-scrollbar hover:border-cyan-500/30 transition-colors">
-                                                            <SafeBlockMath>{step}</SafeBlockMath>
+                                                    
+                                                    {/* Conteúdo Inteligente */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="bg-slate-950 border border-slate-800 rounded-lg px-3 min-h-[30px] hover:border-cyan-500/20 transition-colors flex items-center">
+                                                            <div className="w-full">
+                                                                <RenderSmartStep step={step} />
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -262,7 +282,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                         </div>
                     )}
 
-                    {/* === TEORIA === */}
+                    {/* ABA TEORIA */}
                     {activeTab === 'teoria' && (
                         <div className="animate-fade-in">
                             <div className="text-xs text-slate-300 leading-7 text-justify whitespace-pre-line font-light prose-invert">
@@ -273,7 +293,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                 </div>
             </div>
 
-            {/* Modal */}
+            {/* Modal Fullscreen */}
             {showOriginalImage && (
                 <div className="fixed inset-0 z-[999] bg-black/95 flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowOriginalImage(false)}>
                     <img src={msg.imagem_original} className="max-w-full max-h-full object-contain" alt="Original" />
