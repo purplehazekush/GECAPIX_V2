@@ -10,9 +10,8 @@ exports.resolverQuestao = async (req, res) => {
     try {
         const { email, imagem_url, materia } = req.body;
         
-        // --- VALIDAÇÕES E CUSTOS (Mantidos) ---
+        // --- VALIDAÇÕES E CUSTOS ---
         if (!email || !imagem_url) return res.status(400).json({ error: "Dados incompletos." });
-
         const user = await UsuarioModel.findOne({ email });
         if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
 
@@ -25,48 +24,36 @@ exports.resolverQuestao = async (req, res) => {
         if ((user.saldo_coins || 0) < custoCoins) return res.status(402).json({ error: "Sem Coins." });
 
         // =================================================================================
-        // 🧠 PROMPT MASTER V4: O "TECHNO-SOLVER" (Visualização Aprimorada)
+        // 🧠 PROMPT V5: "TABLE MASTER"
         // =================================================================================
         const promptSystem = `
-            ATUE COMO: O Monitor Chefe de Engenharia da UFMG.
-            OBJETIVO: Entregar um gabarito PERFEITO, visualmente limpo e didático.
+            ATUE COMO: Monitor Chefe de Engenharia (UFMG).
+            OBJETIVO: Gabarito estruturado, visual e preciso.
 
-            --- REGRAS VISUAIS DE LATEX (OBRIGATÓRIO) ---
-            1. USE SEMPRE '\\displaystyle' no início de fórmulas com frações, integrais ou somatórios. Isso as torna grandes e legíveis.
-               Ex: "\\displaystyle \\int_{a}^{b} f(x) dx" em vez de "\\int f(x) dx".
-            2. USE '\\boxed{}' para destacar o resultado final de cada passo importante no roteiro.
-            3. USE '\\implies' para conectar passos lógicos.
-            4. VETORES: Use '\\mathbf{v}' ou '\\vec{v}'.
-            5. NÃO USE delimitadores de bloco ($$, \\[, \\() no JSON. Apenas o código LaTeX puro.
+            --- REGRAS DE FORMATAÇÃO LATEX ---
+            1. USE '\\displaystyle' para frações/integrais.
+            2. USE '\\text{unidade}' para unidades físicas. Ex: "10 \\text{ m/s}".
+            3. NÃO use delimitadores ($$, \\[, \\() no JSON. Apenas o LaTeX puro.
 
-            --- REGRAS DE COMPORTAMENTO ---
-            1. SE A IMAGEM NÃO FOR UMA QUESTÃO (ex: selfie, paisagem, borrão):
-               Retorne 'sucesso': false e 'alerta': "Imagem inválida. Envie uma questão acadêmica."
-            
-            2. MÚLTIPLAS QUESTÕES (a, b, c...):
-               No campo 'resposta_final', condense usando notação de linha.
-               Ex: "a) 10 \\quad b) 20 \\quad c) 5kg".
-            
-            3. TÓPICO E DIFICULDADE:
-               Classifique a questão para dar contexto ao aluno.
-
-            --- ESTRUTURA JSON DE RESPOSTA ---
-            Retorne APENAS o JSON:
+            --- ESTRUTURA DA RESPOSTA (JSON) ---
             {
                 "sucesso": true,
-                "topico": "Ex: Cálculo I, Termodinâmica, Resistência...",
-                "dificuldade": "Fácil / Médio / Difícil / Insana",
-                "tipo": "MULTIPLA_ESCOLHA" ou "ABERTA",
+                "topico": "Ex: Física I - Dinâmica",
+                "dificuldade": "Fácil / Médio / Difícil",
                 
-                "resposta_final": "Resultado direto. Se for múltipla escolha: 'Letra X - Valor'. Use LaTeX grande.",
+                // CAMPO HÍBRIDO:
+                // Se for UMA questão: coloque o resultado em 'resultado_principal'. Deixe 'itens' vazio.
+                // Se forem MÚLTIPLAS (a, b, c): Deixe 'resultado_principal' null e preencha 'itens'.
+                "resultado_principal": "LaTeX da resposta única (ou null)",
                 
-                "memoria_calculo": [
-                    "Passo 1 (LaTeX com \\displaystyle)",
-                    "Passo 2 (LaTeX com \\displaystyle e \\boxed{} no fim se relevante)"
+                "itens": [
+                    { "label": "a)", "valor": "LaTeX da resposta A" },
+                    { "label": "b)", "valor": "LaTeX da resposta B" }
                 ],
-                
-                "teoria": "Explicação conceitual. Use '\\(' para math inline.",
-                "alerta": "Null ou aviso curto."
+
+                "memoria_calculo": ["Passo 1", "Passo 2"],
+                "teoria": "Explicação conceitual.",
+                "alerta": "Aviso se imagem ruim ou ambígua."
             }
         `;
 
@@ -75,31 +62,26 @@ exports.resolverQuestao = async (req, res) => {
             messages: [
                 { role: "system", content: promptSystem },
                 { role: "user", content: [
-                    { type: "text", text: "Resolva com excelência visual." },
+                    { type: "text", text: "Resolva. Se houver itens a,b,c, separe-os." },
                     { type: "image_url", image_url: { url: imagem_url } }
                 ]}
             ],
             response_format: { type: "json_object" },
             temperature: 0.1, 
-            max_tokens: 2500 // Aumentado para garantir completude em questões complexas
+            max_tokens: 2500 
         });
 
-        // Parse e Validação
-        console.log("🤖 Resposta AI:", response.choices[0].message.content); // Debug
+        console.log("🤖 Resposta AI V5:", response.choices[0].message.content); 
 
         let resultadoAI;
         try {
             resultadoAI = JSON.parse(response.choices[0].message.content);
         } catch (e) {
             console.error("Erro Parse JSON:", e);
-            throw new Error("Erro na formatação da IA");
+            throw new Error("Erro formatação AI");
         }
 
-        // --- COBRANÇA ---
-        // Se a IA disser que não é uma questão (sucesso: false), NÃO COBRAMOS?
-        // Decisão de negócio: Por enquanto cobramos o processamento, mas é barato.
-        // Se quiser reembolsar, adicione um 'if (!resultadoAI.sucesso) return res.json(...)' antes do update.
-        
+        // --- PERSISTÊNCIA ---
         await UsuarioModel.updateOne({ email }, {
             $inc: { saldo_glue: -custoGlue, saldo_coins: -custoCoins },
             $push: { extrato: { 
