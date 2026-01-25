@@ -2,12 +2,11 @@ import { useState, useEffect } from 'react';
 import { 
     Bolt, School, Assignment, 
     WarningAmber, ErrorOutline,
-    ZoomIn, Image as ImageIcon
-} from '@mui/icons-material';
+    ZoomIn} from '@mui/icons-material';
 
 // Importando estilos e componentes do KaTeX
 import 'katex/dist/katex.min.css';
-import { BlockMath, InlineMath } from 'react-katex';
+import { BlockMath } from 'react-katex';
 
 interface SolutionProps {
     msg: {
