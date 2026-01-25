@@ -23,11 +23,25 @@ export default function SolutionBubble({ msg }: SolutionProps) {
     useEffect(() => {
         try {
             let rawData = msg.dados_ia;
-            if (typeof rawData === 'string') rawData = JSON.parse(rawData);
+
+            // 1. LIMPEZA DE STRING (Se vier como string suja)
+            if (typeof rawData === 'string') {
+                // Remove quebras de linha literais que quebram JSON
+                // Substitui \n real por nada ou espaço
+                const cleanString = rawData.replace(/[\n\r]/g, " ");
+                try {
+                    rawData = JSON.parse(cleanString);
+                } catch (e) {
+                    console.error("Erro JSON Parse Inicial:", e);
+                    // Tenta uma limpeza mais agressiva se falhar
+                    // (Ex: as vezes a IA manda escapes malucos)
+                    rawData = JSON.parse(rawData.replace(/\\n/g, " "));
+                }
+            }
+
             if (!rawData || typeof rawData !== 'object') throw new Error("Dados vazios.");
 
-            // NORMALIZAÇÃO DE DADOS (Compatibilidade V5 -> V6)
-            // Se vier o formato antigo (memoria_calculo array de strings), transformamos num bloco único.
+            // 2. NORMALIZAÇÃO (Fallbacks)
             let roteiroFinal = [];
             if (Array.isArray(rawData.roteiro_estruturado)) {
                 roteiroFinal = rawData.roteiro_estruturado;
@@ -45,6 +59,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                 alerta: rawData.alerta || null
             });
             setError(null);
+
         } catch (err) {
             console.error("Erro Bubble:", err);
             setError("Erro ao processar.");
@@ -53,12 +68,18 @@ export default function SolutionBubble({ msg }: SolutionProps) {
 
     // --- RENDERIZADORES SEGUROS ---
     const SafeBlockMath = ({ children }: { children: string }) => {
-        const cleanMath = children ? children.replace(/\$/g, '').trim() : '';
-        if (!cleanMath) return null;
+        if (!children) return null;
+        // Limpeza final para o KaTeX: Remove cifrões e espaços extras
+        // Remove também quebras de linha explícitas que o LaTeX não gosta em modo inline/block simples
+        const cleanMath = children
+            .replace(/\$/g, '')
+            .replace(/\\\\ \n/g, '\\\\ ') // Corrige o padrão do seu log: \\ \n -> \\
+            .trim();
+
         return (
             <BlockMath 
                 errorColor={'#ef4444'} 
-                renderError={() => <span className="text-red-400 text-xs font-mono">{cleanMath}</span>}
+                renderError={() => <span className="text-red-400 text-xs font-mono break-all">{cleanMath}</span>}
                 settings={{ strict: false, trust: true }} 
             >
                 {cleanMath}
@@ -94,7 +115,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
     };
 
     const getDifficultyColor = (diff: string) => {
-        const d = diff.toLowerCase();
+        const d = (diff || '').toLowerCase();
         if (d.includes('fácil') || d.includes('facil')) return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
         if (d.includes('médio') || d.includes('medio')) return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
         return 'bg-red-500/20 text-red-400 border-red-500/30';
@@ -107,7 +128,14 @@ export default function SolutionBubble({ msg }: SolutionProps) {
         return 'text-lg';
     };
 
-    if (error || !data) return null;
+    if (error || !data) {
+        // Fallback visual silencioso ou alerta
+        return (
+            <div className="bg-red-900/10 border border-red-500/30 p-2 rounded-lg max-w-[80%] animate-pulse">
+               <p className="text-[10px] text-red-400 font-mono">Processando resposta complexa...</p>
+            </div>
+        );
+    }
 
     const hasMultipleItems = data.itens_rapidos && data.itens_rapidos.length > 0;
     const finalResult = data.resultado_unico || (hasMultipleItems ? null : "Ver Roteiro");
@@ -115,13 +143,13 @@ export default function SolutionBubble({ msg }: SolutionProps) {
     return (
         <div className="flex flex-col gap-2 max-w-[95%] w-full md:max-w-[480px] animate-fade-in-up self-start">
             
-            {/* Header + Badges */}
+            {/* Header */}
             <div className="flex justify-between items-end pl-1 pr-1 mb-1">
                 <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black uppercase bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">
                         Oráculo Solver
                     </span>
-                    <span className="text-[9px] text-slate-600">v3.1</span>
+                    <span className="text-[9px] text-slate-600">v3.2</span>
                 </div>
                 <div className="flex gap-2">
                     <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700">
@@ -137,7 +165,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
 
             <div className="bg-slate-900 border border-purple-500/30 rounded-2xl overflow-hidden shadow-2xl">
                 
-                {/* Imagem Banner */}
+                {/* Banner */}
                 {msg.imagem_original && (
                     <div 
                         onClick={() => setShowOriginalImage(true)}
@@ -162,7 +190,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                     <TabButton active={activeTab === 'teoria'} onClick={() => setActiveTab('teoria')} icon={<School sx={{fontSize:16}}/>} label="Teoria" color="text-purple-400" />
                 </div>
 
-                {/* Conteúdo Principal */}
+                {/* Body */}
                 <div className="p-4 bg-slate-900 min-h-[160px]">
                     {data.alerta && (
                         <div className="mb-4 flex gap-2 bg-yellow-500/10 p-2 rounded-lg border border-yellow-500/20 items-start">
@@ -171,7 +199,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                         </div>
                     )}
 
-                    {/* === ABA RÁPIDA === */}
+                    {/* === RÁPIDA === */}
                     {activeTab === 'rapida' && (
                         <div className="animate-fade-in h-full flex flex-col justify-center">
                             {hasMultipleItems ? (
@@ -190,24 +218,19 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                                     <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-yellow-500 to-transparent opacity-50"></div>
                                     <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-2">Resultado Final</p>
                                     <div className={`font-black text-white w-full overflow-x-auto custom-scrollbar py-2 ${getFontSizeClass(finalResult || '')}`}>
-                                        {finalResult && finalResult.match(/[\\^_{}]/) ? (
-                                            <SafeBlockMath>{finalResult}</SafeBlockMath>
-                                        ) : (
-                                            <span className="text-emerald-400 break-words">{finalResult}</span>
-                                        )}
+                                        <SafeBlockMath>{finalResult || ''}</SafeBlockMath>
                                     </div>
                                 </div>
                             )}
                         </div>
                     )}
 
-                    {/* === ABA ROTEIRO (Blocos Estruturados) === */}
+                    {/* === ROTEIRO === */}
                     {activeTab === 'roteiro' && (
                         <div className="space-y-6 animate-fade-in">
                             {data.roteiro_estruturado.length > 0 ? (
                                 data.roteiro_estruturado.map((bloco: any, bIdx: number) => (
                                     <div key={bIdx} className="relative">
-                                        {/* Título do Bloco (Se houver, ex: Item A) */}
                                         {bloco.titulo && (
                                             <div className="flex items-center gap-2 mb-3">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-cyan-500"></div>
@@ -215,8 +238,6 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                                                 <div className="flex-1 h-px bg-slate-800"></div>
                                             </div>
                                         )}
-                                        
-                                        {/* Passos do Bloco */}
                                         <div className="space-y-3 pl-2 border-l border-slate-800/50">
                                             {bloco.passos.map((step: string, sIdx: number) => (
                                                 <div key={sIdx} className="flex gap-3 group">
@@ -241,7 +262,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                         </div>
                     )}
 
-                    {/* === ABA TEORIA === */}
+                    {/* === TEORIA === */}
                     {activeTab === 'teoria' && (
                         <div className="animate-fade-in">
                             <div className="text-xs text-slate-300 leading-7 text-justify whitespace-pre-line font-light prose-invert">
@@ -252,7 +273,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                 </div>
             </div>
 
-            {/* Modal Fullscreen */}
+            {/* Modal */}
             {showOriginalImage && (
                 <div className="fixed inset-0 z-[999] bg-black/95 flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowOriginalImage(false)}>
                     <img src={msg.imagem_original} className="max-w-full max-h-full object-contain" alt="Original" />
@@ -265,14 +286,9 @@ export default function SolutionBubble({ msg }: SolutionProps) {
 
 function TabButton({ active, onClick, icon, label, color }: any) {
     return (
-        <button 
-            onClick={onClick}
-            className={`py-3 flex flex-col items-center justify-center gap-1 transition-all relative ${active ? 'bg-slate-900' : 'bg-slate-950 hover:bg-slate-900/50'}`}
-        >
+        <button onClick={onClick} className={`py-3 flex flex-col items-center justify-center gap-1 transition-all relative ${active ? 'bg-slate-900' : 'bg-slate-950 hover:bg-slate-900/50'}`}>
             <div className={`${active ? color : 'text-slate-600'} transition-colors`}>{icon}</div>
-            <span className={`text-[9px] font-bold uppercase tracking-wider ${active ? 'text-white' : 'text-slate-600'}`}>
-                {label}
-            </span>
+            <span className={`text-[9px] font-bold uppercase tracking-wider ${active ? 'text-white' : 'text-slate-600'}`}>{label}</span>
             {active && <div className={`absolute bottom-0 w-full h-0.5 ${color.replace('text-', 'bg-')} shadow-[0_-2px_6px_currentColor]`}></div>}
         </button>
     )

@@ -26,45 +26,47 @@ exports.resolverQuestao = async (req, res) => {
         // =================================================================================
         // 🧠 PROMPT MASTER V6: "BLOCK STRUCTURED SOLVER"
         // =================================================================================
+        // ... (imports e validações iguais)
+
+        // =================================================================================
+        // 🧠 PROMPT V7: "JSON ESCAPE MASTER"
+        // =================================================================================
         const promptSystem = `
-            ATUE COMO: O Monitor Chefe de Engenharia da UFMG.
-            OBJETIVO: Gerar gabarito estruturado, visual e organizado por itens.
+            ATUE COMO: Monitor Chefe de Engenharia (UFMG).
+            OBJETIVO: Gabarito estruturado, visual e preciso.
 
-            --- REGRAS VISUAIS DE LATEX (OBRIGATÓRIO) ---
-            1. USE '\\displaystyle' no início de frações/integrais/limites.
-            2. USE '\\boxed{}' no resultado final de CADA bloco de roteiro.
-            3. USE '\\text{unidade}' para unidades (ex: 10 \\text{ m/s}).
-            4. NUNCA use delimitadores markdown ($$, \\[, \\() no JSON. Apenas LaTeX puro.
+            --- REGRAS DE ESCAPE JSON (CRÍTICO!!!) ---
+            1. Você está gerando uma string JSON. TODAS as barras invertidas do LaTeX DEVEM ser escapadas.
+            2. ERRADO: "\\text{...}" ou "\\int"
+            3. CERTO: "\\\\text{...}" e "\\\\int"
+            4. O parser vai falhar se você mandar apenas uma barra. USE DUAS BARRAS.
 
-            --- LÓGICA DE ROTEIRO (CRUCIAL) ---
-            - SE FOR UMA ÚNICA QUESTÃO: Gere 1 bloco no 'roteiro_estruturado' com titulo: null.
-            - SE FOREM MÚLTIPLOS ITENS (a, b, c...): Gere 1 bloco PARA CADA ITEM. Titulo: "Item a)", "Item b)".
-            - CONTEÚDO DOS PASSOS: Apenas a sequência matemática lógica. Sem texto narrativo ("agora fazemos...").
+            --- REGRAS VISUAIS DE LATEX ---
+            1. USE '\\\\displaystyle' (com duas barras) para frações/integrais.
+            2. USE '\\\\boxed{}' para resultados.
+            3. Para quebra de linha em equações longas, use "\\\\\\\\" (quatro barras para virar duas no string).
 
             --- ESTRUTURA JSON ---
             {
                 "sucesso": true,
-                "topico": "Ex: Cálculo III",
-                "dificuldade": "Fácil / Médio / Difícil",
+                "topico": "Cálculo",
+                "dificuldade": "Difícil",
                 
-                // VISUALIZAÇÃO RÁPIDA (Escolha UMA das opções abaixo)
-                "resultado_unico": "LaTeX da resposta final (se for 1 questão)",
-                "itens_rapidos": [ { "label": "a)", "valor": "LaTeX" }, { "label": "b)", "valor": "LaTeX" } ],
+                "resultado_unico": "LaTeX (ex: 2\\\\text{e}) ou null",
+                "itens_rapidos": [ { "label": "a)", "valor": "LaTeX" } ],
 
-                // ROTEIRO DETALHADO (Lista de Blocos)
                 "roteiro_estruturado": [
                     {
-                        "titulo": "Item a) Cálculo da Velocidade", // ou null se for questão única
+                        "titulo": "Item a)", 
                         "passos": [
-                            "v(t) = \\displaystyle \\int a(t) dt",
-                            "v(t) = 2t + C",
-                            "\\boxed{v(5) = 10 \\text{ m/s}}"
+                            "I = \\\\displaystyle \\\\int x dx",
+                            "\\\\boxed{I = x^2/2}"
                         ]
                     }
                 ],
 
-                "teoria": "Explicação conceitual completa. Use math inline '\\('",
-                "alerta": "Aviso curto ou null."
+                "teoria": "Explicação com math inline (\\\\( ... \\\\))",
+                "alerta": "Aviso ou null"
             }
         `;
 
@@ -73,7 +75,7 @@ exports.resolverQuestao = async (req, res) => {
             messages: [
                 { role: "system", content: promptSystem },
                 { role: "user", content: [
-                    { type: "text", text: "Resolva. Estruture o roteiro corretamente." },
+                    { type: "text", text: "Resolva. Lembre-se de escapar as barras (\\\\)." },
                     { type: "image_url", image_url: { url: imagem_url } }
                 ]}
             ],
@@ -81,6 +83,8 @@ exports.resolverQuestao = async (req, res) => {
             temperature: 0.1, 
             max_tokens: 2500 
         });
+
+// ... (resto do código igual)
 
         console.log("🤖 Resposta AI V6:", response.choices[0].message.content); 
 
