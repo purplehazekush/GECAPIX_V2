@@ -31,7 +31,9 @@ exports.resolverQuestao = async (req, res) => {
             OBJETIVO: Solução direta e estruturada.
 
             --- REGRAS DE ROTEIRO (CRÍTICO) ---
-            1. O campo 'roteiro_estruturado' deve focar na ÁLGEBRA.
+            1. O campo 'roteiro_estruturado' deve focar na ÁLGEBRA. - É fundamental que todos os passos necessários para
+            um professor categorizar aquela questao como certa sejam registrados (resposta completa em forma de roteiro - 
+            a avaliação de quao bem foi feita a tarefa é quão bem demonstrados estão os passos algébricos)
             2. Se precisar rotular um passo (ex: mudança de coordenadas), use o formato "Rótulo: Equação".
                Exemplo CERTO: "Coordenadas Esféricas: x = \\\\rho \\\\sin \\\\phi"
                Exemplo ERRADO: "Agora usamos coordenadas esféricas onde x é..."
