@@ -1,3 +1,4 @@
+// client/src/components/arena/Chat/SolutionBubble.tsx
 import { useState, useEffect } from 'react';
 import { 
     Bolt, School, Assignment, 
