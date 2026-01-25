@@ -1,10 +1,8 @@
-// server/controllers/spottedController.js
 const SpottedModel = require('../models/Spotted');
 const UsuarioModel = require('../models/Usuario');
 const TOKEN = require('../config/tokenomics');
 
-// ... imports
-
+// 1. GET SPOTTEDS (Filtros e Paginação)
 exports.getSpotteds = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
@@ -14,7 +12,7 @@ exports.getSpotteds = async (req, res) => {
 
         let query = {};
 
-        // 1. Filtro de Data
+        // Filtro de Data
         const now = new Date();
         if (periodo === 'today') {
             const startOfDay = new Date(now.setHours(0,0,0,0));
@@ -27,82 +25,86 @@ exports.getSpotteds = async (req, res) => {
             query.data = { $gte: startOfMonth };
         }
 
-        // 2. Ordenação
-        let sortOption = { data: -1 }; // Padrão: Mais novos primeiro
+        // Ordenação
+        let sortOption = { data: -1 }; // Padrão: Mais novos
         if (sort === 'hot') {
-            // Ordena pelo tamanho do array de comentários (gambiarra performática no Mongo)
-            // Para produção massiva, ideal seria ter um campo contador 'comentarios_count',
-            // mas para MVP isso funciona:
+            // Ordena por quantidade de comentários (aproximado)
             sortOption = { "comentarios": -1, data: -1 }; 
         }
 
-        // 3. Busca Paginada
         const posts = await SpottedModel.find(query)
             .sort(sortOption)
             .skip((page - 1) * limit)
             .limit(limit);
 
-        // Retorna também se tem mais páginas para o botão "Load More" sumir se acabar
         const total = await SpottedModel.countDocuments(query);
         const hasMore = (page * limit) < total;
 
         res.json({ posts, hasMore, total });
-
     } catch (e) { 
         console.error(e);
         res.status(500).json({ error: "Erro ao buscar spotteds" }); 
     }
 };
 
-// ... restante das funções (postar, comentar) mantém igual
-
+// 2. POSTAR (Com Limite Diário e Custo)
 exports.postarSpotted = async (req, res) => {
     try {
         const { email, mensagem, imagem_url } = req.body;
         const user = await UsuarioModel.findOne({ email });
+        
         if(!user) return res.status(404).json({error: "User not found"});
 
-        // Limite diário de XP (mas pode postar mais sem XP se quiser, ou bloqueia?)
-        // Vamos bloquear 1 post por dia pra evitar spam, já que é gratuito
+        // Limite Diário (1 grátis/dia ou pago? Aqui deixamos 1 por dia)
         const hoje = new Date(); hoje.setHours(0,0,0,0);
         const jaPostou = await SpottedModel.findOne({ autor_id: user._id, data: { $gte: hoje } });
         
-        if (jaPostou) return res.status(403).json({ error: "Limite de 1 Spotted por dia." });
+        if (jaPostou) return res.status(403).json({ error: "Limite diário atingido! Volte amanhã." });
 
+        // Salvar
         const novoSpotted = await SpottedModel.create({
             autor_id: user._id,
             mensagem,
-            imagem_url
+            imagem_url, // <--- Recebe do Front (Cloudinary)
+            data: new Date(),
+            likes: 0,
+            comentarios: []
         });
 
         // Dar XP
-        await UsuarioModel.updateOne({ email }, { $inc: { xp: TOKEN.XP.SPOTTED_POST } });
+        await UsuarioModel.updateOne({ email }, { $inc: { xp: TOKEN.XP.SPOTTED_POST || 30 } });
 
         res.json(novoSpotted);
-    } catch (e) { res.status(500).json({ error: "Erro ao postar" }); }
+    } catch (e) { 
+        console.error(e);
+        res.status(500).json({ error: "Erro ao postar" }); 
+    }
 };
 
+// 3. COMENTAR (Pago)
 exports.comentarSpotted = async (req, res) => {
     try {
         const { spottedId, email, texto } = req.body;
-        const custo = TOKEN.COSTS.SPOTTED_COMMENT;
+        const custo = TOKEN.COSTS.SPOTTED_COMMENT || 5;
 
         const user = await UsuarioModel.findOne({ email });
         if (user.saldo_coins < custo) return res.status(400).json({ error: "Sem saldo para fofocar." });
 
-        // Cobra o usuário
+        // Cobra
         await UsuarioModel.updateOne({ email }, {
             $inc: { saldo_coins: -custo },
-            $push: { extrato: { tipo: 'SAIDA', valor: custo, descricao: 'Comentário Spotted', categoria: 'SYSTEM', data: new Date() }}
+            $push: { extrato: { tipo: 'SAIDA', valor: custo, descricao: 'Comentário Spotted', categoria: 'SOCIAL', data: new Date() }}
         });
 
-        // Adiciona Comentário
+        // Adiciona Comentário (Não anônimo no comentário)
         const post = await SpottedModel.findById(spottedId);
+        if (!post) return res.status(404).json({ error: "Post sumiu" });
+
         post.comentarios.push({
-            user_nome: user.nome, // Comentário não é anônimo? "Fulano comentou". Ou quer anônimo também?
-            // Geralmente spotted o post é anonimo, os comments não.
+            user_nome: user.nome.split(' ')[0], 
             user_avatar: user.avatar_slug,
-            texto
+            texto,
+            data: new Date()
         });
         await post.save();
 
