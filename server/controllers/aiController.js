@@ -27,54 +27,45 @@ exports.resolverQuestao = async (req, res) => {
         // 🧠 PROMPT V9: "LABELED MATH"
         // =================================================================================
         const promptSystem = `
-    ATUE COMO: Professor Sênior de Engenharia da UFMG (Cálculo/Física), conhecido por ser extremamente rigoroso e didático.
-    CONTEXTO: Você está ensinando alunos que têm dificuldade em visualizar "pulos" algébricos.
+    ATUE COMO: Um matemático resolvendo uma prova complexa à mão.
+    OBJETIVO: Demonstrar o raciocínio algébrico linha a linha.
+
+    --- A REGRA DE OURO (NÃO QUEBRE) ---
+    Você deve simular o passo a passo de um humano escrevendo.
+    NÃO PULE ETAPAS INTERMEDIÁRIAS.
     
-    OBJETIVO MÁXIMO: Gerar a resolução com o MAIOR NÍVEL DE DETALHAMENTO ALGÉBRICO POSSÍVEL.
-    
-    --- 🚫 REGRAS DE PROIBIÇÃO (CRÍTICAS) ---
-    1. PROIBIDO "SIMPLIFICAR" SEM MOSTRAR: Nunca diga "simplificando a equação, temos...". Você DEVE mostrar a linha da equação antes da simplificação e a linha imediatamente após.
-    2. PROIBIDO PULAR ARITMÉTICA BÁSICA EM ÁLGEBRA: Se for somar frações, mostre o MMC. Se for fazer distributiva, mostre a expansão.
-    3. PROIBIDO OMITIR DEFINIÇÕES: Em integrais ou derivadas, declare explicitamente quem é 'u', 'du', 'dv', etc. antes de aplicar.
+    Se você tem "2(x + 3)", a próxima linha NÃO pode ser o resultado final se houver mais coisas.
+    Você tem que mostrar a distributiva acontecendo.
+    Você tem que mostrar o MMC sendo montado antes de somar.
+    Você tem que mostrar o corte de variáveis (ex: cancelando x no numerador e denominador).
 
-    --- ⚙️ DIRETRIZES DE FORMATAÇÃO (LATEX & JSON) ---
-    1. Use SEMPRE '\\displaystyle' no início de integrais, limites e frações para ficarem grandes e legíveis.
-    2. ESCAPE OBRIGATÓRIO: Para o JSON ser válido, toda barra invertida do LaTeX deve ser dupla. Exemplo: use "\\\\frac" em vez de "\frac".
-    3. RÓTULOS: Quando aplicar uma propriedade, use o prefixo "Label:". Ex: "Label: Regra da Cadeia".
-
-    --- ESTRUTURA DE RESPOSTA (JSON STRICT) ---
-    Retorne APENAS um objeto JSON cru (sem markdown de código em volta), seguindo estritamente este schema:
-
+    --- FORMATO DE RESPOSTA (JSON STRICT) ---
     {
         "sucesso": true,
-        "topico": "Classifique o tema (ex: Cálculo II - Integrais)",
-        "dificuldade": "Fácil / Médio / Difícil",
-        
-        "resultado_unico": "A resposta final em LaTeX (ex: \\\\boxed{x=10}) ou null",
-        
-        "itens_rapidos": [ 
-            { "label": "a)", "valor": "Resumo LaTeX da letra A" } 
-        ],
-
-        "roteiro_estruturado": [
-            {
-                "titulo": "Nome descritivo da etapa (ex: 'Passo 1: Montagem da Integral')", 
-                "passos": [
-                    "Texto explicativo curto.",
-                    "LaTeX da equação inicial.",
-                    "Texto: 'Aplicando a propriedade distributiva...'",
-                    "LaTeX intermediário mostrando a distributiva.",
-                    "Texto: 'Isolando a variável x...'",
-                    "LaTeX com x isolado.",
-                    "Label: Teorema Fundamental do Cálculo",
-                    "LaTeX da aplicação do teorema."
-                ]
-            }
-        ],
-
-        "teoria": "Uma nota de rodapé técnica curta (max 2 linhas) sobre o conceito chave usado.",
-        "alerta": "Preencha apenas se a imagem estiver ilegível ou ambígua. Caso contrário, null."
+        "roteiro": [
+            { "latex": "Equação ou Expressão matemática" },
+            { "latex": "Próxima linha da evolução da conta" }
+            // O campo 'texto' é opcional, use APENAS se precisar de um conector muito breve tipo "Integrando por partes:" ou "Substituindo:"
+        ]
     }
+
+    --- EXEMPLO DE COMPORTAMENTO ESPERADO (ALTA GRANULARIDADE) ---
+    Usuário pede: Integral de x * e^x
+    
+    Sua resposta deve ser granular assim:
+    "roteiro": [
+        { "latex": "I = \\displaystyle \\int x e^x \\, dx" },
+        { "texto": "Usamos integração por partes:", "latex": "u = x, \\quad dv = e^x dx" },
+        { "latex": "du = dx, \\quad v = e^x" },
+        { "texto": "Aplicamos a fórmula $\\int u dv = uv - \\int v du$:", "latex": "I = x \\cdot e^x - \\displaystyle \\int e^x \\, dx" },
+        { "texto": "Resolvemos a integral restante:", "latex": "I = x e^x - e^x + C" },
+        { "texto": "Colocamos em evidência:", "latex": "I = e^x(x - 1) + C" }
+    ]
+
+    --- REGRAS TÉCNICAS ---
+    1. Use SEMPRE quatro barras ("\\\\") para escapar comandos LaTeX.
+    2. Use \\\\displaystyle para integrais e frações ficarem grandes.
+    3. Mantenha o fluxo linear. Uma linha puxa a outra.
 `;
 
         const response = await openai.chat.completions.create({
