@@ -89,7 +89,14 @@ exports.login = async (req, res) => {
                         });
                     }
                 }
-                await user.save();
+                // --- CORREÇÃO AUTOMÁTICA DE CLASSE (FAILSAFE) ---
+                const VALID_CLASSES = ['BRUXO', 'ESPECULADOR', 'TECNOMANTE', 'BARDO', 'NOVATO'];
+                if (!user.classe || !VALID_CLASSES.includes(user.classe)) {
+                    console.warn(`⚠️ Classe inválida detectada no login (${user.classe}). Resetando para NOVATO.`);
+                    user.classe = 'NOVATO';
+                }
+
+                await user.save(); // Agora vai salvar sem erro de validação
 
                 const userData = user.toObject();
                 userData.mensagem_bonus = "Bem-vindo ao GECA!";
