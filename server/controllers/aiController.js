@@ -64,7 +64,7 @@ exports.resolverQuestao = async (req, res) => {
 
         // 3. Chamada à API
         const msg = await anthropic.messages.create({
-            model: "claude-3-5-sonnet-20240620",
+            model: "claude-sonnet-4-5-20250929",
             max_tokens: 2000, // Sobra espaço para resoluções longas
             temperature: 0.1, // Frio e preciso
             system: systemPrompt,
