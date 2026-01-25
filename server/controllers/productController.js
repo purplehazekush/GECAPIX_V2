@@ -12,7 +12,7 @@ exports.getProdutos = async (req, res) => {
     }
 };
 
-exports.createProduto = async (req, res) => {
+exports.createProdutcreateProduto = async (req, res) => {
     try {
         const { nome, preco } = req.body;
         

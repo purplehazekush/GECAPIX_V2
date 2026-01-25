@@ -3,8 +3,10 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const Usuario = require('./models/Usuario'); // Ajuste o caminho se necessário
 
+const URI_DO_BANCO = "Sua_String_De_Conexao_Do_Env_Aqui";
+
 async function fixUsers() {
-    await mongoose.connect(process.env.MONGO_URI);
+    await mongoose.connect(URI_DO_BANCO);
     console.log("Conectado ao Mongo. Iniciando reparo...");
 
     const users = await Usuario.find({});

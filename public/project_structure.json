@@ -1,0 +1,1623 @@
+{
+  "fileMap": {
+    "client/eslint.config.js": {
+      "imports": [],
+      "importedBy": [],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/postcss.config.js": {
+      "imports": [],
+      "importedBy": [],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/App.tsx": {
+      "imports": [
+        "client/src/context/AuthContext.tsx",
+        "client/src/components/Login",
+        "client/src/components/Layout",
+        "client/src/pages/Feed.tsx",
+        "client/src/pages/Stats.tsx",
+        "client/src/pages/Admin",
+        "client/src/pages/arena/Ranking.tsx",
+        "client/src/components/arena/ArenaLayout.tsx",
+        "client/src/pages/arena/Home.tsx",
+        "client/src/pages/arena/Transfer.tsx",
+        "client/src/pages/arena/Profile.tsx",
+        "client/src/pages/arena/Memes.tsx",
+        "client/src/pages/arena/Quests.tsx",
+        "client/src/pages/arena/Laboratorio.tsx",
+        "client/src/pages/arena/Solver.tsx",
+        "client/src/pages/admin/ValidationPanel.tsx",
+        "client/src/pages/arena/GamesLobby.tsx",
+        "client/src/pages/arena/GameRoom.tsx",
+        "client/src/pages/arena/Tokenomics.tsx",
+        "client/src/pages/arena/Ledger.tsx",
+        "client/src/pages/arena/Spotted.tsx",
+        "client/src/pages/arena/CentralBank.tsx",
+        "client/src/pages/arena/Store.tsx"
+      ],
+      "importedBy": [
+        "client/src/main.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/components/arena/ArenaLayout.tsx": {
+      "imports": [
+        "client/src/context/AuthContext.tsx",
+        "client/src/components/arena/DailyRewardModal.tsx",
+        "client/src/components/arena/ClassSelectionModal.tsx"
+      ],
+      "importedBy": [
+        "client/src/App.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/components/arena/Chat/ChatInput.tsx": {
+      "imports": [],
+      "importedBy": [
+        "client/src/pages/arena/Laboratorio.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/components/arena/Chat/MessageBubble.tsx": {
+      "imports": [],
+      "importedBy": [
+        "client/src/pages/arena/Laboratorio.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/components/arena/Chat/OracleModal.tsx": {
+      "imports": [
+        "client/src/lib/api.ts",
+        "client/src/context/AuthContext.tsx"
+      ],
+      "importedBy": [
+        "client/src/pages/arena/Laboratorio.tsx"
+      ],
+      "apiCalls": [
+        "POST /arena/ai/solve"
+      ],
+      "apiRoutes": []
+    },
+    "client/src/components/arena/Chat/SolutionBubble.tsx": {
+      "imports": [
+        "client/src/lib/api.ts",
+        "client/src/context/AuthContext.tsx"
+      ],
+      "importedBy": [
+        "client/src/pages/arena/Laboratorio.tsx"
+      ],
+      "apiCalls": [
+        "POST /arena/transferir"
+      ],
+      "apiRoutes": []
+    },
+    "client/src/components/arena/ClassSelectionModal.tsx": {
+      "imports": [
+        "client/src/context/AuthContext.tsx",
+        "client/src/lib/api.ts"
+      ],
+      "importedBy": [
+        "client/src/components/arena/ArenaLayout.tsx"
+      ],
+      "apiCalls": [
+        "PUT /arena/perfil"
+      ],
+      "apiRoutes": []
+    },
+    "client/src/components/arena/DailyRewardModal.tsx": {
+      "imports": [
+        "client/src/context/AuthContext.tsx"
+      ],
+      "importedBy": [
+        "client/src/components/arena/ArenaLayout.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/components/arena/games/ChessBoardWrapper.tsx": {
+      "imports": [],
+      "importedBy": [
+        "client/src/pages/arena/GameRoom.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/components/arena/games/Connect4Board.tsx": {
+      "imports": [],
+      "importedBy": [
+        "client/src/pages/arena/GameRoom.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/components/arena/games/DamasBoard.tsx": {
+      "imports": [],
+      "importedBy": [
+        "client/src/pages/arena/GameRoom.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/components/arena/games/TicTacToeBoard.tsx": {
+      "imports": [],
+      "importedBy": [
+        "client/src/pages/arena/GameRoom.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/components/arena/NewMemeModal.tsx": {
+      "imports": [
+        "client/src/lib/api.ts",
+        "client/src/context/AuthContext.tsx"
+      ],
+      "importedBy": [],
+      "apiCalls": [
+        "POST /arena/memes"
+      ],
+      "apiRoutes": []
+    },
+    "client/src/components/arena/NewSpottedModal.tsx": {
+      "imports": [
+        "client/src/lib/api.ts",
+        "client/src/context/AuthContext.tsx"
+      ],
+      "importedBy": [
+        "client/src/pages/arena/Spotted.tsx"
+      ],
+      "apiCalls": [
+        "POST /arena/spotted"
+      ],
+      "apiRoutes": []
+    },
+    "client/src/components/arena/Profile/AcademicSection.tsx": {
+      "imports": [],
+      "importedBy": [
+        "client/src/pages/arena/Profile.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/components/arena/Profile/AvatarSection.tsx": {
+      "imports": [],
+      "importedBy": [
+        "client/src/pages/arena/Profile.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/components/arena/Profile/FinancialSection.tsx": {
+      "imports": [
+        "client/src/context/AuthContext.tsx"
+      ],
+      "importedBy": [
+        "client/src/pages/arena/Profile.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/components/arena/Profile/SocialSection.tsx": {
+      "imports": [],
+      "importedBy": [
+        "client/src/pages/arena/Profile.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/components/arena/UserAvatar.tsx": {
+      "imports": [],
+      "importedBy": [
+        "client/src/pages/arena/Home.tsx",
+        "client/src/pages/arena/Ledger.tsx",
+        "client/src/pages/arena/Memes.tsx",
+        "client/src/pages/arena/Ranking.tsx",
+        "client/src/pages/arena/Spotted.tsx",
+        "client/src/pages/arena/Store.tsx",
+        "client/src/pages/arena/Tokenomics.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/components/charts/Hourly_Heatmap.tsx": {
+      "imports": [],
+      "importedBy": [
+        "client/src/pages/Stats.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/components/charts/PaymentMethodChart.tsx": {
+      "imports": [],
+      "importedBy": [
+        "client/src/pages/Stats.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/components/Layout/index.tsx": {
+      "imports": [
+        "client/src/context/AuthContext.tsx"
+      ],
+      "importedBy": [],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/components/Login/index.tsx": {
+      "imports": [
+        "client/src/context/AuthContext.tsx"
+      ],
+      "importedBy": [],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/components/NewSaleModal.tsx": {
+      "imports": [
+        "client/src/lib/api.ts",
+        "client/src/context/AuthContext.tsx"
+      ],
+      "importedBy": [
+        "client/src/pages/Feed.tsx"
+      ],
+      "apiCalls": [
+        "POST /vendas/manual"
+      ],
+      "apiRoutes": []
+    },
+    "client/src/components/ui/ImageViewer.tsx": {
+      "imports": [],
+      "importedBy": [
+        "client/src/pages/arena/Laboratorio.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/context/AuthContext.tsx": {
+      "imports": [
+        "client/src/lib/firebase.ts",
+        "client/src/lib/api.ts"
+      ],
+      "importedBy": [
+        "client/src/App.tsx",
+        "client/src/components/arena/ArenaLayout.tsx",
+        "client/src/components/arena/Chat/OracleModal.tsx",
+        "client/src/components/arena/Chat/SolutionBubble.tsx",
+        "client/src/components/arena/ClassSelectionModal.tsx",
+        "client/src/components/arena/DailyRewardModal.tsx",
+        "client/src/components/arena/NewMemeModal.tsx",
+        "client/src/components/arena/NewSpottedModal.tsx",
+        "client/src/components/arena/Profile/FinancialSection.tsx",
+        "client/src/components/Layout/index.tsx",
+        "client/src/components/Login/index.tsx",
+        "client/src/components/NewSaleModal.tsx",
+        "client/src/main.tsx",
+        "client/src/pages/admin/ValidationPanel.tsx",
+        "client/src/pages/arena/CentralBank.tsx",
+        "client/src/pages/arena/GameRoom.tsx",
+        "client/src/pages/arena/GamesLobby.tsx",
+        "client/src/pages/arena/Home.tsx",
+        "client/src/pages/arena/Laboratorio.tsx",
+        "client/src/pages/arena/Memes.tsx",
+        "client/src/pages/arena/Profile.tsx",
+        "client/src/pages/arena/Quests.tsx",
+        "client/src/pages/arena/Solver.tsx",
+        "client/src/pages/arena/Spotted.tsx",
+        "client/src/pages/arena/Store.tsx",
+        "client/src/pages/arena/Transfer.tsx",
+        "client/src/pages/Blocked.tsx",
+        "client/src/pages/Feed.tsx"
+      ],
+      "apiCalls": [
+        "POST /auth/login",
+        "GET /arena/perfil/${finalUser._id}"
+      ],
+      "apiRoutes": []
+    },
+    "client/src/index.css": {
+      "imports": [],
+      "importedBy": [],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/lib/api.ts": {
+      "imports": [],
+      "importedBy": [
+        "client/src/components/arena/Chat/OracleModal.tsx",
+        "client/src/components/arena/Chat/SolutionBubble.tsx",
+        "client/src/components/arena/ClassSelectionModal.tsx",
+        "client/src/components/arena/NewMemeModal.tsx",
+        "client/src/components/arena/NewSpottedModal.tsx",
+        "client/src/components/NewSaleModal.tsx",
+        "client/src/context/AuthContext.tsx",
+        "client/src/pages/admin/ValidationPanel.tsx",
+        "client/src/pages/Admin.tsx",
+        "client/src/pages/arena/CentralBank.tsx",
+        "client/src/pages/arena/Laboratorio.tsx",
+        "client/src/pages/arena/Ledger.tsx",
+        "client/src/pages/arena/Memes.tsx",
+        "client/src/pages/arena/Profile.tsx",
+        "client/src/pages/arena/Quests.tsx",
+        "client/src/pages/arena/Ranking.tsx",
+        "client/src/pages/arena/Solver.tsx",
+        "client/src/pages/arena/Spotted.tsx",
+        "client/src/pages/arena/Store.tsx",
+        "client/src/pages/arena/Tokenomics.tsx",
+        "client/src/pages/Feed.tsx",
+        "client/src/pages/Stats.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/lib/firebase.ts": {
+      "imports": [],
+      "importedBy": [
+        "client/src/context/AuthContext.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/main.tsx": {
+      "imports": [
+        "client/src/App.tsx",
+        "client/src/context/AuthContext.tsx"
+      ],
+      "importedBy": [],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/pages/admin/ValidationPanel.tsx": {
+      "imports": [
+        "client/src/lib/api.ts",
+        "client/src/context/AuthContext.tsx"
+      ],
+      "importedBy": [
+        "client/src/App.tsx"
+      ],
+      "apiCalls": [
+        "GET admin/validacao",
+        "POST admin/validacao"
+      ],
+      "apiRoutes": []
+    },
+    "client/src/pages/Admin.tsx": {
+      "imports": [
+        "client/src/lib/api.ts"
+      ],
+      "importedBy": [],
+      "apiCalls": [
+        "GET /admin/usuarios",
+        "GET /produtos",
+        "PUT /admin/usuarios",
+        "PUT /admin/usuarios",
+        "POST /produtos",
+        "DELETE /produtos/${id}"
+      ],
+      "apiRoutes": []
+    },
+    "client/src/pages/arena/CentralBank.tsx": {
+      "imports": [
+        "client/src/lib/api.ts",
+        "client/src/context/AuthContext.tsx"
+      ],
+      "importedBy": [
+        "client/src/App.tsx"
+      ],
+      "apiCalls": [
+        "GET /tokenomics/status",
+        "GET /bank/bonds",
+        "POST /bank/${action}",
+        "POST /bank/bond/buy",
+        "POST /bank/bond/redeem"
+      ],
+      "apiRoutes": []
+    },
+    "client/src/pages/arena/GameRoom.tsx": {
+      "imports": [
+        "client/src/context/AuthContext.tsx",
+        "client/src/components/arena/games/TicTacToeBoard.tsx",
+        "client/src/components/arena/games/ChessBoardWrapper.tsx",
+        "client/src/components/arena/games/Connect4Board.tsx",
+        "client/src/components/arena/games/DamasBoard.tsx"
+      ],
+      "importedBy": [
+        "client/src/App.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/pages/arena/GamesLobby.tsx": {
+      "imports": [
+        "client/src/context/AuthContext.tsx"
+      ],
+      "importedBy": [
+        "client/src/App.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/pages/arena/Home.tsx": {
+      "imports": [
+        "client/src/context/AuthContext.tsx",
+        "client/src/components/arena/UserAvatar.tsx"
+      ],
+      "importedBy": [
+        "client/src/App.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/pages/arena/Laboratorio.tsx": {
+      "imports": [
+        "client/src/context/AuthContext.tsx",
+        "client/src/lib/api.ts",
+        "client/src/components/ui/ImageViewer.tsx",
+        "client/src/components/arena/Chat/MessageBubble.tsx",
+        "client/src/components/arena/Chat/SolutionBubble.tsx",
+        "client/src/components/arena/Chat/ChatInput.tsx",
+        "client/src/components/arena/Chat/OracleModal.tsx"
+      ],
+      "importedBy": [
+        "client/src/App.tsx"
+      ],
+      "apiCalls": [
+        "GET chat/${salaAtual}",
+        "POST chat",
+        "GET chat/${salaAtual}",
+        "POST chat",
+        "GET chat/${salaAtual}",
+        "GET chat/${salaAtual}"
+      ],
+      "apiRoutes": []
+    },
+    "client/src/pages/arena/Ledger.tsx": {
+      "imports": [
+        "client/src/lib/api.ts",
+        "client/src/components/arena/UserAvatar.tsx"
+      ],
+      "importedBy": [
+        "client/src/App.tsx"
+      ],
+      "apiCalls": [
+        "GET /tokenomics/ledger"
+      ],
+      "apiRoutes": []
+    },
+    "client/src/pages/arena/Memes.tsx": {
+      "imports": [
+        "client/src/lib/api.ts",
+        "client/src/context/AuthContext.tsx",
+        "client/src/components/arena/UserAvatar.tsx"
+      ],
+      "importedBy": [
+        "client/src/App.tsx"
+      ],
+      "apiCalls": [
+        "GET /arena/memes",
+        "GET /arena/memes",
+        "POST /arena/memes",
+        "POST /arena/memes/invest"
+      ],
+      "apiRoutes": []
+    },
+    "client/src/pages/arena/Profile.tsx": {
+      "imports": [
+        "client/src/context/AuthContext.tsx",
+        "client/src/lib/api.ts",
+        "client/src/components/arena/Profile/AvatarSection.tsx",
+        "client/src/components/arena/Profile/AcademicSection.tsx",
+        "client/src/components/arena/Profile/FinancialSection.tsx",
+        "client/src/components/arena/Profile/SocialSection.tsx"
+      ],
+      "importedBy": [
+        "client/src/App.tsx"
+      ],
+      "apiCalls": [
+        "PUT arena/perfil"
+      ],
+      "apiRoutes": []
+    },
+    "client/src/pages/arena/Quests.tsx": {
+      "imports": [
+        "client/src/lib/api.ts",
+        "client/src/context/AuthContext.tsx"
+      ],
+      "importedBy": [
+        "client/src/App.tsx"
+      ],
+      "apiCalls": [
+        "GET arena/quests",
+        "POST arena/quests/claim"
+      ],
+      "apiRoutes": []
+    },
+    "client/src/pages/arena/Ranking.tsx": {
+      "imports": [
+        "client/src/lib/api.ts",
+        "client/src/components/arena/UserAvatar.tsx",
+        "client/src/types"
+      ],
+      "importedBy": [
+        "client/src/App.tsx"
+      ],
+      "apiCalls": [
+        "GET /arena/ranking"
+      ],
+      "apiRoutes": []
+    },
+    "client/src/pages/arena/Solver.tsx": {
+      "imports": [
+        "client/src/lib/api.ts",
+        "client/src/context/AuthContext.tsx"
+      ],
+      "importedBy": [
+        "client/src/App.tsx"
+      ],
+      "apiCalls": [
+        "POST /arena/ai/solve"
+      ],
+      "apiRoutes": []
+    },
+    "client/src/pages/arena/Spotted.tsx": {
+      "imports": [
+        "client/src/lib/api.ts",
+        "client/src/context/AuthContext.tsx",
+        "client/src/components/arena/UserAvatar.tsx",
+        "client/src/components/arena/NewSpottedModal.tsx"
+      ],
+      "importedBy": [
+        "client/src/App.tsx"
+      ],
+      "apiCalls": [
+        "GET /arena/spotted",
+        "POST /arena/spotted/comentar"
+      ],
+      "apiRoutes": []
+    },
+    "client/src/pages/arena/Store.tsx": {
+      "imports": [
+        "client/src/lib/api.ts",
+        "client/src/context/AuthContext.tsx",
+        "client/src/components/arena/UserAvatar.tsx"
+      ],
+      "importedBy": [
+        "client/src/App.tsx"
+      ],
+      "apiCalls": [
+        "GET /store/p2p",
+        "POST /store/p2p/criar",
+        "POST /store/p2p/comprar"
+      ],
+      "apiRoutes": []
+    },
+    "client/src/pages/arena/Tokenomics.tsx": {
+      "imports": [
+        "client/src/lib/api.ts",
+        "client/src/components/arena/UserAvatar.tsx"
+      ],
+      "importedBy": [
+        "client/src/App.tsx"
+      ],
+      "apiCalls": [
+        "GET /tokenomics",
+        "GET /tokenomics/history"
+      ],
+      "apiRoutes": []
+    },
+    "client/src/pages/arena/Transfer.tsx": {
+      "imports": [
+        "client/src/context/AuthContext.tsx"
+      ],
+      "importedBy": [
+        "client/src/App.tsx"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/pages/Blocked.tsx": {
+      "imports": [
+        "client/src/context/AuthContext.tsx"
+      ],
+      "importedBy": [],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/src/pages/Feed.tsx": {
+      "imports": [
+        "client/src/lib/api.ts",
+        "client/src/context/AuthContext.tsx",
+        "client/src/components/NewSaleModal.tsx",
+        "client/src/types"
+      ],
+      "importedBy": [
+        "client/src/App.tsx"
+      ],
+      "apiCalls": [
+        "GET /pix",
+        "GET /produtos",
+        "PUT /pix/${pix._id}"
+      ],
+      "apiRoutes": []
+    },
+    "client/src/pages/Stats.tsx": {
+      "imports": [
+        "client/src/lib/api.ts",
+        "client/src/components/charts/Hourly_Heatmap.tsx",
+        "client/src/components/charts/PaymentMethodChart.tsx"
+      ],
+      "importedBy": [
+        "client/src/App.tsx"
+      ],
+      "apiCalls": [
+        "GET /stats"
+      ],
+      "apiRoutes": []
+    },
+    "client/src/types/index.ts": {
+      "imports": [],
+      "importedBy": [],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/tailwind.config.js": {
+      "imports": [],
+      "importedBy": [],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "client/vite.config.ts": {
+      "imports": [],
+      "importedBy": [],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "comments.js": {
+      "imports": [],
+      "importedBy": [],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "mapper.js": {
+      "imports": [],
+      "importedBy": [],
+      "apiCalls": [
+        "GET /rota",
+        "POST /rota"
+      ],
+      "apiRoutes": [
+        "GET /rota",
+        "POST /rota"
+      ]
+    },
+    "mapperv2.js": {
+      "imports": [
+        "App"
+      ],
+      "importedBy": [],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "mapperv3.js": {
+      "imports": [
+        "controllers/arenaController"
+      ],
+      "importedBy": [],
+      "apiCalls": [],
+      "apiRoutes": [
+        "GET /api/arena/ranking"
+      ]
+    },
+    "server/config/gameRules.js": {
+      "imports": [],
+      "importedBy": [
+        "server/controllers/arenaController.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/config/quests.js": {
+      "imports": [
+        "server/config/tokenomics.js"
+      ],
+      "importedBy": [
+        "server/controllers/questController.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/config/tokenomics.js": {
+      "imports": [],
+      "importedBy": [
+        "server/config/quests.js",
+        "server/controllers/aiController.js",
+        "server/controllers/authController.js",
+        "server/controllers/bankController.js",
+        "server/controllers/gameController.js",
+        "server/controllers/memeController.js",
+        "server/controllers/spottedController.js",
+        "server/controllers/storeController.js",
+        "server/engine/DailyTreasury.js",
+        "server/engine/EmissionCurve.js",
+        "server/engine/InterestEngine.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/controllers/adminController.js": {
+      "imports": [
+        "server/models/Usuario.js",
+        "server/models/Usuario.js",
+        "server/models/Meme.js",
+        "server/models/Mensagem.js",
+        "server/models/LockedBond.js"
+      ],
+      "importedBy": [
+        "server/index.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/controllers/aiController.js": {
+      "imports": [
+        "server/models/Usuario.js",
+        "server/models/Mensagem.js",
+        "server/config/tokenomics.js"
+      ],
+      "importedBy": [
+        "server/index.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/controllers/arenaController.js": {
+      "imports": [
+        "server/models/Usuario.js",
+        "server/config/gameRules.js"
+      ],
+      "importedBy": [
+        "server/index.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/controllers/authController.js": {
+      "imports": [
+        "server/models/Usuario.js",
+        "server/models/SystemState.js",
+        "server/config/tokenomics.js"
+      ],
+      "importedBy": [
+        "server/index.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/controllers/bankController.js": {
+      "imports": [
+        "server/models/Usuario.js",
+        "server/models/LockedBond.js",
+        "server/models/SystemState.js",
+        "server/config/tokenomics.js"
+      ],
+      "importedBy": [
+        "server/index.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/controllers/chatController.js": {
+      "imports": [
+        "server/models/Mensagem.js",
+        "server/models/Usuario.js"
+      ],
+      "importedBy": [
+        "server/index.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/controllers/gameController.js": {
+      "imports": [
+        "server/models/Usuario.js",
+        "server/config/tokenomics.js"
+      ],
+      "importedBy": [
+        "server/index.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/controllers/memeController.js": {
+      "imports": [
+        "server/models/Meme.js",
+        "server/models/Usuario.js",
+        "server/config/tokenomics.js"
+      ],
+      "importedBy": [
+        "server/index.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/controllers/pixController.js": {
+      "imports": [
+        "server/models/Pix.js",
+        "server/models/Usuario.js"
+      ],
+      "importedBy": [
+        "server/controllers/storeController.js",
+        "server/index.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/controllers/productController.js": {
+      "imports": [
+        "server/models/Produto.js"
+      ],
+      "importedBy": [
+        "server/index.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/controllers/questController.js": {
+      "imports": [
+        "server/models/Usuario.js",
+        "server/config/quests.js"
+      ],
+      "importedBy": [
+        "server/index.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/controllers/spottedController.js": {
+      "imports": [
+        "server/models/Spotted.js",
+        "server/models/Usuario.js",
+        "server/config/tokenomics.js"
+      ],
+      "importedBy": [
+        "server/index.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/controllers/statsController.js": {
+      "imports": [
+        "server/models/Pix.js",
+        "server/models/Usuario.js",
+        "server/models/DailyStats.js"
+      ],
+      "importedBy": [
+        "server/index.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/controllers/storeController.js": {
+      "imports": [
+        "server/models/Usuario.js",
+        "server/models/MarketOrder.js",
+        "server/controllers/pixController.js",
+        "server/config/tokenomics.js"
+      ],
+      "importedBy": [
+        "server/index.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/download-assets.js": {
+      "imports": [],
+      "importedBy": [],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/engine/DailyTreasury.js": {
+      "imports": [
+        "server/models/SystemState.js",
+        "server/engine/EmissionCurve.js",
+        "server/config/tokenomics.js",
+        "server/engine/InterestEngine.js"
+      ],
+      "importedBy": [
+        "server/index.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/engine/EmissionCurve.js": {
+      "imports": [
+        "server/config/tokenomics.js"
+      ],
+      "importedBy": [
+        "server/engine/DailyTreasury.js",
+        "server/engine/InterestEngine.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/engine/InterestEngine.js": {
+      "imports": [
+        "server/models/Usuario.js",
+        "server/models/LockedBond.js",
+        "server/models/SystemState.js",
+        "server/engine/EmissionCurve.js",
+        "server/config/tokenomics.js"
+      ],
+      "importedBy": [
+        "server/engine/DailyTreasury.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/fix_users.js": {
+      "imports": [
+        "server/models/Usuario.js"
+      ],
+      "importedBy": [],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/index.js": {
+      "imports": [
+        "server/controllers/authController.js",
+        "server/controllers/pixController.js",
+        "server/controllers/arenaController.js",
+        "server/controllers/memeController.js",
+        "server/controllers/questController.js",
+        "server/controllers/chatController.js",
+        "server/controllers/adminController.js",
+        "server/controllers/productController.js",
+        "server/controllers/statsController.js",
+        "server/controllers/spottedController.js",
+        "server/controllers/aiController.js",
+        "server/engine/DailyTreasury.js",
+        "server/models/SystemState.js",
+        "server/controllers/storeController.js",
+        "server/controllers/bankController.js",
+        "server/models/Usuario.js",
+        "server/controllers/gameController.js"
+      ],
+      "importedBy": [],
+      "apiCalls": [],
+      "apiRoutes": [
+        "GET /api/tokenomics",
+        "GET /api/tokenomics/history",
+        "GET /api/tokenomics/ledger",
+        "POST /api/auth/login",
+        "GET /api/pix",
+        "POST /api/pix",
+        "PUT /api/pix/:id",
+        "POST /api/vendas/manual",
+        "GET /api/arena/memes",
+        "POST /api/arena/memes",
+        "POST /api/arena/memes/invest",
+        "GET /api/arena/ranking",
+        "GET /api/arena/perfil/:id",
+        "PUT /api/arena/perfil",
+        "GET /api/arena/quests",
+        "POST /api/arena/quests/claim",
+        "GET /api/arena/spotted",
+        "POST /api/arena/spotted",
+        "POST /api/arena/spotted/comentar",
+        "POST /api/arena/transferir",
+        "POST /api/arena/ai/solve",
+        "GET /api/chat/:materia",
+        "POST /api/chat",
+        "GET /api/admin/validacao",
+        "POST /api/admin/validacao",
+        "POST /api/admin/recursos",
+        "POST /api/admin/reset",
+        "POST /api/debug/fechar-mercado",
+        "GET /api/admin/usuarios",
+        "PUT /api/admin/usuarios",
+        "GET /api/produtos",
+        "POST /api/produtos",
+        "GET /api/stats",
+        "POST /api/bank/deposit",
+        "POST /api/bank/withdraw",
+        "POST /api/bank/bond/buy",
+        "POST /api/bank/bond/redeem",
+        "GET /api/bank/bonds",
+        "GET /api/store/p2p",
+        "POST /api/store/p2p/criar",
+        "POST /api/store/p2p/comprar",
+        "POST /api/store/p2p/cancelar",
+        "GET /api/tokenomics/status"
+      ]
+    },
+    "server/manage.js": {
+      "imports": [
+        "server/models/Usuario.js"
+      ],
+      "importedBy": [],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/models/Config.js": {
+      "imports": [],
+      "importedBy": [],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/models/DailyStats.js": {
+      "imports": [],
+      "importedBy": [
+        "server/controllers/statsController.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/models/LockedBond.js": {
+      "imports": [],
+      "importedBy": [
+        "server/controllers/adminController.js",
+        "server/controllers/bankController.js",
+        "server/engine/InterestEngine.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/models/MarketOrder.js": {
+      "imports": [],
+      "importedBy": [
+        "server/controllers/storeController.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/models/Meme.js": {
+      "imports": [],
+      "importedBy": [
+        "server/controllers/adminController.js",
+        "server/controllers/memeController.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/models/Mensagem.js": {
+      "imports": [],
+      "importedBy": [
+        "server/controllers/adminController.js",
+        "server/controllers/aiController.js",
+        "server/controllers/chatController.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/models/Pix.js": {
+      "imports": [],
+      "importedBy": [
+        "server/controllers/pixController.js",
+        "server/controllers/statsController.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/models/Produto.js": {
+      "imports": [],
+      "importedBy": [
+        "server/controllers/productController.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/models/Quest.js": {
+      "imports": [],
+      "importedBy": [],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/models/Spotted.js": {
+      "imports": [],
+      "importedBy": [
+        "server/controllers/spottedController.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/models/SystemState.js": {
+      "imports": [],
+      "importedBy": [
+        "server/controllers/authController.js",
+        "server/controllers/bankController.js",
+        "server/engine/DailyTreasury.js",
+        "server/engine/InterestEngine.js",
+        "server/index.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    },
+    "server/models/Usuario.js": {
+      "imports": [],
+      "importedBy": [
+        "server/controllers/adminController.js",
+        "server/controllers/aiController.js",
+        "server/controllers/arenaController.js",
+        "server/controllers/authController.js",
+        "server/controllers/bankController.js",
+        "server/controllers/chatController.js",
+        "server/controllers/gameController.js",
+        "server/controllers/memeController.js",
+        "server/controllers/pixController.js",
+        "server/controllers/questController.js",
+        "server/controllers/spottedController.js",
+        "server/controllers/statsController.js",
+        "server/controllers/storeController.js",
+        "server/engine/InterestEngine.js",
+        "server/fix_users.js",
+        "server/index.js",
+        "server/manage.js"
+      ],
+      "apiCalls": [],
+      "apiRoutes": []
+    }
+  },
+  "apiRegistry": {
+    "/arena/ai/solve": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/components/arena/Chat/OracleModal.tsx",
+        "client/src/pages/arena/Solver.tsx"
+      ]
+    },
+    "/arena/transferir": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/components/arena/Chat/SolutionBubble.tsx"
+      ]
+    },
+    "/arena/perfil": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/components/arena/ClassSelectionModal.tsx"
+      ]
+    },
+    "/arena/memes": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/components/arena/NewMemeModal.tsx",
+        "client/src/pages/arena/Memes.tsx",
+        "client/src/pages/arena/Memes.tsx",
+        "client/src/pages/arena/Memes.tsx"
+      ]
+    },
+    "/arena/spotted": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/components/arena/NewSpottedModal.tsx",
+        "client/src/pages/arena/Spotted.tsx"
+      ]
+    },
+    "/vendas/manual": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/components/NewSaleModal.tsx"
+      ]
+    },
+    "/auth/login": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/context/AuthContext.tsx"
+      ]
+    },
+    "/arena/perfil/${finalUser._id}": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/context/AuthContext.tsx"
+      ]
+    },
+    "admin/validacao": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/admin/ValidationPanel.tsx",
+        "client/src/pages/admin/ValidationPanel.tsx"
+      ]
+    },
+    "/admin/usuarios": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/Admin.tsx",
+        "client/src/pages/Admin.tsx",
+        "client/src/pages/Admin.tsx"
+      ]
+    },
+    "/produtos": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/Admin.tsx",
+        "client/src/pages/Admin.tsx",
+        "client/src/pages/Feed.tsx"
+      ]
+    },
+    "/produtos/${id}": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/Admin.tsx"
+      ]
+    },
+    "/tokenomics/status": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/arena/CentralBank.tsx"
+      ]
+    },
+    "/bank/bonds": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/arena/CentralBank.tsx"
+      ]
+    },
+    "/bank/${action}": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/arena/CentralBank.tsx"
+      ]
+    },
+    "/bank/bond/buy": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/arena/CentralBank.tsx"
+      ]
+    },
+    "/bank/bond/redeem": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/arena/CentralBank.tsx"
+      ]
+    },
+    "chat/${salaAtual}": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/arena/Laboratorio.tsx",
+        "client/src/pages/arena/Laboratorio.tsx",
+        "client/src/pages/arena/Laboratorio.tsx",
+        "client/src/pages/arena/Laboratorio.tsx"
+      ]
+    },
+    "chat": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/arena/Laboratorio.tsx",
+        "client/src/pages/arena/Laboratorio.tsx"
+      ]
+    },
+    "/tokenomics/ledger": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/arena/Ledger.tsx"
+      ]
+    },
+    "/arena/memes/invest": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/arena/Memes.tsx"
+      ]
+    },
+    "arena/perfil": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/arena/Profile.tsx"
+      ]
+    },
+    "arena/quests": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/arena/Quests.tsx"
+      ]
+    },
+    "arena/quests/claim": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/arena/Quests.tsx"
+      ]
+    },
+    "/arena/ranking": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/arena/Ranking.tsx"
+      ]
+    },
+    "/arena/spotted/comentar": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/arena/Spotted.tsx"
+      ]
+    },
+    "/store/p2p": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/arena/Store.tsx"
+      ]
+    },
+    "/store/p2p/criar": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/arena/Store.tsx"
+      ]
+    },
+    "/store/p2p/comprar": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/arena/Store.tsx"
+      ]
+    },
+    "/tokenomics": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/arena/Tokenomics.tsx"
+      ]
+    },
+    "/tokenomics/history": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/arena/Tokenomics.tsx"
+      ]
+    },
+    "/pix": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/Feed.tsx"
+      ]
+    },
+    "/pix/${pix._id}": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/Feed.tsx"
+      ]
+    },
+    "/stats": {
+      "definedIn": [],
+      "calledBy": [
+        "client/src/pages/Stats.tsx"
+      ]
+    },
+    "/rota": {
+      "definedIn": [
+        "mapper.js",
+        "mapper.js"
+      ],
+      "calledBy": [
+        "mapper.js",
+        "mapper.js"
+      ]
+    },
+    "/api/arena/ranking": {
+      "definedIn": [
+        "mapperv3.js",
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/tokenomics": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/tokenomics/history": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/tokenomics/ledger": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/auth/login": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/pix": {
+      "definedIn": [
+        "server/index.js",
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/pix/:id": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/vendas/manual": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/arena/memes": {
+      "definedIn": [
+        "server/index.js",
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/arena/memes/invest": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/arena/perfil/:id": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/arena/perfil": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/arena/quests": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/arena/quests/claim": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/arena/spotted": {
+      "definedIn": [
+        "server/index.js",
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/arena/spotted/comentar": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/arena/transferir": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/arena/ai/solve": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/chat/:materia": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/chat": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/admin/validacao": {
+      "definedIn": [
+        "server/index.js",
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/admin/recursos": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/admin/reset": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/debug/fechar-mercado": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/admin/usuarios": {
+      "definedIn": [
+        "server/index.js",
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/produtos": {
+      "definedIn": [
+        "server/index.js",
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/stats": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/bank/deposit": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/bank/withdraw": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/bank/bond/buy": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/bank/bond/redeem": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/bank/bonds": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/store/p2p": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/store/p2p/criar": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/store/p2p/comprar": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/store/p2p/cancelar": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    },
+    "/api/tokenomics/status": {
+      "definedIn": [
+        "server/index.js"
+      ],
+      "calledBy": []
+    }
+  }
+}

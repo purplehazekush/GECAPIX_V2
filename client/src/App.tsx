@@ -9,9 +9,8 @@ import Layout from './components/Layout';
 import Feed from './pages/Feed';
 import Stats from './pages/Stats';
 import Admin from './pages/Admin';
-import ArenaRanking from './pages/arena/Ranking';
 
-// IMPORTS DA ARENA
+import ArenaRanking from './pages/arena/Ranking';
 import ArenaLayout from './components/arena/ArenaLayout';
 import ArenaHome from './pages/arena/Home';
 import TransferCoins from './pages/arena/Transfer'; 

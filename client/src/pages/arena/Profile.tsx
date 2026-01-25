@@ -15,16 +15,6 @@ import { Logout, VerifiedUser, Save, Badge } from '@mui/icons-material';
 import { CircularProgress } from '@mui/material';
 
 // Adicione a função auxiliar (ou importe de um utils.ts se tiver)
-const getLevelInfo = (xp: number) => {
-    let nivel = 1;
-    let xpReq = 100;
-    while (xp >= xpReq) {
-        xp -= xpReq;
-        nivel++;
-        xpReq = nivel * 100;
-    }
-    return { nivel, xpRestante: xp, xpProximo: xpReq };
-};
 
 export default function ArenaProfile() {
     const { dbUser, setDbUser, logout } = useAuth();
