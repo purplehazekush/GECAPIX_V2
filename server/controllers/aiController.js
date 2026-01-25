@@ -1,3 +1,4 @@
+// server/controllers/aiController.js
 const UsuarioModel = require('../models/Usuario');
 const ChatModel = require('../models/Mensagem'); 
 const TOKEN = require('../config/tokenomics');
@@ -9,65 +10,61 @@ exports.resolverQuestao = async (req, res) => {
     try {
         const { email, imagem_url, materia } = req.body;
         
-        // --- VALIDAÇÕES (Mantidas) ---
+        // --- VALIDAÇÕES E CUSTOS (Mantidos) ---
         if (!email || !imagem_url) return res.status(400).json({ error: "Dados incompletos." });
         const user = await UsuarioModel.findOne({ email });
         if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
 
-        // --- CUSTOS (Mantidos) ---
         const custoGlue = (TOKEN.COSTS && TOKEN.COSTS.AI_SOLVER_GLUE) || 1;
         let custoCoins = (TOKEN.COSTS && TOKEN.COSTS.AI_SOLVER_COINS) || 50;
+
         if (user.classe === 'TECNOMANTE') custoCoins = Math.floor(custoCoins * 0.5);
 
         if ((user.saldo_glue || 0) < custoGlue) return res.status(402).json({ error: "Sem GLUE." });
         if ((user.saldo_coins || 0) < custoCoins) return res.status(402).json({ error: "Sem Coins." });
 
         // =================================================================================
-        // 🧠 PROMPT V9: LEI MARCIAL DO LATEX (ZERO TOLERÂNCIA A ERROS)
+        // 🧠 PROMPT V8: "SILENT MATH & ROBUST JSON"
         // =================================================================================
         const promptSystem = `
-            ATUE COMO: O Motor de Renderização de Gabaritos da UFMG.
-            OBJETIVO: Gerar JSON estrito para renderização LaTeX.
+            ATUE COMO: Gabarito Oficial de Engenharia (UFMG).
+            OBJETIVO: Solução direta, sem enrolação, focada na transcrição para a prova.
 
-            --- LEI Nº 1: ESCAPE JSON (PERIGO DE MORTE) ---
-            1. Você está gerando uma string JSON. O caractere '\\' é especial.
-            2. VOCÊ DEVE USAR DUAS BARRAS ('\\\\') PARA CADA COMANDO LATEX.
-            3. Exemplo ERRADO: "\\int", "\\frac", "\\text".
-            4. Exemplo CERTO: "\\\\int", "\\\\frac", "\\\\text".
-            5. Falhar nisso quebra o sistema.
+            --- REGRAS DE ROTEIRO (CRÍTICO) ---
+            1. O campo 'roteiro_estruturado' deve conter APENAS passos matemáticos/algébricos.
+            2. PROIBIDO texto narrativo ("Calculamos agora...", "Substituindo...", "O Jacobiano é...").
+            3. Use notação matemática direta. 
+               ERRADO: "A derivada de x é 2x"
+               CERTO: "\\\\frac{d}{dx} = 2x"
+            4. Se precisar definir variáveis (ex: Jacobiano), faça como equação: "J = r^2 \\\\sin \\\\phi".
 
-            --- LEI Nº 2: ROTEIRO MUDO (SILENT MATH) ---
-            1. O campo 'roteiro_estruturado' -> 'passos' deve conter EXCLUSIVAMENTE equações matemáticas.
-            2. É PROIBIDO escrever frases como: "Aplicando a regra...", "Substituindo...", "Temos que:".
-            3. Se precisar de uma palavra chave, coloque dentro de \\\\text{}. Ex: "y = 2x \\\\quad (\\\\text{eq. 1})".
-            4. Se você escrever texto solto fora de \\\\text{}, o renderizador VAI QUEBRAR.
+            --- REGRAS DE ESCAPE JSON ---
+            1. ESCAPE TODAS AS BARRAS: Use "\\\\" para cada barra invertida do LaTeX.
 
-            --- LEI Nº 3: VISUALIZAÇÃO ---
-            1. Use SEMPRE '\\\\displaystyle' no início de integrais/frações/limites.
-            2. Use '\\\\boxed{}' APENAS no resultado final de cada bloco.
-            3. NÃO USE markdown ($$, \\[, \\() para envolver as equações no JSON. Mande o código LaTeX puro.
-
-            --- ESTRUTURA DE RESPOSTA (JSON OBRIGATÓRIO) ---
+            --- ESTRUTURA JSON ---
             {
                 "sucesso": true,
                 "topico": "Cálculo III",
                 "dificuldade": "Difícil",
                 
-                "resultado_unico": "LaTeX puro da resposta final (ou null se tiver itens)",
-                "itens_rapidos": [ { "label": "a)", "valor": "LaTeX puro" } ],
+                "resultado_unico": "LaTeX da resposta final (ou null)",
+                "itens_rapidos": [ { "label": "a)", "valor": "LaTeX" } ],
 
                 "roteiro_estruturado": [
                     {
                         "titulo": "Item a) (ou null)", 
                         "passos": [
-                            "J = \\\\rho^2 \\\\sin \\\\phi",  // <--- ISSO É CERTO (Só matemática)
-                            "I = \\\\displaystyle \\\\int ...",
-                            "\\\\boxed{Resultado}"
+                            // APENAS EQUAÇÕES. SEM FRASES.
+                            "\\\\rho^2 = x^2 + y^2",
+                            "I = \\\\displaystyle \\\\int_{0}^{1} ...",
+                            "\\\\boxed{2\\\\text{e}}"
                         ]
                     }
                 ],
 
-                "teoria": "AQUI você pode escrever texto explicativo à vontade. Use \\\\( ... \\\\) para math inline.",
+                // AQUI VOCÊ PODE FALAR À VONTADE:
+                "teoria": "Explique o método, o jacobiano, os limites e a lógica aqui. Use math inline \\\\( ... \\\\).",
+                
                 "alerta": "Aviso curto ou null"
             }
         `;
@@ -77,29 +74,26 @@ exports.resolverQuestao = async (req, res) => {
             messages: [
                 { role: "system", content: promptSystem },
                 { role: "user", content: [
-                    { type: "text", text: "Gere o JSON. Verifique triplamente os escapes (\\\\)." },
+                    { type: "text", text: "Resolva. Roteiro deve ser MUDO (só contas). Teoria completa na aba teoria." },
                     { type: "image_url", image_url: { url: imagem_url } }
                 ]}
             ],
             response_format: { type: "json_object" },
-            temperature: 0.1, // Criatividade quase zero para garantir obediência
+            temperature: 0.1, 
             max_tokens: 2500 
         });
 
-        // Debug no Console do Servidor (Pra você monitorar se ele obedeceu)
-        console.log("🤖 JSON V9:", response.choices[0].message.content.substring(0, 500) + "..."); 
+        console.log("🤖 Resposta AI V8:", response.choices[0].message.content); 
 
         let resultadoAI;
         try {
             resultadoAI = JSON.parse(response.choices[0].message.content);
         } catch (e) {
-            console.error("❌ ERRO CRÍTICO DE JSON:", e.message);
-            // Tenta salvar o erro no log para debug futuro
-            console.error("Conteúdo Falho:", response.choices[0].message.content);
-            throw new Error("Erro na formatação da IA. Tente novamente.");
+            console.error("Erro Parse JSON:", e);
+            throw new Error("Erro formatação AI");
         }
 
-        // --- UPDATE DE SALDO ---
+        // --- PERSISTÊNCIA ---
         await UsuarioModel.updateOne({ email }, {
             $inc: { saldo_glue: -custoGlue, saldo_coins: -custoCoins },
             $push: { extrato: { 
