@@ -24,48 +24,45 @@ exports.resolverQuestao = async (req, res) => {
         if ((user.saldo_coins || 0) < custoCoins) return res.status(402).json({ error: "Sem Coins." });
 
         // =================================================================================
-        // 🧠 PROMPT V8: "SILENT MATH & ROBUST JSON"
+        // 🧠 PROMPT V9: "LABELED MATH"
         // =================================================================================
         const promptSystem = `
             ATUE COMO: Gabarito Oficial de Engenharia (UFMG).
-            OBJETIVO: Solução direta, sem enrolação, focada na transcrição para a prova.
+            OBJETIVO: Solução direta e estruturada.
 
             --- REGRAS DE ROTEIRO (CRÍTICO) ---
-            1. O campo 'roteiro_estruturado' deve conter APENAS passos matemáticos/algébricos.
-            2. PROIBIDO texto narrativo ("Calculamos agora...", "Substituindo...", "O Jacobiano é...").
-            3. Use notação matemática direta. 
-               ERRADO: "A derivada de x é 2x"
-               CERTO: "\\\\frac{d}{dx} = 2x"
-            4. Se precisar definir variáveis (ex: Jacobiano), faça como equação: "J = r^2 \\\\sin \\\\phi".
+            1. O campo 'roteiro_estruturado' deve focar na ÁLGEBRA.
+            2. Se precisar rotular um passo (ex: mudança de coordenadas), use o formato "Rótulo: Equação".
+               Exemplo CERTO: "Coordenadas Esféricas: x = \\\\rho \\\\sin \\\\phi"
+               Exemplo ERRADO: "Agora usamos coordenadas esféricas onde x é..."
+            3. Para integrais e frações, USE SEMPRE '\\\\displaystyle'.
 
             --- REGRAS DE ESCAPE JSON ---
-            1. ESCAPE TODAS AS BARRAS: Use "\\\\" para cada barra invertida do LaTeX.
+            1. ESCAPE TODAS AS BARRAS: Use "\\\\" para LaTeX.
 
             --- ESTRUTURA JSON ---
             {
                 "sucesso": true,
-                "topico": "Cálculo III",
-                "dificuldade": "Difícil",
+                "topico": "Cálculo",
+                "dificuldade": "Médio",
                 
-                "resultado_unico": "LaTeX da resposta final (ou null)",
+                "resultado_unico": "LaTeX ou null",
                 "itens_rapidos": [ { "label": "a)", "valor": "LaTeX" } ],
 
                 "roteiro_estruturado": [
                     {
                         "titulo": "Item a) (ou null)", 
                         "passos": [
-                            // APENAS EQUAÇÕES. SEM FRASES.
-                            "\\\\rho^2 = x^2 + y^2",
-                            "I = \\\\displaystyle \\\\int_{0}^{1} ...",
-                            "\\\\boxed{2\\\\text{e}}"
+                            "Coordenadas: x = r \\\\cos \\\\theta",  <-- O FRONTEND VAI DETECTAR OS DOIS PONTOS
+                            "J = r",
+                            "I = \\\\displaystyle \\\\int ...",
+                            "\\\\boxed{Resultado}"
                         ]
                     }
                 ],
 
-                // AQUI VOCÊ PODE FALAR À VONTADE:
-                "teoria": "Explique o método, o jacobiano, os limites e a lógica aqui. Use math inline \\\\( ... \\\\).",
-                
-                "alerta": "Aviso curto ou null"
+                "teoria": "Explicação completa.",
+                "alerta": "Aviso ou null"
             }
         `;
 
@@ -74,7 +71,7 @@ exports.resolverQuestao = async (req, res) => {
             messages: [
                 { role: "system", content: promptSystem },
                 { role: "user", content: [
-                    { type: "text", text: "Resolva. Roteiro deve ser MUDO (só contas). Teoria completa na aba teoria." },
+                    { type: "text", text: "Resolva. Use 'Label: Equação' se precisar explicar passos no roteiro." },
                     { type: "image_url", image_url: { url: imagem_url } }
                 ]}
             ],
@@ -83,7 +80,8 @@ exports.resolverQuestao = async (req, res) => {
             max_tokens: 2500 
         });
 
-        console.log("🤖 Resposta AI V8:", response.choices[0].message.content); 
+        // Debug Log
+        console.log("🤖 Resposta AI V9:", response.choices[0].message.content); 
 
         let resultadoAI;
         try {

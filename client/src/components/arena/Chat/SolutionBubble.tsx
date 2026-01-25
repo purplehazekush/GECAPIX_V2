@@ -94,29 +94,50 @@ export default function SolutionBubble({ msg }: SolutionProps) {
         });
     };
 
-    // --- RENDERIZADOR INTELIGENTE V2 (O Corretor de LaTeX Cru) ---
+    // --- RENDERIZADOR INTELIGENTE V3 (Splitter de Rótulos) ---
     const RenderSmartStep = ({ step }: { step: string }) => {
-        // Remove tags HTML/LaTeX para ver se sobra texto humano
-        // Se a string tem "=" ou "\" e NÃO tem muitas palavras, assumimos que é matemática pura
-        // mesmo que falte o delimitador de bloco
+        // CASO 1: DETECTA RÓTULO "Texto: Equação"
+        // Verifica se tem ':' nos primeiros 30 caracteres
+        const colonIndex = step.indexOf(':');
+        const hasEarlyColon = colonIndex > -1 && colonIndex < 35;
         
-        const looksLikeText = step.split(' ').length > 6 && !step.includes('=');
+        if (hasEarlyColon) {
+            const label = step.substring(0, colonIndex + 1); // "Substituição:"
+            const content = step.substring(colonIndex + 1).trim(); // "x = ..."
+            
+            // Se o conteúdo tiver matemática, renderizamos dividido
+            if (content.length > 0) {
+                return (
+                    <div className="flex flex-col sm:flex-row sm:items-baseline gap-2 py-1 border-l-2 border-purple-500/30 pl-3 bg-purple-500/5 rounded-r-lg">
+                        <span className="text-xs font-bold text-purple-300 whitespace-nowrap">{label}</span>
+                        <div className="flex-1 overflow-x-auto custom-scrollbar">
+                            <SafeBlockMath>{content}</SafeBlockMath>
+                        </div>
+                    </div>
+                );
+            }
+        }
+
+        // CASO 2: TEXTO EXPLÍCITO COM MATH INLINE
+        // Se a string tem delimitadores manuais ou parece muito texto
+        const hasDelimiters = step.includes('$') || step.includes('\\(');
+        const looksLikeSentence = step.split(' ').length > 6 && !step.includes('=');
         
-        // Se parece texto explicativo ("Transformar para coordenadas...")
-        if (looksLikeText) {
+        if (hasDelimiters || looksLikeSentence) {
             return (
                 <div className="text-sm text-slate-300 leading-relaxed py-1">
                     {renderTextWithMath(step)}
                 </div>
             );
-        } else {
-            // Assume que é bloco matemático (mesmo "f_x = ...")
-            return (
-                <div className="py-2 overflow-x-auto custom-scrollbar">
-                    <SafeBlockMath>{step}</SafeBlockMath>
-                </div>
-            );
         }
+
+        // CASO 3: BLOCO MATEMÁTICO PURO (Padrão)
+        // Isso força até coisas sem '=' (como integrais soltas) a virarem bloco
+        return (
+            <div className="py-2 overflow-x-auto custom-scrollbar">
+                <SafeBlockMath>{step}</SafeBlockMath>
+            </div>
+        );
     };
 
     const getDifficultyColor = (diff: string) => {
@@ -147,7 +168,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                     <span className="text-[10px] font-black uppercase bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">
                         Oráculo Solver
                     </span>
-                    <span className="text-[9px] text-slate-600">v3.4</span>
+                    <span className="text-[9px] text-slate-600">v3.5</span>
                 </div>
                 <div className="flex gap-2">
                     <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700">
@@ -163,7 +184,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
 
             <div className="bg-slate-900 border border-purple-500/30 rounded-2xl overflow-hidden shadow-2xl">
                 
-                {/* Imagem Banner */}
+                {/* Imagem */}
                 {msg.imagem_original && (
                     <div 
                         onClick={() => setShowOriginalImage(true)}
@@ -188,7 +209,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                     <TabButton active={activeTab === 'teoria'} onClick={() => setActiveTab('teoria')} icon={<School sx={{fontSize:16}}/>} label="Teoria" color="text-purple-400" />
                 </div>
 
-                {/* Conteúdo */}
+                {/* Body */}
                 <div className="p-4 bg-slate-900 min-h-[160px]">
                     {data.alerta && (
                         <div className="mb-4 flex gap-2 bg-yellow-500/10 p-2 rounded-lg border border-yellow-500/20 items-start">
@@ -223,7 +244,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                         </div>
                     )}
 
-                    {/* ABA ROTEIRO (Com RenderSmartStep Melhorado) */}
+                    {/* ABA ROTEIRO (USANDO RENDER SMART STEP V3) */}
                     {activeTab === 'roteiro' && (
                         <div className="space-y-6 animate-fade-in">
                             {data.roteiro_estruturado.length > 0 ? (
@@ -244,12 +265,8 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                                                         </span>
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="bg-slate-950 border border-slate-800 rounded-lg px-3 min-h-[30px] hover:border-cyan-500/20 transition-colors flex items-center">
-                                                            <div className="w-full">
-                                                                {/* O CORAÇÃO DA MUDANÇA ESTÁ AQUI */}
-                                                                <RenderSmartStep step={step} />
-                                                            </div>
-                                                        </div>
+                                                        {/* A MÁGICA ACONTECE AQUI */}
+                                                        <RenderSmartStep step={step} />
                                                     </div>
                                                 </div>
                                             ))}
@@ -273,7 +290,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                 </div>
             </div>
 
-            {/* Modal Fullscreen */}
+            {/* Modal */}
             {showOriginalImage && (
                 <div className="fixed inset-0 z-[999] bg-black/95 flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowOriginalImage(false)}>
                     <img src={msg.imagem_original} className="max-w-full max-h-full object-contain" alt="Original" />
