@@ -1,164 +1,230 @@
 import { useState, useEffect } from 'react';
 import { 
     Bolt, School, Assignment, 
-    ExpandMore, ExpandLess, WarningAmber, ErrorOutline
+    WarningAmber, ErrorOutline,
+    ZoomIn, Image as ImageIcon
 } from '@mui/icons-material';
+
+// Importando estilos e componentes do KaTeX
+import 'katex/dist/katex.min.css';
+import { BlockMath, InlineMath } from 'react-katex';
 
 interface SolutionProps {
     msg: {
-        dados_ia: any; // Aceita qualquer coisa para tratarmos internamente
+        dados_ia: any;
         imagem_original: string;
     };
 }
 
 export default function SolutionBubble({ msg }: SolutionProps) {
-    // ESTADO LOCAL PARA DADOS PROCESSADOS
+    // Estado dos Dados
     const [data, setData] = useState<any>(null);
-    const [expanded, setExpanded] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    
+    // Estado da Interface
+    const [activeTab, setActiveTab] = useState<'rapida' | 'roteiro' | 'teoria'>('rapida');
+    const [showOriginalImage, setShowOriginalImage] = useState(false);
 
-    // EFEITO: Processa os dados quando a mensagem chega
+    // PROCESSAMENTO DE DADOS (Blindagem)
     useEffect(() => {
         try {
             let rawData = msg.dados_ia;
 
-            // 1. Tenta corrigir se vier como String (Erro comum de serialização)
+            // 1. Parse se for string
             if (typeof rawData === 'string') {
-                try {
-                    rawData = JSON.parse(rawData);
-                } catch (e) {
-                    throw new Error("Formato de dados inválido.");
-                }
+                rawData = JSON.parse(rawData);
             }
 
-            // 2. Verifica se é um objeto válido
+            // 2. Validação
             if (!rawData || typeof rawData !== 'object') {
                 throw new Error("Dados vazios.");
             }
 
-            // 3. Normalização de Chaves (Caso a IA erre levemente o nome)
-            const processedData = {
-                tipo_questao: rawData.tipo_questao || "ABERTA",
-                // Tenta pegar resumo_topo, se não, tenta resumo, se não, erro.
-                resumo_topo: rawData.resumo_topo || rawData.resumo || rawData.resposta_curta || "Resposta Indisponível",
-                gabarito_letra: rawData.gabarito_letra || null,
-                passo_a_passo: Array.isArray(rawData.passo_a_passo) ? rawData.passo_a_passo : ["Verifique a explicação completa."],
-                explicacao_teorica: rawData.explicacao_teorica || rawData.explicacao || "Sem teoria disponível.",
+            // 3. Normalização (Garante que as abas funcionem mesmo se a AI alucinar chaves)
+            setData({
+                tipo: rawData.tipo || "ABERTA",
+                resposta_final: rawData.resposta_final || rawData.resumo_topo || "Ver Roteiro",
+                memoria_calculo: Array.isArray(rawData.memoria_calculo) ? rawData.memoria_calculo : [],
+                teoria: rawData.teoria || rawData.explicacao_teorica || "Sem teoria disponível.",
                 alerta: rawData.alerta || null
-            };
-
-            setData(processedData);
+            });
             setError(null);
 
         } catch (err) {
-            console.error("Erro ao processar SolutionBubble:", err);
-            setError("Erro ao renderizar resposta.");
+            console.error("Erro render SolutionBubble:", err);
+            setError("Erro ao processar resposta.");
         }
     }, [msg.dados_ia]);
 
     // RENDERIZAÇÃO DE ERRO
     if (error || !data) {
         return (
-            <div className="bg-red-900/20 border border-red-500/50 p-3 rounded-xl max-w-[85%] animate-fade-in flex items-center gap-3">
+            <div className="bg-red-900/20 border border-red-500/50 p-3 rounded-xl max-w-[90%] animate-fade-in flex items-center gap-3">
                 <ErrorOutline className="text-red-500" />
-                <div>
-                    <p className="text-xs font-bold text-red-400">Falha na Visualização</p>
-                    <p className="text-[10px] text-red-300">O Oráculo falou, mas não entendemos. (Erro de Parse)</p>
-                </div>
+                <p className="text-xs text-red-300">O Oráculo sussurrou algo ininteligível.</p>
             </div>
         );
     }
 
-    const isMultipla = data.tipo_questao === 'MULTIPLA_ESCOLHA';
-    
+    const isMultipla = data.tipo === 'MULTIPLA_ESCOLHA';
+
     return (
-        <div className="flex flex-col gap-2 max-w-[85%] animate-fade-in-up">
+        <div className="flex flex-col gap-2 max-w-[95%] w-full md:max-w-[400px] animate-fade-in-up self-start">
             
-            {/* CABEÇALHO */}
-            <div className="flex items-center gap-2 mb-1 pl-1">
-                <span className="text-[10px] font-black uppercase text-purple-400">Oráculo IA</span>
-                <span className="text-[9px] text-slate-600">• Solução Verificada</span>
-            </div>
-
-            <div className="bg-slate-900 border border-purple-500/30 rounded-2xl overflow-hidden shadow-lg">
-                
-                {/* 1. ZONA DE IMPACTO */}
-                <div className="p-4 bg-gradient-to-r from-slate-900 to-purple-900/20">
-                    {data.alerta && (
-                        <div className="flex items-center gap-2 mb-3 bg-yellow-500/10 p-2 rounded-lg border border-yellow-500/20">
-                            <WarningAmber className="text-yellow-500 text-[14px]" />
-                            <p className="text-[10px] text-yellow-200 leading-tight">{data.alerta}</p>
-                        </div>
-                    )}
-
-                    <div className="flex justify-between items-start gap-4">
-                        <div className="flex-1">
-                            <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">
-                                {isMultipla ? 'Gabarito' : 'Resultado Final'}
-                            </p>
-                            
-                            <h2 className="text-2xl font-black text-white tracking-tight break-words">
-                                {isMultipla && data.gabarito_letra ? (
-                                    <span className="text-emerald-400 text-3xl mr-2">{data.gabarito_letra}</span>
-                                ) : null}
-                                {data.resumo_topo}
-                            </h2>
-                        </div>
-                        
-                        <div className="bg-purple-500/20 p-2 rounded-full">
-                            <Bolt className="text-purple-400" />
-                        </div>
-                    </div>
+            {/* --- CABEÇALHO DO ORÁCULO --- */}
+            <div className="flex justify-between items-end pl-1 pr-1">
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400">
+                        Oráculo IA
+                    </span>
+                    <span className="text-[9px] text-slate-600 font-mono">v2.0</span>
                 </div>
 
-                {/* 2. ZONA EFICIENTE */}
-                <div className="px-4 py-3 bg-slate-950 border-t border-slate-800">
-                    <p className="text-[10px] text-slate-500 font-bold uppercase mb-2 flex items-center gap-1">
-                        <Assignment sx={{fontSize:12}} /> Como chegar lá:
-                    </p>
-                    <ul className="space-y-2">
-                        {data.passo_a_passo.map((step: string, idx: number) => (
-                            <li key={idx} className="text-xs text-slate-300 flex gap-2 leading-relaxed">
-                                <span className="text-purple-500 font-bold select-none">{idx + 1}.</span>
-                                <span>{step}</span>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-
-                {/* 3. BOTÃO DE EXPANSÃO */}
-                <button 
-                    onClick={() => setExpanded(!expanded)}
-                    className="w-full py-2 bg-slate-900 hover:bg-slate-800 border-t border-slate-800 text-[10px] font-bold text-slate-400 uppercase flex items-center justify-center gap-1 transition-colors"
-                >
-                    {expanded ? 'Esconder Explicação' : 'Ver Explicação Completa'}
-                    {expanded ? <ExpandLess sx={{fontSize:14}}/> : <ExpandMore sx={{fontSize:14}}/>}
-                </button>
-
-                {/* 4. ZONA COMPLETA */}
-                {expanded && (
-                    <div className="p-4 bg-slate-950 border-t border-slate-800 animate-fade-in">
-                        <div className="flex items-center gap-2 mb-2 text-purple-400">
-                            <School sx={{fontSize:16}} />
-                            <h3 className="text-xs font-black uppercase">Justificativa Teórica</h3>
+                {/* MINIATURA DA IMAGEM ORIGINAL (Clicável) */}
+                {msg.imagem_original && (
+                    <button 
+                        onClick={() => setShowOriginalImage(true)}
+                        className="relative group overflow-hidden rounded-lg border border-slate-700 w-12 h-8 bg-slate-800 flex items-center justify-center transition-all hover:border-purple-500"
+                    >
+                        <img 
+                            src={msg.imagem_original} 
+                            alt="Questão" 
+                            className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity" 
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <ZoomIn sx={{ fontSize: 14 }} className="text-white" />
                         </div>
-                        <p className="text-xs text-slate-300 leading-6 whitespace-pre-line text-justify">
-                            {data.explicacao_teorica}
-                        </p>
-                    </div>
+                    </button>
                 )}
             </div>
 
-            <div className="flex justify-end pr-2">
-                <a 
-                    href={msg.imagem_original} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-[9px] text-slate-600 hover:text-purple-400 underline decoration-dashed"
-                >
-                    Ver imagem original
-                </a>
+            {/* --- O BALÃO PRINCIPAL --- */}
+            <div className="bg-slate-900 border border-purple-500/40 rounded-2xl overflow-hidden shadow-[0_4px_20px_-5px_rgba(168,85,247,0.3)]">
+                
+                {/* 1. SELETOR DE ABAS (Top Navigation) */}
+                <div className="grid grid-cols-3 border-b border-slate-800 bg-slate-950/50">
+                    <button 
+                        onClick={() => setActiveTab('rapida')}
+                        className={`py-3 text-[10px] font-black uppercase tracking-wider transition-colors relative ${
+                            activeTab === 'rapida' ? 'text-white' : 'text-slate-600 hover:text-slate-400'
+                        }`}
+                    >
+                        <Bolt sx={{ fontSize: 14 }} className={`mb-0.5 ${activeTab === 'rapida' ? 'text-yellow-400' : ''}`} />
+                        <span className="block">Rápida</span>
+                        {activeTab === 'rapida' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-yellow-400 shadow-[0_-2px_8px_rgba(250,204,21,0.5)]"></div>}
+                    </button>
+
+                    <button 
+                        onClick={() => setActiveTab('roteiro')}
+                        className={`py-3 text-[10px] font-black uppercase tracking-wider transition-colors relative ${
+                            activeTab === 'roteiro' ? 'text-white' : 'text-slate-600 hover:text-slate-400'
+                        }`}
+                    >
+                        <Assignment sx={{ fontSize: 14 }} className={`mb-0.5 ${activeTab === 'roteiro' ? 'text-cyan-400' : ''}`} />
+                        <span className="block">Roteiro</span>
+                        {activeTab === 'roteiro' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-cyan-400 shadow-[0_-2px_8px_rgba(34,211,238,0.5)]"></div>}
+                    </button>
+
+                    <button 
+                        onClick={() => setActiveTab('teoria')}
+                        className={`py-3 text-[10px] font-black uppercase tracking-wider transition-colors relative ${
+                            activeTab === 'teoria' ? 'text-white' : 'text-slate-600 hover:text-slate-400'
+                        }`}
+                    >
+                        <School sx={{ fontSize: 14 }} className={`mb-0.5 ${activeTab === 'teoria' ? 'text-purple-400' : ''}`} />
+                        <span className="block">Teoria</span>
+                        {activeTab === 'teoria' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-purple-400 shadow-[0_-2px_8px_rgba(168,85,247,0.5)]"></div>}
+                    </button>
+                </div>
+
+                {/* 2. ÁREA DE CONTEÚDO */}
+                <div className="p-4 min-h-[120px] bg-slate-900 relative">
+                    
+                    {/* ALERTA DE MÚLTIPLAS QUESTÕES (Aparece em todas as abas se existir) */}
+                    {data.alerta && (
+                        <div className="mb-4 flex items-start gap-2 bg-yellow-500/5 p-2 rounded border border-yellow-500/10">
+                            <WarningAmber className="text-yellow-500 mt-0.5" sx={{fontSize: 14}} />
+                            <p className="text-[10px] text-yellow-200/80 leading-tight">{data.alerta}</p>
+                        </div>
+                    )}
+
+                    {/* --- ABA 1: RÁPIDA (Foco Total) --- */}
+                    {activeTab === 'rapida' && (
+                        <div className="flex flex-col items-center justify-center h-full py-2 animate-fade-in">
+                            <p className="text-[9px] text-slate-500 font-bold uppercase mb-2 tracking-widest">
+                                {isMultipla ? 'Gabarito Sugerido' : 'Resultado Final'}
+                            </p>
+                            
+                            <div className="text-2xl md:text-3xl font-black text-white text-center tracking-tight">
+                                {/* Tenta renderizar LaTeX se detectar cifrão, senão texto puro */}
+                                {data.resposta_final.includes('$') || data.resposta_final.includes('\\') ? (
+                                    <div className="latex-render-huge text-emerald-400">
+                                        <BlockMath>{data.resposta_final.replace(/\$/g, '')}</BlockMath>
+                                    </div>
+                                ) : (
+                                    <span className="text-emerald-400">{data.resposta_final}</span>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* --- ABA 2: ROTEIRO (Passo a Passo Matemático) --- */}
+                    {activeTab === 'roteiro' && (
+                        <div className="space-y-3 animate-fade-in">
+                            {data.memoria_calculo && data.memoria_calculo.length > 0 ? (
+                                data.memoria_calculo.map((step: string, idx: number) => (
+                                    <div key={idx} className="flex items-start gap-3 group">
+                                        <span className="text-[10px] font-mono text-slate-600 mt-2 select-none group-hover:text-cyan-400 transition-colors">
+                                            {(idx + 1).toString().padStart(2, '0')}
+                                        </span>
+                                        <div className="flex-1 bg-slate-950/50 rounded-lg px-3 py-1 border border-slate-800/50 text-sm text-slate-200 overflow-x-auto custom-scrollbar">
+                                            {/* Renderiza o passo. Removemos $ extras para o BlockMath não bugar */}
+                                            <BlockMath>{step.replace(/\$/g, '')}</BlockMath>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-xs text-slate-500 text-center italic py-4">
+                                    Nenhum cálculo intermediário necessário.
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {/* --- ABA 3: TEORIA (Texto Explicativo) --- */}
+                    {activeTab === 'teoria' && (
+                        <div className="animate-fade-in">
+                            <div className="prose prose-invert prose-sm max-w-none">
+                                <p className="text-xs text-slate-300 leading-6 text-justify whitespace-pre-line">
+                                    {data.teoria}
+                                </p>
+                            </div>
+                            <div className="mt-4 pt-3 border-t border-slate-800 text-center">
+                                <p className="text-[9px] text-slate-600 italic">
+                                    Explicação gerada pelo Oráculo v2.0
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
+
+            {/* MODAL DE IMAGEM ORIGINAL (Full Screen) */}
+            {showOriginalImage && (
+                <div 
+                    className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 animate-fade-in"
+                    onClick={() => setShowOriginalImage(false)}
+                >
+                    <img 
+                        src={msg.imagem_original} 
+                        className="max-w-full max-h-full rounded-lg shadow-2xl" 
+                        alt="Original" 
+                    />
+                    <button className="absolute top-4 right-4 text-white p-2 bg-white/10 rounded-full">
+                        <ZoomIn />
+                    </button>
+                </div>
+            )}
         </div>
     );
 }
