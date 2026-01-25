@@ -23,21 +23,15 @@ export default function SolutionBubble({ msg }: SolutionProps) {
     useEffect(() => {
         try {
             let rawData = msg.dados_ia;
-
-            // 1. Limpeza de String Suja
             if (typeof rawData === 'string') {
                 const cleanString = rawData.replace(/[\n\r]/g, " ");
-                try {
-                    rawData = JSON.parse(cleanString);
-                } catch (e) {
-                    // Fallback agressivo para escapes quebrados
-                    rawData = JSON.parse(rawData.replace(/\\n/g, " "));
-                }
+                try { rawData = JSON.parse(cleanString); } 
+                catch (e) { rawData = JSON.parse(rawData.replace(/\\n/g, " ")); }
             }
 
             if (!rawData || typeof rawData !== 'object') throw new Error("Dados vazios.");
 
-            // 2. Normalização
+            // Normalização
             let roteiroFinal = [];
             if (Array.isArray(rawData.roteiro_estruturado)) {
                 roteiroFinal = rawData.roteiro_estruturado;
@@ -55,7 +49,6 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                 alerta: rawData.alerta || null
             });
             setError(null);
-
         } catch (err) {
             console.error("Erro Bubble:", err);
             setError("Erro ao processar.");
@@ -63,10 +56,8 @@ export default function SolutionBubble({ msg }: SolutionProps) {
     }, [msg.dados_ia]);
 
     // --- RENDERIZADORES CORE ---
-
     const SafeBlockMath = ({ children }: { children: string }) => {
         if (!children) return null;
-        // Limpa cifrões e espaços duvidosos
         const cleanMath = children.replace(/\$/g, '').replace(/\\\\ \n/g, '\\\\ ').trim();
         return (
             <BlockMath 
@@ -88,18 +79,14 @@ export default function SolutionBubble({ msg }: SolutionProps) {
         );
     };
 
-    // Parser que mistura Texto + LaTeX Inline
     const renderTextWithMath = (text: string) => {
         if (!text) return null;
-        // Divide por delimitadores \(...\), \[...\], $...$
         const parts = text.split(/(\\\(.*?\\\)|\\\[.*?\\\]|\$.*?\$)/g);
-        
         return parts.map((part, index) => {
             if ((part.startsWith('\\(') && part.endsWith('\\)')) || (part.startsWith('$') && part.endsWith('$'))) {
                 const math = part.replace(/^\\\(|^\\\[|^\$|\\\)$|\\\]$|\$$/g, '');
                 return <span key={index} className="text-purple-400 font-bold px-1"><SafeInlineMath>{math}</SafeInlineMath></span>;
-            } 
-            else if (part.startsWith('\\[') && part.endsWith('\\]')) {
+            } else if (part.startsWith('\\[') && part.endsWith('\\]')) {
                 const math = part.slice(2, -2);
                 return <div key={index} className="my-2 overflow-x-auto"><SafeBlockMath>{math}</SafeBlockMath></div>;
             }
@@ -107,25 +94,23 @@ export default function SolutionBubble({ msg }: SolutionProps) {
         });
     };
 
-    // --- NOVO: RENDERIZADOR INTELIGENTE DE PASSOS ---
-    // Decide se o passo é uma Equação Pura ou Texto Explicativo com Math
+    // --- RENDERIZADOR INTELIGENTE V2 (O Corretor de LaTeX Cru) ---
     const RenderSmartStep = ({ step }: { step: string }) => {
-        // Heurística: Se tiver letras normais (não comandos LaTeX) e espaços, é texto misto.
-        // Se começar com \ ou tiver muitos símbolos, é bloco.
+        // Remove tags HTML/LaTeX para ver se sobra texto humano
+        // Se a string tem "=" ou "\" e NÃO tem muitas palavras, assumimos que é matemática pura
+        // mesmo que falte o delimitador de bloco
         
-        // Remove comandos LaTeX comuns para testar se sobra "texto humano"
-        const textCheck = step.replace(/\\[a-zA-Z]+/g, '').replace(/[^a-zA-ZáàâãéèêíïóôõöúçñÁÀÂÃÉÈÍÏÓÔÕÖÚÇÑ ]/g, '');
-        const looksLikeSentence = textCheck.length > 5 && step.includes(' ');
-
-        if (looksLikeSentence && !step.trim().startsWith('\\')) {
-            // Renderiza como texto explicativo (esquerda)
+        const looksLikeText = step.split(' ').length > 6 && !step.includes('=');
+        
+        // Se parece texto explicativo ("Transformar para coordenadas...")
+        if (looksLikeText) {
             return (
                 <div className="text-sm text-slate-300 leading-relaxed py-1">
                     {renderTextWithMath(step)}
                 </div>
             );
         } else {
-            // Renderiza como bloco matemático (centro)
+            // Assume que é bloco matemático (mesmo "f_x = ...")
             return (
                 <div className="py-2 overflow-x-auto custom-scrollbar">
                     <SafeBlockMath>{step}</SafeBlockMath>
@@ -148,7 +133,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
         return 'text-lg';
     };
 
-    if (error || !data) return null; // Fallback silencioso
+    if (error || !data) return null;
 
     const hasMultipleItems = data.itens_rapidos && data.itens_rapidos.length > 0;
     const finalResult = data.resultado_unico || (hasMultipleItems ? null : "Ver Roteiro");
@@ -162,7 +147,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                     <span className="text-[10px] font-black uppercase bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">
                         Oráculo Solver
                     </span>
-                    <span className="text-[9px] text-slate-600">v3.3</span>
+                    <span className="text-[9px] text-slate-600">v3.4</span>
                 </div>
                 <div className="flex gap-2">
                     <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700">
@@ -238,35 +223,30 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                         </div>
                     )}
 
-                    {/* ABA ROTEIRO (Com Smart Renderer) */}
+                    {/* ABA ROTEIRO (Com RenderSmartStep Melhorado) */}
                     {activeTab === 'roteiro' && (
                         <div className="space-y-6 animate-fade-in">
                             {data.roteiro_estruturado.length > 0 ? (
                                 data.roteiro_estruturado.map((bloco: any, bIdx: number) => (
                                     <div key={bIdx} className="relative">
-                                        {/* Título do Bloco */}
                                         {bloco.titulo && (
                                             <div className="flex items-center gap-2 mb-3 bg-slate-950/50 p-2 rounded-lg border border-slate-800/50">
                                                 <div className="w-2 h-2 rounded-full bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.5)]"></div>
                                                 <h4 className="text-xs font-black text-cyan-400 uppercase tracking-wide">{bloco.titulo}</h4>
                                             </div>
                                         )}
-                                        
-                                        {/* Passos do Bloco */}
                                         <div className="space-y-3 pl-2 border-l-2 border-slate-800/50 ml-1">
                                             {bloco.passos.map((step: string, sIdx: number) => (
                                                 <div key={sIdx} className="flex gap-3 group items-baseline">
-                                                    {/* Contador */}
                                                     <div className="flex flex-col items-center min-w-[20px]">
                                                         <span className="text-[9px] font-mono text-slate-600 select-none group-hover:text-cyan-400 transition-colors">
                                                             {(sIdx + 1).toString().padStart(2, '0')}
                                                         </span>
                                                     </div>
-                                                    
-                                                    {/* Conteúdo Inteligente */}
                                                     <div className="flex-1 min-w-0">
                                                         <div className="bg-slate-950 border border-slate-800 rounded-lg px-3 min-h-[30px] hover:border-cyan-500/20 transition-colors flex items-center">
                                                             <div className="w-full">
+                                                                {/* O CORAÇÃO DA MUDANÇA ESTÁ AQUI */}
                                                                 <RenderSmartStep step={step} />
                                                             </div>
                                                         </div>

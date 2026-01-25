@@ -24,49 +24,48 @@ exports.resolverQuestao = async (req, res) => {
         if ((user.saldo_coins || 0) < custoCoins) return res.status(402).json({ error: "Sem Coins." });
 
         // =================================================================================
-        // 🧠 PROMPT MASTER V6: "BLOCK STRUCTURED SOLVER"
-        // =================================================================================
-        // ... (imports e validações iguais)
-
-        // =================================================================================
-        // 🧠 PROMPT V7: "JSON ESCAPE MASTER"
+        // 🧠 PROMPT V8: "SILENT MATH & ROBUST JSON"
         // =================================================================================
         const promptSystem = `
-            ATUE COMO: Monitor Chefe de Engenharia (UFMG).
-            OBJETIVO: Gabarito estruturado, visual e preciso.
+            ATUE COMO: Gabarito Oficial de Engenharia (UFMG).
+            OBJETIVO: Solução direta, sem enrolação, focada na transcrição para a prova.
 
-            --- REGRAS DE ESCAPE JSON (CRÍTICO!!!) ---
-            1. Você está gerando uma string JSON. TODAS as barras invertidas do LaTeX DEVEM ser escapadas.
-            2. ERRADO: "\\text{...}" ou "\\int"
-            3. CERTO: "\\\\text{...}" e "\\\\int"
-            4. O parser vai falhar se você mandar apenas uma barra. USE DUAS BARRAS.
+            --- REGRAS DE ROTEIRO (CRÍTICO) ---
+            1. O campo 'roteiro_estruturado' deve conter APENAS passos matemáticos/algébricos.
+            2. PROIBIDO texto narrativo ("Calculamos agora...", "Substituindo...", "O Jacobiano é...").
+            3. Use notação matemática direta. 
+               ERRADO: "A derivada de x é 2x"
+               CERTO: "\\\\frac{d}{dx} = 2x"
+            4. Se precisar definir variáveis (ex: Jacobiano), faça como equação: "J = r^2 \\\\sin \\\\phi".
 
-            --- REGRAS VISUAIS DE LATEX ---
-            1. USE '\\\\displaystyle' (com duas barras) para frações/integrais.
-            2. USE '\\\\boxed{}' para resultados.
-            3. Para quebra de linha em equações longas, use "\\\\\\\\" (quatro barras para virar duas no string).
+            --- REGRAS DE ESCAPE JSON ---
+            1. ESCAPE TODAS AS BARRAS: Use "\\\\" para cada barra invertida do LaTeX.
 
             --- ESTRUTURA JSON ---
             {
                 "sucesso": true,
-                "topico": "Cálculo",
+                "topico": "Cálculo III",
                 "dificuldade": "Difícil",
                 
-                "resultado_unico": "LaTeX (ex: 2\\\\text{e}) ou null",
+                "resultado_unico": "LaTeX da resposta final (ou null)",
                 "itens_rapidos": [ { "label": "a)", "valor": "LaTeX" } ],
 
                 "roteiro_estruturado": [
                     {
-                        "titulo": "Item a)", 
+                        "titulo": "Item a) (ou null)", 
                         "passos": [
-                            "I = \\\\displaystyle \\\\int x dx",
-                            "\\\\boxed{I = x^2/2}"
+                            // APENAS EQUAÇÕES. SEM FRASES.
+                            "\\\\rho^2 = x^2 + y^2",
+                            "I = \\\\displaystyle \\\\int_{0}^{1} ...",
+                            "\\\\boxed{2\\\\text{e}}"
                         ]
                     }
                 ],
 
-                "teoria": "Explicação com math inline (\\\\( ... \\\\))",
-                "alerta": "Aviso ou null"
+                // AQUI VOCÊ PODE FALAR À VONTADE:
+                "teoria": "Explique o método, o jacobiano, os limites e a lógica aqui. Use math inline \\\\( ... \\\\).",
+                
+                "alerta": "Aviso curto ou null"
             }
         `;
 
@@ -75,7 +74,7 @@ exports.resolverQuestao = async (req, res) => {
             messages: [
                 { role: "system", content: promptSystem },
                 { role: "user", content: [
-                    { type: "text", text: "Resolva. Lembre-se de escapar as barras (\\\\)." },
+                    { type: "text", text: "Resolva. Roteiro deve ser MUDO (só contas). Teoria completa na aba teoria." },
                     { type: "image_url", image_url: { url: imagem_url } }
                 ]}
             ],
@@ -84,9 +83,7 @@ exports.resolverQuestao = async (req, res) => {
             max_tokens: 2500 
         });
 
-// ... (resto do código igual)
-
-        console.log("🤖 Resposta AI V6:", response.choices[0].message.content); 
+        console.log("🤖 Resposta AI V8:", response.choices[0].message.content); 
 
         let resultadoAI;
         try {
