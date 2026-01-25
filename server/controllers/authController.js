@@ -166,3 +166,33 @@ exports.login = async (req, res) => {
         res.status(500).json({ error: "Erro interno no servidor" });
     }
 };
+
+// ... (código do login que já existe) ...
+
+// ADICIONE ISTO NO FINAL DO ARQUIVO:
+exports.uploadComprovante = async (req, res) => {
+    try {
+        const { email } = req.body;
+        
+        if (!req.file) {
+            return res.status(400).json({ error: "Nenhum arquivo enviado." });
+        }
+
+        const url = req.file.path; 
+
+        await UsuarioModel.findOneAndUpdate(
+            { email },
+            { 
+                comprovante_url: url,
+                status: 'pendente',
+                validado: false
+            }
+        );
+
+        res.json({ success: true, url: url });
+
+    } catch (e) {
+        console.error("Erro Upload:", e);
+        res.status(500).json({ error: "Erro upload" });
+    }
+};
