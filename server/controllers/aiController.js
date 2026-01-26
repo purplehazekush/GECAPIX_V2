@@ -170,35 +170,6 @@ exports.resolverQuestao = async (req, res) => {
             ],
         });
 
-        // O Claude devolve o JSON sem a primeira chave '{', então colamos de volta
-        const rawResponse = "{" + msg.content[0].text;
-
-        console.log("🤖 Resposta Claude RAW (Primeiros 1900 chars):", rawResponse.substring(0, 1900));
-
-        // --- PARSE E TRATAMENTO DE ERROS ---
-        let resultadoAI;
-        try {
-            resultadoAI = JSON.parse(rawResponse);
-        } catch (e) {
-            console.error("Erro Parse JSON Claude:", e);
-            // Tentativa de limpeza se ele mandou Markdown mesmo com prefill
-            const clean = rawResponse.replace(/```json/g, '').replace(/```/g, '');
-            try {
-                resultadoAI = JSON.parse(clean);
-            } catch (e2) {
-                // Se falhar, retornamos um JSON de erro estruturado para o frontend exibir bonito
-                resultadoAI = {
-                    sucesso: false,
-                    topico: "Erro de Leitura",
-                    dificuldade: "N/A",
-                    resultado_unico: "\\text{Erro}",
-                    roteiro_estruturado: [],
-                    teoria: "O Oráculo não conseguiu processar o formato da resposta. Tente novamente.",
-                    alerta: "Erro de Parse JSON"
-                };
-            }
-        }
-
         // =================================================================================
         // 💾 PERSISTÊNCIA E COBRANÇA
         // =================================================================================
