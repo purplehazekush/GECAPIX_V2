@@ -27,6 +27,7 @@ const SystemState = require('./models/SystemState'); // <--- Importe
 const storeController = require('./controllers/storeController');
 const bankController = require('./controllers/bankController');
 const exchangeController = require('./controllers/exchangeController')
+const { authMiddleware } = require('./middlewares/authMiddleware');
 
 const app = express();
 
@@ -119,7 +120,7 @@ app.get('/api/tokenomics/ledger', statsController.getGlobalTransactions);
 
 // 1. AUTH
 app.post('/api/auth/login', authLimiter, authController.login);
-app.get('/api/auth/me', authController.getMe);
+app.get('/api/auth/me', authMiddleware, authController.getMe);
 
 // 2. PIX & VENDAS
 app.get('/api/pix', pixController.getFeed);
@@ -161,13 +162,13 @@ app.post('/api/admin/recursos', adminController.darRecursos);
 app.post('/api/admin/reset', adminController.resetSeason);
 // ROTA DE DEBUG (Apagar em produção)
 
-app.get('/api/exchange/quote', exchangeController.getQuote);
-app.get('/api/exchange/chart', exchangeController.getChartData);
+app.get('/api/exchange/quote', authMiddleware, exchangeController.getQuote);
+app.get('/api/exchange/chart', authMiddleware, exchangeController.getChartData);
 
 
 // 2. Aplique ele na rota de trade
-app.post('/api/exchange/trade', authSimples, exchangeController.executeTrade);
-app.get('/api/exchange/stats', exchangeController.getAdminStats); 
+app.post('/api/exchange/trade', authMiddleware, exchangeController.executeTrade);
+app.get('/api/exchange/stats', authMiddleware, exchangeController.getAdminStats); 
 
 // As de admin podem continuar aqui
 app.get('/api/exchange/admin', exchangeController.getAdminStats);

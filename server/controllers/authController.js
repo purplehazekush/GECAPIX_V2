@@ -197,7 +197,8 @@ exports.uploadComprovante = async (req, res) => {
 
 exports.getMe = async (req, res) => {
     try {
-        const usuario = await Usuario.findById(req.user._id);
+        // req.user._id já vem do middleware após descriptografar o token
+        const usuario = await UsuarioModel.findById(req.user._id);
         res.json(usuario);
     } catch (error) {
         res.status(500).json({ error: "Erro ao buscar perfil" });

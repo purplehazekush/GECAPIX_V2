@@ -61,6 +61,7 @@ interface AuthContextType {
   loading: boolean;
   signInGoogle: () => Promise<void>;
   logout: () => Promise<void>;
+  reloadUser: () => Promise<void>; // 🔥 ADICIONADO
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -69,6 +70,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [dbUser, setDbUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // 🔥 NOVA FUNÇÃO: Recarrega os dados do banco sem precisar relogar
+  const reloadUser = async () => {
+    if (!user) return;
+    try {
+      const res = await api.get('/auth/me');
+      setDbUser(res.data);
+    } catch (error) {
+      console.error("AuthContext: Erro ao recarregar dados:", error);
+    }
+  };
 
   const syncWithBackend = async (firebaseUser: FirebaseUser) => {
       try {
@@ -139,7 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, dbUser, setDbUser, loading, signInGoogle, logout }}>
+    <AuthContext.Provider value={{ user, dbUser, setDbUser, loading, signInGoogle, logout, reloadUser }}>
       {children}
     </AuthContext.Provider>
   );
