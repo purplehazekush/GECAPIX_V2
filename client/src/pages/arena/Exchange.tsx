@@ -18,13 +18,16 @@ export default function ArenaExchange() {
     const [quote, setQuote] = useState<any>(null); // Armazena a cotação (Total a pagar/receber)
     const [loading, setLoading] = useState(false);
 
+    const [timeframe, setTimeframe] = useState('1'); // Padrão 1 minuto
+
     // Linhas do Gráfico
     const [chartLines, setChartLines] = useState<any[]>([]);
 
     const fetchData = async () => {
         try {
             // 1. Chart Data
-            const chartRes = await api.get('/exchange/chart');
+            const chartRes = await api.get(`/exchange/chart?tf=${timeframe}`);
+            setHistory(chartRes.data);
             const formattedHistory = chartRes.data.map((t: any) => ({ ...t, price: t.close }));
             setHistory(formattedHistory);
 
@@ -126,6 +129,21 @@ export default function ArenaExchange() {
                     <div className="text-[10px] text-cyan-400 font-mono mb-1">SUPPLY: {marketParams.supply} GLUE</div>
                     <div className="text-[10px] text-slate-500 font-mono">VOL: {history.length} TRADES</div>
                 </div>
+            </div>
+
+            <div className="flex gap-2 mb-2">
+                {['1', '5', '15', '60'].map((tf) => (
+                    <button
+                        key={tf}
+                        onClick={() => setTimeframe(tf)}
+                        className={`px-3 py-1 rounded-md text-[10px] font-mono transition-all ${timeframe === tf
+                                ? 'bg-cyan-500 text-black font-bold'
+                                : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                            }`}
+                    >
+                        {tf === '60' ? '1H' : `${tf}M`}
+                    </button>
+                ))}
             </div>
 
             {/* 2. Gráfico com Linhas de Bid/Ask */}

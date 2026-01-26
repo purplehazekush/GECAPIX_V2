@@ -11,7 +11,7 @@ async function runBot() {
     console.log(`📡 Alvo: ${API_URL}`);
 
     setInterval(async () => {
-        const isBuying = Math.random() > 0.4; // 60% chance de compra
+        const isBuying = Math.random() > 0.51; // 5% chance de compra
         const amount = Math.floor(Math.random() * 3) + 1; // 1 a 10 tokens
 
         try {

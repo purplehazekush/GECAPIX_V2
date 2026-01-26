@@ -164,24 +164,52 @@ exports.executeTrade = async (req, res) => {
     }
 };
 
+// server/controllers/exchangeController.js
+
 exports.getChartData = async (req, res) => {
     try {
-        const trades = await Trade.find().sort({ timestamp: 1 }); // Ordem cronológica para o gráfico
-        
-        // Lightweight Charts precisa de: { time: 'yyyy-mm-dd', open, high, low, close }
-        // Se for intraday (segundos), time deve ser UNIX Timestamp (segundos)
-        
-        const candles = trades.map(t => ({
-            time: Math.floor(new Date(t.timestamp).getTime() / 1000), // Unix Timestamp
-            open: t.price_start,
-            high: t.price_high,
-            low: t.price_low,
-            close: t.price_end
-        }));
+        const { tf } = req.query; // ex: 1, 5, 15 (em minutos)
+        const interval = parseInt(tf) || 1; 
+        const intervalMs = interval * 60 * 1000;
+
+        const trades = await Trade.find().sort({ timestamp: 1 });
+
+        if (trades.length === 0) return res.json([]);
+
+        const candles = [];
+        let currentCandle = null;
+
+        trades.forEach(trade => {
+            // Arredonda o tempo para o início do balde (bucket)
+            const tradeTime = new Date(trade.timestamp).getTime();
+            const bucketTime = Math.floor(tradeTime / intervalMs) * intervalMs;
+            const bucketSeconds = Math.floor(bucketTime / 1000);
+
+            if (!currentCandle || currentCandle.time !== bucketSeconds) {
+                // Inicia uma nova vela
+                if (currentCandle) candles.push(currentCandle);
+
+                currentCandle = {
+                    time: bucketSeconds,
+                    open: trade.price_start,
+                    high: trade.price_high,
+                    low: trade.price_low,
+                    close: trade.price_end
+                };
+            } else {
+                // Atualiza a vela existente no mesmo balde de tempo
+                currentCandle.high = Math.max(currentCandle.high, trade.price_high);
+                currentCandle.low = Math.min(currentCandle.low, trade.price_low);
+                currentCandle.close = trade.price_end; // O fechamento é sempre o do último trade
+            }
+        });
+
+        // Adiciona a última vela que ficou no loop
+        if (currentCandle) candles.push(currentCandle);
 
         res.json(candles);
     } catch (error) {
-        res.status(500).json({ error: "Erro Chart" });
+        res.status(500).json({ error: "Erro ao processar candles" });
     }
 };
 
