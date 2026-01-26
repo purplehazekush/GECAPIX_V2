@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
+import { TradingChart } from '../../components/arena/TradingChart'; // Importe o novo componente
 
 export default function ArenaExchange() {
     const { dbUser } = useAuth();
@@ -19,7 +19,7 @@ export default function ArenaExchange() {
             // Mapeamos para garantir que o Recharts entenda o preço de fechamento (close)
             const formattedHistory = chartRes.data.map((t: any) => ({
                 ...t,
-                price: t.close 
+                price: t.close
             }));
             setHistory(formattedHistory);
 
@@ -31,7 +31,7 @@ export default function ArenaExchange() {
             const currentPrice = basePrice * Math.pow(multiplier, circulatingSupply);
 
             setStats({ price: currentPrice, supply: circulatingSupply });
-            
+
             // Atualiza o saldo local com o que está no dbUser do contexto
             if (dbUser) setLocalSaldo(dbUser.saldo_coins);
 
@@ -50,7 +50,7 @@ export default function ArenaExchange() {
 
             toast.success(type === 'buy' ? "Compra executada! 📈" : "Venda executada! 📉");
             setAmount('');
-            
+
             // Pequeno delay para o banco processar e a gente atualizar a tela
             setTimeout(fetchData, 500);
         } catch (err: any) {
@@ -80,24 +80,14 @@ export default function ArenaExchange() {
             </div>
 
             {/* GRÁFICO */}
-            <div className="h-56 w-full bg-slate-900/50 border border-slate-800 rounded-2xl p-2">
-                <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={history}>
-                        <defs>
-                            <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="#22d3ee" stopOpacity={0} />
-                            </linearGradient>
-                        </defs>
-                        <XAxis dataKey="time" hide />
-                        <YAxis domain={['auto', 'auto']} hide />
-                        <Tooltip
-                            contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px' }}
-                            itemStyle={{ color: '#22d3ee' }}
-                        />
-                        <Area type="monotone" dataKey="price" stroke="#22d3ee" fillOpacity={1} fill="url(#colorPrice)" strokeWidth={3} />
-                    </AreaChart>
-                </ResponsiveContainer>
+            <div className="bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden shadow-inner">
+                {history.length > 0 ? (
+                    <TradingChart data={history} />
+                ) : (
+                    <div className="h-[300px] flex items-center justify-center text-slate-500 font-mono text-xs">
+                        AGUARDANDO PRIMEIRA NEGOCIAÇÃO...
+                    </div>
+                )}
             </div>
 
             {/* PAINEL DE AÇÃO */}
