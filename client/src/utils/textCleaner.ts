@@ -1,81 +1,96 @@
 // client/src/utils/textCleaner.ts
 
 /**
- * Remove o wrapper \boxed{...} ou \boxed{\text{...}} para que o Frontend
- * possa renderizar o rótulo com o estilo roxo nativo.
- */
-export const unwrapBoxedLabels = (text: string): string => {
-    if (!text) return text;
-
-    // 1. Remove \boxed{\text{CONTEUDO}}
-    // Captura o que está dentro do text{...} ignorando espaços
-    let match = text.match(/^\\boxed\s*\{\s*\\text\s*\{\s*(.*?)\s*\}\s*\}$/);
-    if (match && match[1]) return match[1];
-
-    // 2. Remove \boxed{CONTEUDO} simples
-    match = text.match(/^\\boxed\s*\{\s*(.*?)\s*\}$/);
-    if (match && match[1]) return match[1];
-
-    return text;
-};
-
-/**
- * Corrige acentuação arcaica e limpa comandos de texto desnecessários
- * para evitar erros de renderização como "maçã}".
+ * Corrige acentuação arcaica e comandos LaTeX quebrados.
  */
 export const fixLatexAccents = (text: string): string => {
-    if (!text) return text;
-
     let clean = text
-        // 1. Converte acentos LaTeX antigos para Unicode
-        .replace(/\\c\{c\}/gi, 'ç')
-        .replace(/\\['`^~]\{([a-zA-Z])\}/g, (_m, accent, char) => {
-            const map: any = { "'": '\u0301', "`": '\u0300', "^": '\u0302', "~": '\u0303' };
-            return char + (map[accent] || '');
-        })
-        // Fallback para formatos como \~a ou \'e
-        .replace(/\\([~^'`])([a-zA-Z])/g, (_m, accent, char) => {
-             const map: any = { "'": '\u0301', "`": '\u0300', "^": '\u0302', "~": '\u0303' };
-             return char + (map[accent] || '');
-        })
-        // Remove espaços vazios em chaves
-        .replace(/\{\s+\}/g, '');
+        // 1. Correção de Acentos (Legado)
+        .replace(/\\c\{c\}/g, 'ç')
+        .replace(/\\C\{C\}/g, 'Ç')
+        .replace(/\\\^\{([aeiou])\}/g, '$1\u0302')
+        .replace(/\\'\{([aeiou])\}/g, '$1\u0301')
+        .replace(/\\`\{([aeiou])\}/g, '$1\u0300')
+        .replace(/\\~\{([aeioun])\}/g, '$1\u0303')
+        
+        // 2. Ressurreição de Comandos (boxed{...} -> \boxed{...})
+        // O regex olha se NÃO tem barra invertida antes de 'boxed' ou 'text'
+        .replace(/(^|[^\\])boxed\{/g, '$1\\boxed{')
+        .replace(/(^|[^\\])text\{/g, '$1\\text{')
+        
+        // 3. Limpeza de espaços extras dentro de chaves vazias
+        .replace(/\{\s+\}/g, '{}');
 
-    // 2. Remove sobras de comandos \text{} mal fechados
-    // Ex: "maçã} \rightarrow" vira "maçã \rightarrow"
-    // Removemos chaves de fechamento que não têm par (heurística simples)
-    if (clean.includes('}') && !clean.includes('{')) {
-        clean = clean.replace(/\}/g, '');
-    }
+    // 4. Se for um bloco de Resposta encapsulado, desembrulha para o UI nativo
+    clean = unwrapBoxedLabels(clean);
 
     return clean;
 };
 
 /**
- * Detecta se o conteúdo é predominantemente Texto ou Matemática.
+ * Remove caixas LaTeX desnecessárias em rótulos para que o Frontend
+ * possa estilizar com a barra roxa.
+ * Ex: "\boxed{\text{Resposta: Letra A}}" vira "Resposta: Letra A"
+ */
+const unwrapBoxedLabels = (text: string): string => {
+    // Regex procura por \boxed{\text{Rótulo: ...}}
+    // Captura o conteúdo de dentro ignorando a caixa
+    const pattern = /\\boxed\{\s*\\text\{\s*(.+?:.*?)\s*\}\s*\}/;
+    const match = text.match(pattern);
+
+    if (match) {
+        return match[1]; // Retorna apenas "Resposta: Letra A"
+    }
+
+    // Tenta também sem o \text interno: \boxed{Resposta: A}
+    const patternSimple = /\\boxed\{\s*(.+?:.*?)\s*\}/;
+    const matchSimple = text.match(patternSimple);
+    
+    if (matchSimple) {
+        return matchSimple[1];
+    }
+
+    return text;
+};
+
+/**
+ * Decide se uma string deve ser renderizada como Bloco Matemático ou Texto Puro.
  */
 export const detectContentType = (content: string): 'MATH' | 'TEXT' | 'MIXED' => {
     const clean = content.trim();
     
-    // Se começar com comandos fortes de Math Block
-    if (clean.startsWith('\\begin') || clean.startsWith('\\[')) return 'MATH';
-
-    // Comandos matemáticos inconfundíveis
-    const hasMathCmd = /\\[a-zA-Z]+/.test(clean) && !clean.includes('\\text');
-    const hasMathSymbol = /[=∫∑∂√]/.test(clean);
+    // Sinais fortes de matemática
+    const hasMathSymbols = /[=\\∫∑∂√]/.test(clean);
     
-    // Sinais de texto
+    // Sinais fortes de texto
     const hasSpaces = clean.includes(' ');
     const hasAccents = /[áéíóúãõçÁÉÍÓÚÃÕÇ]/.test(clean);
     
-    // Se tem acentos, quase certeza que é texto ou misto
-    if (hasAccents) return 'TEXT';
+    // CASO 1: Texto explicativo ("Analisando cada alternativa:")
+    if (hasAccents || (hasSpaces && !hasMathSymbols && !clean.startsWith('\\'))) {
+        return 'TEXT';
+    }
 
-    // Se tem espaços e não tem comandos math complexos, é texto
-    if (hasSpaces && !hasMathCmd && !hasMathSymbol) return 'TEXT';
+    // CASO 2: Texto misturado ("A integral é \( \int x dx \)")
+    if (hasSpaces && (clean.includes('\\(') || clean.includes('$'))) {
+        return 'MIXED';
+    }
 
-    // Se tem espaços e math, é misto
-    if (hasSpaces && (hasMathCmd || hasMathSymbol)) return 'MIXED';
-
+    // CASO 3: Matemática Pura
     return 'MATH';
+};
+
+/**
+ * Remove comandos LaTeX que quebram o fluxo de texto simples.
+ */
+export const cleanLatexCommands = (text: string): string => {
+    let cleaned = text.replace(/\\text\{([^{}]+)\}/g, '$1');
+    if ((cleaned.startsWith('$') && cleaned.endsWith('$')) || 
+        (cleaned.startsWith('\\(') && cleaned.endsWith('\\)'))) {
+        if (cleaned.length > 20 && cleaned.includes(' ')) {
+            cleaned = cleaned.substring(2, cleaned.length - 2); 
+            cleaned = cleaned.replace(/^\$|\$$/g, ''); 
+        }
+    }
+    return cleaned;
 };
