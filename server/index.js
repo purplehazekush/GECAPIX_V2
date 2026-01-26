@@ -13,7 +13,7 @@ const admin = require('firebase-admin');
 const serviceAccount = require('./config/firebase-admin.json');
 
 // --- CONTROLLERS ---
-const authController = require('./controllers/authController'); 
+const authController = require('./controllers/authController');
 const pixController = require('./controllers/pixController');
 const arenaController = require('./controllers/arenaController');
 const memeController = require('./controllers/memeController');
@@ -40,9 +40,24 @@ if (!admin.apps.length) {
     });
     console.log("🔥 Firebase Admin inicializado com sucesso!");
 }
+// --- SOCKET.IO SETUP (SUBSTITUI O app.listen) ---
+const http = require('http');
+const { Server } = require('socket.io');
+const gameController = require('./controllers/gameController'); // Vamos criar já já
+
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: ["http://localhost:5173", "https://gecapix-v2.vercel.app", "http://72.62.87.8"],
+        methods: ["GET", "POST"]
+    }
+});
+
 
 // 1. Configurações Básicas
 app.set('trust proxy', 1);
+
+
 app.set('io', io); // Agora o controller consegue dar io.emit
 
 app.use(helmet());
@@ -66,7 +81,7 @@ app.use(express.json({ limit: '10kb' }));
 app.use((req, res, next) => {
     const clean = (obj) => {
         if (!obj || typeof obj !== 'object') return;
-        
+
         for (let key in obj) {
             const value = obj[key];
 
@@ -80,7 +95,7 @@ app.use((req, res, next) => {
             // Proteção XSS Simples em Strings
             if (typeof value === 'string') {
                 if (value.includes('<') && value.includes('>')) {
-                    obj[key] = value.replace(/</g, '').replace(/>/g, ''); 
+                    obj[key] = value.replace(/</g, '').replace(/>/g, '');
                 }
             } else {
                 clean(value); // Recursivo
@@ -114,12 +129,12 @@ app.use((req, res, next) => {
 // 1. Crie esse mini-middleware no seu index.js antes das rotas
 const authSimples = async (req, res, next) => {
     // Pegamos o email que o axios vai enviar
-    const email = req.headers['x-user-email']; 
+    const email = req.headers['x-user-email'];
     if (!email) return res.status(401).json({ error: "Identifique-se primeiro!" });
-    
+
     const user = await UsuarioModel.findOne({ email });
     if (!user) return res.status(404).json({ error: "Usuário não existe" });
-    
+
     req.user = user; // Agora o controller sabe quem você é!
     next();
 };
@@ -159,7 +174,7 @@ app.post('/api/arena/spotted/comentar', spottedController.comentarSpotted);
 
 // 🔥 ROTA FALTANTE ADICIONADA AQUI 🔥
 // Certifique-se que no arenaController existe a função 'transferirCoins' (ou o nome que você deu)
-app.post('/api/arena/transferir', arenaController.transferirCoins); 
+app.post('/api/arena/transferir', arenaController.transferirCoins);
 
 app.post('/api/arena/ai/solve', aiController.resolverQuestao);
 
@@ -180,7 +195,7 @@ app.get('/api/exchange/chart', authMiddleware, exchangeController.getChartData);
 
 // 2. Aplique ele na rota de trade
 app.post('/api/exchange/trade', authMiddleware, exchangeController.executeTrade);
-app.get('/api/exchange/stats', authMiddleware, exchangeController.getAdminStats); 
+app.get('/api/exchange/stats', authMiddleware, exchangeController.getAdminStats);
 
 // As de admin podem continuar aqui
 app.get('/api/exchange/admin', exchangeController.getAdminStats);
@@ -191,13 +206,15 @@ app.post('/api/exchange/admin/toggle', exchangeController.toggleMarket);
 // Rotas Legado/Simples
 const UsuarioModel = require('./models/Usuario');
 app.get('/api/admin/usuarios', async (req, res) => {
-    try { const u = await UsuarioModel.find().sort({ nome: 1 }); res.json(u); } 
+    try { const u = await UsuarioModel.find().sort({ nome: 1 }); res.json(u); }
     catch (e) { res.status(500).json({ error: "Erro" }); }
 });
 app.put('/api/admin/usuarios', async (req, res) => {
-    try { const { email, novoStatus, novoRole } = req.body; 
-          const u = await UsuarioModel.findOneAndUpdate({ email }, { status: novoStatus, role: novoRole }, { new: true });
-          res.json({ success: true, user: u }); } 
+    try {
+        const { email, novoStatus, novoRole } = req.body;
+        const u = await UsuarioModel.findOneAndUpdate({ email }, { status: novoStatus, role: novoRole }, { new: true });
+        res.json({ success: true, user: u });
+    }
     catch (e) { res.status(500).json({ error: "Erro" }); }
 });
 
@@ -224,24 +241,13 @@ app.post('/api/store/p2p/cancelar', storeController.cancelarOfertaP2P);
 cron.schedule('0 21 * * *', () => { // Todo dia às 21h
     console.log('⏰ Rotina das 21h...');
     memeController.finalizarDiaArena();
-    statsController.snapshotEconomy(); 
+    statsController.snapshotEconomy();
     DailyTreasury.runDailyClosing(); // <--- O MOTOR ECONÔMICO RODA AQUI
 }, { timezone: "America/Sao_Paulo" });
 
 
 
-// --- SOCKET.IO SETUP (SUBSTITUI O app.listen) ---
-const http = require('http');
-const { Server } = require('socket.io');
-const gameController = require('./controllers/gameController'); // Vamos criar já já
 
-const server = http.createServer(app);
-const io = new Server(server, {
-    cors: {
-        origin: ["http://localhost:5173", "https://gecapix-v2.vercel.app", "http://72.62.87.8"],
-        methods: ["GET", "POST"]
-    }
-});
 
 // Lógica do Socket (Gerenciador de Salas)
 io.on('connection', (socket) => {
@@ -249,9 +255,9 @@ io.on('connection', (socket) => {
 
     // --- NOVOS EVENTOS DO LOBBY ---
     socket.on('get_rooms', () => gameController.getRooms(io, socket));
-    
+
     socket.on('create_room', (data) => gameController.createRoom(io, socket, data));
-    
+
     socket.on('join_specific_room', (data) => gameController.joinSpecificRoom(io, socket, data));
 
     // Mantidos (mas join_game agora é legado, o front novo não usa)
