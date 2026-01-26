@@ -13,7 +13,7 @@ export default function AdminBankPanel() {
 
   const fetchStats = async () => {
     try {
-      const res = await api.get('/api/exchange/admin');
+      const res = await api.get('/exchange/admin');
       setStats(res.data);
       setNewBase(res.data.basePrice);
       setNewMult(res.data.multiplier);
@@ -31,7 +31,7 @@ export default function AdminBankPanel() {
     
     setLoading(true);
     try {
-      await api.post('/api/exchange/admin', {
+      await api.post('/exchange/admin', {
         base: parseFloat(newBase),
         multiplier: parseFloat(newMult)
       });
@@ -46,7 +46,7 @@ export default function AdminBankPanel() {
 
   const handleToggleMarket = async () => {
     try {
-      const res = await api.post('/api/exchange/admin/toggle');
+      const res = await api.post('/exchange/admin/toggle');
       setStats({ ...stats, marketOpen: res.data.marketOpen });
       toast.success(res.data.marketOpen ? "Mercado ABERTO" : "Mercado FECHADO (Circuit Breaker)");
     } catch (error) {
