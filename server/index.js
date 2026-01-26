@@ -86,6 +86,8 @@ mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log("--> 🍃 MongoDB Conectado!"))
     .catch(err => { console.error("--> ❌ Erro Mongo:", err); process.exit(1); });
 
+console.log("⏳ Aguardando resposta do servidor...");
+
 // ======================================================
 //                      ROTAS DA API
 // ======================================================
@@ -146,8 +148,8 @@ app.post('/api/debug/fechar-mercado', memeController.finalizarDiaArena);
 
 app.get('/api/exchange/quote', exchangeController.getQuote);
 app.get('/api/exchange/chart', exchangeController.getChartData);
-app.post('/api/exchange/trade', authMiddleware, exchangeController.executeTrade); // Precisa do middleware de auth
-app.post('/api/exchange/admin', authMiddleware, exchangeController.adminUpdateParams); // Adicionar verificação de admin
+app.post('/api/exchange/trade', exchangeController.executeTrade); // Precisa do middleware de auth
+app.post('/api/exchange/admin', exchangeController.adminUpdateParams); // Adicionar verificação de admin
 
 // Rotas ADMIN do Banco Central (Protegidas)
 // Importante: Adicione middleware de auth/admin na vida real. Por enquanto, via código.

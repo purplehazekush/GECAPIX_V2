@@ -1,3 +1,4 @@
+// client/src/components/arena/bank/AdminBankPanel.tsx
 import { useState, useEffect } from 'react';
 import { api } from '../../../lib/api';
 import toast from 'react-hot-toast';
