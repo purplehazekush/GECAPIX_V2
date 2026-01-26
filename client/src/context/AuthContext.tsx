@@ -1,5 +1,5 @@
 // client/src/context/AuthContext.tsx
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import { 
   GoogleAuthProvider, 
   signInWithPopup, 
@@ -72,15 +72,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   // 🔥 NOVA FUNÇÃO: Recarrega os dados do banco sem precisar relogar
-  const reloadUser = async () => {
-    if (!user) return;
+  const reloadUser = useCallback(async () => {
+    if (!user) return; // 'user' do firebase
     try {
       const res = await api.get('/auth/me');
-      setDbUser(res.data);
+      // Só atualiza se houver mudança real (opcional, mas boa prática)
+      setDbUser(prev => JSON.stringify(prev) !== JSON.stringify(res.data) ? res.data : prev);
     } catch (error) {
       console.error("AuthContext: Erro ao recarregar dados:", error);
     }
-  };
+  }, [user]); // Só recria se o usuário do Firebase mudar
 
   const syncWithBackend = async (firebaseUser: FirebaseUser) => {
       try {

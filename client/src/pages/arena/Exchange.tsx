@@ -14,7 +14,7 @@ import { TradePanel } from '../../components/arena/exchange/TradePanel';
 const SOCKET_URL = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'http://72.62.87.8:3001';
 
 export default function ArenaExchange() {
-    const { dbUser, reloadUser } = useAuth();
+    const { dbUser } = useAuth();
     
     // Estados Globais
     const [history, setHistory] = useState([]);
@@ -52,9 +52,8 @@ export default function ArenaExchange() {
                 { price: currentPrice * Math.pow(multiplier, -amountNum), color: '#f87171', title: `BID (-${amountNum})` }
             ]);
 
-            reloadUser?.();
         } catch (e) { console.error("Sync Error:", e); }
-    }, [amount, timeframe, reloadUser]);
+    }, [amount, timeframe]);
 
     // --- EFEITOS (SOCKETS & POLLING) ---
     const fetchDataRef = useRef(fetchData);
