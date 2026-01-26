@@ -1,50 +1,56 @@
 // client/src/utils/textCleaner.ts
 
 /**
- * Corrige acentuação arcaica do LaTeX para Unicode nativo.
- * Ex: 'ma\c{c}\~{a}' -> 'maçã'
+ * Corrige acentuação arcaica e comandos LaTeX quebrados.
  */
 export const fixLatexAccents = (text: string): string => {
-    return text
-        .replace(/\\c\{c\}/g, 'ç')      // \c{c} -> ç
-        .replace(/\\C\{C\}/g, 'Ç')      // \C{C} -> Ç
-        .replace(/\\\^\{([aeiou])\}/g, '$1\u0302') // \^{a} -> â (combinação)
-        .replace(/\\'\{([aeiou])\}/g, '$1\u0301')  // \'{a} -> á
-        .replace(/\\`\{([aeiou])\}/g, '$1\u0300')  // \`{a} -> à
-        .replace(/\\~\{([aeioun])\}/g, '$1\u0303') // \~{a} -> ã
-        .replace(/\\(["'`^~])\{([a-zA-Z])\}/g, (_match, accent, char) => {
-            // Fallback genérico para acentos
-            const map: Record<string, string> = {
-                "'": '\u0301', // agudo
-                "`": '\u0300', // grave
-                "^": '\u0302', // circunflexo
-                "~": '\u0303', // til
-                '"': '\u0308', // trema
-            };
-            return char + (map[accent] || '');
-        })
-        // Remove comandos de texto desnecessários se estiverem no início/fim de linha
-        .replace(/^\\text\{(.+?)\}$/, '$1'); 
+    let clean = text
+        // 1. Correção de Acentos (Legado)
+        .replace(/\\c\{c\}/g, 'ç')
+        .replace(/\\C\{C\}/g, 'Ç')
+        .replace(/\\\^\{([aeiou])\}/g, '$1\u0302')
+        .replace(/\\'\{([aeiou])\}/g, '$1\u0301')
+        .replace(/\\`\{([aeiou])\}/g, '$1\u0300')
+        .replace(/\\~\{([aeioun])\}/g, '$1\u0303')
+        
+        // 2. Ressurreição de Comandos (boxed{...} -> \boxed{...})
+        // O regex olha se NÃO tem barra invertida antes de 'boxed' ou 'text'
+        .replace(/(^|[^\\])boxed\{/g, '$1\\boxed{')
+        .replace(/(^|[^\\])text\{/g, '$1\\text{')
+        
+        // 3. Limpeza de espaços extras dentro de chaves vazias
+        .replace(/\{\s+\}/g, '{}');
+
+    // 4. Se for um bloco de Resposta encapsulado, desembrulha para o UI nativo
+    clean = unwrapBoxedLabels(clean);
+
+    return clean;
 };
 
 /**
- * Remove comandos LaTeX que quebram o fluxo de texto simples.
+ * Remove caixas LaTeX desnecessárias em rótulos para que o Frontend
+ * possa estilizar com a barra roxa.
+ * Ex: "\boxed{\text{Resposta: Letra A}}" vira "Resposta: Letra A"
  */
-export const cleanLatexCommands = (text: string): string => {
-    // Remove \text{...} mas mantém o conteúdo
-    let cleaned = text.replace(/\\text\{([^{}]+)\}/g, '$1');
-    
-    // Remove delimitadores de math mode se estiverem cercando o texto todo incorretamente
-    if ((cleaned.startsWith('$') && cleaned.endsWith('$')) || 
-        (cleaned.startsWith('\\(') && cleaned.endsWith('\\)'))) {
-        // Verifica se é uma frase longa (provavelmente texto errado em math mode)
-        if (cleaned.length > 20 && cleaned.includes(' ')) {
-            cleaned = cleaned.substring(2, cleaned.length - 2); // Remove \( e \)
-            cleaned = cleaned.replace(/^\$|\$$/g, ''); // Remove $ e $
-        }
+const unwrapBoxedLabels = (text: string): string => {
+    // Regex procura por \boxed{\text{Rótulo: ...}}
+    // Captura o conteúdo de dentro ignorando a caixa
+    const pattern = /\\boxed\{\s*\\text\{\s*(.+?:.*?)\s*\}\s*\}/;
+    const match = text.match(pattern);
+
+    if (match) {
+        return match[1]; // Retorna apenas "Resposta: Letra A"
     }
+
+    // Tenta também sem o \text interno: \boxed{Resposta: A}
+    const patternSimple = /\\boxed\{\s*(.+?:.*?)\s*\}/;
+    const matchSimple = text.match(patternSimple);
     
-    return cleaned;
+    if (matchSimple) {
+        return matchSimple[1];
+    }
+
+    return text;
 };
 
 /**
@@ -57,7 +63,6 @@ export const detectContentType = (content: string): 'MATH' | 'TEXT' | 'MIXED' =>
     const hasMathSymbols = /[=\\∫∑∂√]/.test(clean);
     
     // Sinais fortes de texto
-    // Se tem espaços, acentos, pontuação de frase e NÃO começa com comando math
     const hasSpaces = clean.includes(' ');
     const hasAccents = /[áéíóúãõçÁÉÍÓÚÃÕÇ]/.test(clean);
     
@@ -73,4 +78,19 @@ export const detectContentType = (content: string): 'MATH' | 'TEXT' | 'MIXED' =>
 
     // CASO 3: Matemática Pura
     return 'MATH';
+};
+
+/**
+ * Remove comandos LaTeX que quebram o fluxo de texto simples.
+ */
+export const cleanLatexCommands = (text: string): string => {
+    let cleaned = text.replace(/\\text\{([^{}]+)\}/g, '$1');
+    if ((cleaned.startsWith('$') && cleaned.endsWith('$')) || 
+        (cleaned.startsWith('\\(') && cleaned.endsWith('\\)'))) {
+        if (cleaned.length > 20 && cleaned.includes(' ')) {
+            cleaned = cleaned.substring(2, cleaned.length - 2); 
+            cleaned = cleaned.replace(/^\$|\$$/g, ''); 
+        }
+    }
+    return cleaned;
 };
