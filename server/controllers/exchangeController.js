@@ -5,30 +5,23 @@ const Trade = require('../models/Trade');
 const mongoose = require('mongoose');
 
 // --- MATEMÁTICA EXPONENCIAL ---
-// Calcula o preço acumulado para comprar 'k' tokens a partir do supply 'S'
-// Fórmula: Preço = Base * (Multiplicador ^ Supply)
 const calculateGeometricCost = (startSupply, amount, basePrice, multiplier) => {
+    // Preço de Abertura (Open): Onde o supply está agora
+    const startUnitPrice = basePrice * Math.pow(multiplier, startSupply);
+    
     let totalCost = 0;
-    let currentPrice = basePrice * Math.pow(multiplier, startSupply);
-    
-    const startUnitPrice = currentPrice;
-    
-    // Loop simples é mais seguro para evitar erros de ponto flutuante em PGs complexas
-    // Dado que 'amount' raramente passará de 1000 por vez, isso é super rápido (O(n))
+    let currentPrice = startUnitPrice;
+
     for (let i = 0; i < amount; i++) {
         totalCost += currentPrice;
-        currentPrice *= multiplier; // Sobe o degrau
+        currentPrice *= multiplier; 
     }
 
-    // O preço final do último token (o novo "Spot Price")
-    const endUnitPrice = currentPrice; 
-    
-    // O preço de fechamento do candle seria o preço do ÚLTIMO token negociado
-    // Mas para o próximo comprador, o preço é endUnitPrice.
-    // Vamos retornar o preço do último token efetivamente comprado.
-    const lastTokenPrice = currentPrice / multiplier;
+    // Preço de Fechamento (Close): Onde o supply vai parar após o trade
+    // Isso garante que Open_proximo = Close_atual
+    const endUnitPrice = basePrice * Math.pow(multiplier, startSupply + amount);
 
-    return { totalCost, startUnitPrice, endUnitPrice: lastTokenPrice, nextSpotPrice: endUnitPrice };
+    return { totalCost, startUnitPrice, endUnitPrice };
 };
 
 exports.getQuote = async (req, res) => {
