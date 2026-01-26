@@ -1,9 +1,11 @@
 // server/controllers/aiController.js
 const UsuarioModel = require('../models/Usuario');
-const ChatModel = require('../models/Mensagem'); 
+const ChatModel = require('../models/Mensagem');
 const TOKEN = require('../config/tokenomics');
 const Anthropic = require('@anthropic-ai/sdk');
-const axios = require('axios'); 
+const axios = require('axios');
+const { oracleToolDefinition, sanitizarJsonComLatex } = require('../utils/aiTools'); 
+const { ORACLE_SYSTEM_PROMPT } = require('../utils/oraclePrompts'); // <--- AQUI
 
 // =================================================================================
 // ⚙️ CONFIGURAÇÃO DO CLAUDE
@@ -45,14 +47,14 @@ exports.resolverQuestao = async (req, res) => {
         try {
             console.log("📥 Baixando imagem para o Claude...");
             // O Claude não baixa URLs públicas sozinho, precisamos enviar o buffer
-            const imageResponse = await axios.get(imagem_url, { 
+            const imageResponse = await axios.get(imagem_url, {
                 responseType: 'arraybuffer',
-                timeout: 20000 
+                timeout: 20000
             });
-            
+
             const buffer = Buffer.from(imageResponse.data, 'binary');
             imageBase64 = buffer.toString('base64');
-            
+
             if (imageResponse.headers['content-type']) {
                 imageMediaType = imageResponse.headers['content-type'];
             }
@@ -97,6 +99,14 @@ exports.resolverQuestao = async (req, res) => {
             3. Use o formato "Rótulo: Math" se precisar explicar (ex: "Substituição: u=x^2").
             4. ESCAPE JSON: Use DUAS barras (\\\\) para comandos LaTeX.
 
+            --- REGRA DE OURO DO JSON (ANTI-CRASH) ---
+                Você é uma API JSON. O caractere '\' é especial.
+                SEMPRE que escrever LaTeX, você DEVE escapar a barra.
+                ERRADO: "\int" -> O Javascript vai travar.
+                CERTO: "\\int" -> O Javascript vai ler "\int".
+                ERRADO: "\sqrt"
+                CERTO: "\\sqrt"
+
             --- ESTRUTURA JSON ESPERADA ---
             {
                 // CAMPO OBRIGATÓRIO PARA PENSAR (O frontend ignora, mas serve para você acertar a conta)
@@ -106,7 +116,7 @@ exports.resolverQuestao = async (req, res) => {
                 "topico": "Cálculo",
                 "dificuldade": "Difícil",
                 
-                "resultado_unico": "LaTeX (ex: 1/12) ou null",
+                "resultado_unico": "LaTeX (ex: 1/12) ou null", (apenas math, use unicode se tiver texto)",
                 "itens_rapidos": [],
 
                 "roteiro_estruturado": [
@@ -125,18 +135,20 @@ exports.resolverQuestao = async (req, res) => {
         `;
 
         // =================================================================================
-        // 🚀 CHAMADA AO CLAUDE 3.5 SONNET
+        // 🚀 CHAMADA AO CLAUDE (COM TOOLS E PROMPT IMPORTADO)
         // =================================================================================
         console.log("🔮 Invocando Claude...");
-        
+
         const msg = await anthropic.messages.create({
-            // Use o modelo mais recente disponível na sua chave. 
-            // 'claude-3-5-sonnet-20241022' é a versão "New Sonnet 3.5".
-            // Se sua chave for específica para 'claude-sonnet-4-5', use esse alias.
-            model: "claude-sonnet-4-5-20250929", 
+            model: "claude-sonnet-4-5-20250929",
             max_tokens: 3000,
-            temperature: 0.1, // Temperatura baixa para precisão matemática
-            system: systemPrompt,
+            temperature: 0.1,
+            
+            // AQUI ESTÁ A MUDANÇA: Usamos a variável importada
+            system: ORACLE_SYSTEM_PROMPT,
+            
+            tools: [oracleToolDefinition],
+            tool_choice: { type: "tool", name: "entregar_gabarito" },
             messages: [
                 {
                     role: "user",
@@ -151,23 +163,17 @@ exports.resolverQuestao = async (req, res) => {
                         },
                         {
                             type: "text",
-                            text: "Resolva esta questão. Retorne APENAS o JSON válido."
+                            text: "Resolva esta questão. Use a ferramenta 'entregar_gabarito' para fornecer a resposta."
                         }
                     ],
-                },
-                {
-                    // TRUQUE DO PREFILL: Forçamos o Claude a começar com uma chave.
-                    // Isso evita que ele diga "Aqui está o JSON..." antes.
-                    role: "assistant",
-                    content: "{" 
                 }
             ],
         });
 
         // O Claude devolve o JSON sem a primeira chave '{', então colamos de volta
         const rawResponse = "{" + msg.content[0].text;
-        
-        console.log("🤖 Resposta Claude RAW (Primeiros 100 chars):", rawResponse.substring(0, 100));
+
+        console.log("🤖 Resposta Claude RAW (Primeiros 1900 chars):", rawResponse.substring(0, 1900));
 
         // --- PARSE E TRATAMENTO DE ERROS ---
         let resultadoAI;
@@ -196,17 +202,19 @@ exports.resolverQuestao = async (req, res) => {
         // =================================================================================
         // 💾 PERSISTÊNCIA E COBRANÇA
         // =================================================================================
-        
+
         // 1. Debitar Saldo
         await UsuarioModel.updateOne({ email }, {
             $inc: { saldo_glue: -custoGlue, saldo_coins: -custoCoins },
-            $push: { extrato: { 
-                tipo: 'SAIDA', 
-                valor: custoCoins, 
-                descricao: `Oráculo: ${resultadoAI.topico || 'Geral'}`, 
-                categoria: 'SYSTEM', 
-                data: new Date() 
-            }}
+            $push: {
+                extrato: {
+                    tipo: 'SAIDA',
+                    valor: custoCoins,
+                    descricao: `Oráculo: ${resultadoAI.topico || 'Geral'}`,
+                    categoria: 'SYSTEM',
+                    data: new Date()
+                }
+            }
         });
 
         // 2. Salvar no Chat
@@ -216,7 +224,7 @@ exports.resolverQuestao = async (req, res) => {
                 autor_real_id: user._id,
                 autor_nome: "Oráculo",
                 autor_fake: "Oráculo",
-                autor_avatar: "robot_01", 
+                autor_avatar: "robot_01",
                 autor_classe: "IA",
                 tipo: "resolucao_ia",
                 dados_ia: resultadoAI, // Salvamos o objeto JSON puro
@@ -231,7 +239,7 @@ exports.resolverQuestao = async (req, res) => {
         console.error("❌ ERRO CRÍTICO CLAUDE CONTROLLER:", error);
         // Log detalhado para debug
         if (error.error) console.error("Detalhe Anthropic:", JSON.stringify(error.error, null, 2));
-        
+
         res.status(500).json({ error: "Erro interno no Oráculo (Claude API)." });
     }
 };
