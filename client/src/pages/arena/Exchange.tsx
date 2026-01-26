@@ -15,7 +15,7 @@ export default function ArenaExchange() {
 
   const fetchData = async () => {
     try {
-      const res = await api.get('/api/exchange/stats');
+      const res = await api.get('exchange/stats');
       setStats(res.data);
       setHistory(res.data.history);
       
@@ -35,7 +35,7 @@ export default function ArenaExchange() {
     if (!amount || parseFloat(amount) <= 0) return toast.error("Digite um valor!");
     setLoading(true);
     try {
-      await api.post(`/api/exchange/${type}`, { amount: parseFloat(amount) });
+      await api.post(`exchange/${type}`, { amount: parseFloat(amount) });
       toast.success(`${type === 'buy' ? 'Compra' : 'Venda'} realizada!`);
       setAmount('');
       await fetchData(); // Recarrega tudo após o trade
