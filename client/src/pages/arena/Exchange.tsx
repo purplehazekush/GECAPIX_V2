@@ -1,3 +1,4 @@
+// client/src/pages/arena/Exchange.tsx
 import { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
@@ -37,15 +38,16 @@ export default function ArenaExchange() {
             const currentPrice = basePrice * Math.pow(multiplier, circulatingSupply);
             setStats({ price: currentPrice });
 
-            // 3. Calcula Bid/Ask Projetados para o Gráfico (+1 / -1)
-            // Ask: Quanto custaria para comprar o PRÓXIMO token?
-            const askPrice = currentPrice * multiplier;
-            // Bid: Quanto pagariam se vendessem 1 token agora?
-            const bidPrice = currentPrice / multiplier;
+            // Cálculo do impacto real (Preço Médio ou Preço Final)
+            const amountNum = parseInt(amount) || 1;
+
+            // Preço onde o gráfico vai parar se você comprar/vender tudo
+            const finalAskPrice = currentPrice * Math.pow(multiplier, amountNum);
+            const finalBidPrice = currentPrice * Math.pow(multiplier, -amountNum);
 
             setChartLines([
-                { price: askPrice, color: '#4ade80', title: 'ASK (+1)' }, // Verde (Venda/Topo)
-                { price: bidPrice, color: '#f87171', title: 'BID (-1)' }  // Vermelho (Compra/Fundo)
+                { price: finalAskPrice, color: '#4ade80', title: `BUY IMPACT (+${amountNum})` },
+                { price: finalBidPrice, color: '#f87171', title: `SELL IMPACT (-${amountNum})` }
             ]);
 
             reloadUser?.(); // Atualiza saldo do header

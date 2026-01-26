@@ -2,6 +2,7 @@
 const SystemState = require('../models/SystemState');
 const Usuario = require('../models/Usuario');
 const Trade = require('../models/Trade');
+const mongoose = require('mongoose');
 
 // --- MATEMÁTICA EXPONENCIAL ---
 // Calcula o preço acumulado para comprar 'k' tokens a partir do supply 'S'
@@ -78,85 +79,95 @@ exports.getQuote = async (req, res) => {
     }
 };
 
+
 exports.executeTrade = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    
     try {
         const { action, amount } = req.body;
-        const userId = req.user._id;
+        const state = await SystemState.findOne({ season_id: 1 }).session(session);
+        const user = await Usuario.findById(req.user._id).session(session);
 
-        const state = await SystemState.findOne({ season_id: 1 });
-        const user = await Usuario.findById(userId);
-
-        if (!state.market_is_open) return res.status(403).json({ error: "Mercado Fechado" });
-
+        if (!state.market_is_open) throw new Error("Mercado Fechado");
         const qtd = parseInt(amount);
-        if (qtd <= 0) return res.status(400).json({ error: "Inválido" });
+        if (qtd <= 0) throw new Error("Quantidade Inválida");
 
         const mult = state.glue_price_multiplier;
         const base = state.glue_price_base;
         let supply = state.glue_supply_circulating;
 
+        let finalPrice = 0;
+
         if (action === 'buy') {
             const { totalCost, startUnitPrice, endUnitPrice } = calculateGeometricCost(supply, qtd, base, mult);
             const cost = Math.ceil(totalCost);
 
-            if (user.saldo_coins < cost) return res.status(400).json({ error: "Saldo insuficiente" });
+            if (user.saldo_coins < cost) throw new Error("Saldo insuficiente");
 
-            // Executa
             user.saldo_coins -= cost;
             user.saldo_glue += qtd;
             state.glue_supply_circulating += qtd;
+            finalPrice = endUnitPrice;
 
-            // Gera Candle Verde
-            await Trade.create({
-                userId: user._id,
-                type: 'BUY',
-                amount_glue: qtd,
-                amount_coins: cost,
-                price_start: startUnitPrice,
-                price_end: endUnitPrice,
-                price_high: endUnitPrice,
-                price_low: startUnitPrice,
-                timestamp: new Date()
-            });
+            // Registro do Trade
+            await Trade.create([{
+                userId: user._id, type: 'BUY', amount_glue: qtd, amount_coins: cost,
+                price_start: startUnitPrice, price_end: endUnitPrice,
+                price_high: endUnitPrice, price_low: startUnitPrice
+            }], { session });
 
         } else if (action === 'sell') {
-            if (user.saldo_glue < qtd) return res.status(400).json({ error: "Sem GLUE suficiente" });
+            if (user.saldo_glue < qtd) throw new Error("GLUE insuficiente");
             
             const newSupply = supply - qtd;
             const { totalCost, startUnitPrice, endUnitPrice } = calculateGeometricCost(newSupply, qtd, base, mult);
             
-            const burn = Math.ceil(totalCost * 0.05);
-            const receive = Math.floor(totalCost - burn);
+            // LÓGICA DE TAXA (5%)
+            const fee = Math.ceil(totalCost * 0.05);
+            const receive = Math.floor(totalCost - fee);
 
-            // Executa
             user.saldo_glue -= qtd;
             user.saldo_coins += receive;
             state.glue_supply_circulating -= qtd;
-            state.total_burned += burn;
+            state.total_burned += fee;
+            finalPrice = startUnitPrice;
 
-            // Gera Candle Vermelho
-            // Nota: Na venda, o preço cai. Start > End.
-            await Trade.create({
-                userId: user._id,
-                type: 'SELL',
-                amount_glue: qtd,
-                amount_coins: receive,
-                price_start: endUnitPrice, // Começou alto (preço de mercado atual)
-                price_end: startUnitPrice, // Terminou baixo (preço anterior na curva)
-                price_high: endUnitPrice,
-                price_low: startUnitPrice,
-                timestamp: new Date()
-            });
+            // Redireciona a taxa para a carteira de taxas
+            await Usuario.updateOne(
+                { email: "trading_fees@gecapix.com" },
+                { $inc: { saldo_coins: fee } },
+                { session }
+            );
+
+            await Trade.create([{
+                userId: user._id, type: 'SELL', amount_glue: qtd, amount_coins: receive,
+                price_start: endUnitPrice, price_end: startUnitPrice,
+                price_high: endUnitPrice, price_low: startUnitPrice
+            }], { session });
         }
 
-        await user.save();
-        await state.save();
+        await user.save({ session });
+        await state.save({ session });
+
+        await session.commitTransaction();
+        session.endSession();
+
+        // 📡 NOTIFICAÇÃO REAL-TIME VIA SOCKET
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('market_update', { 
+                newPrice: finalPrice, 
+                supply: state.glue_supply_circulating 
+            });
+        }
 
         res.json({ success: true });
 
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Trade falhou" });
+        await session.abortTransaction();
+        session.endSession();
+        res.status(400).json({ error: error.message });
     }
 };
 

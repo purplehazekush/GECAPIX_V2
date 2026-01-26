@@ -61,7 +61,7 @@ interface AuthContextType {
   loading: boolean;
   signInGoogle: () => Promise<void>;
   logout: () => Promise<void>;
-  reloadUser: () => Promise<void>; // 🔥 ADICIONADO
+  reloadUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);

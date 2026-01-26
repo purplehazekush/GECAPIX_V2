@@ -1,3 +1,4 @@
+// server/scripts/resetMarket.js
 require('dotenv').config({ path: '../.env' }); // Ajuste o path se rodar de dentro da pasta scripts
 const mongoose = require('mongoose');
 const Trade = require('../models/Trade');

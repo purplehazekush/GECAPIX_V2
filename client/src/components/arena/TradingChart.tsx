@@ -1,3 +1,4 @@
+// client/src/components/arena/TradingChart.tsx
 import { 
     createChart, 
     ColorType, 

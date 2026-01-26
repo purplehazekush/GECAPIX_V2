@@ -1,3 +1,4 @@
+// server/scripts/botMaker.js
 const axios = require('axios');
 require('dotenv').config({ path: '../.env' }); // Pega a chave secreta do seu .env
 

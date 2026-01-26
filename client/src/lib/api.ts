@@ -1,3 +1,4 @@
+// client/src/lib/api.ts
 import axios from 'axios';
 import { auth } from './firebase'; // Importe seu auth do firebase
 

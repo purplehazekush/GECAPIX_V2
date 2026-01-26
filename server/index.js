@@ -43,6 +43,8 @@ if (!admin.apps.length) {
 
 // 1. Configurações Básicas
 app.set('trust proxy', 1);
+app.set('io', io); // Agora o controller consegue dar io.emit
+
 app.use(helmet());
 
 // CORS permissivo para evitar bloqueios de 403/Cors
