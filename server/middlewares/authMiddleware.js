@@ -6,8 +6,8 @@ exports.authMiddleware = async (req, res, next) => {
         const botSecretHeader = req.headers['x-bot-secret'];
         
         // Log para ver o que o servidor está recebendo (veja no pm2 logs)
-        // console.log("Header recebido:", botSecretHeader);
-        // console.log("Secret esperada:", process.env.BOT_SECRET);
+        console.log("Header recebido:", botSecretHeader);
+        console.log("Secret esperada:", process.env.BOT_SECRET);
 
         if (botSecretHeader && botSecretHeader === process.env.BOT_SECRET) {
             // O e-mail do bot tem que ser EXATAMENTE o que está no banco
