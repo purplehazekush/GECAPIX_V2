@@ -134,20 +134,25 @@ export default function ArenaExchange() {
                 </div>
             </div>
 
-            <div className="flex gap-2 mb-2">
+            {/* ⏱️ SELETOR DE TIMEFRAME */}
+            <div className="flex gap-2 mb-3 px-2">
                 {['1', '5', '15', '60'].map((tf) => (
                     <button
                         key={tf}
                         onClick={() => setTimeframe(tf)}
-                        className={`px-3 py-1 rounded-md text-[10px] font-mono transition-all ${timeframe === tf
-                            ? 'bg-cyan-500 text-black font-bold'
-                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                            }`}
+                        className={`
+                px-3 py-1 rounded-md text-[10px] font-mono font-bold transition-all border
+                ${timeframe === tf
+                                ? 'bg-cyan-500 border-cyan-400 text-slate-900 shadow-[0_0_10px_rgba(6,182,212,0.4)]'
+                                : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                            }
+            `}
                     >
                         {tf === '60' ? '1H' : `${tf}M`}
                     </button>
                 ))}
             </div>
+
 
             {/* 2. Gráfico com Linhas de Bid/Ask */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-inner h-[280px]">
