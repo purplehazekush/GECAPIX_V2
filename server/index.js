@@ -26,6 +26,7 @@ const DailyTreasury = require('./engine/DailyTreasury'); // <--- Importe
 const SystemState = require('./models/SystemState'); // <--- Importe
 const storeController = require('./controllers/storeController');
 const bankController = require('./controllers/bankController');
+const exchangeController = require('./controllers/exchangeController')
 
 const app = express();
 
@@ -142,6 +143,16 @@ app.post('/api/admin/recursos', adminController.darRecursos);
 app.post('/api/admin/reset', adminController.resetSeason);
 // ROTA DE DEBUG (Apagar em produção)
 app.post('/api/debug/fechar-mercado', memeController.finalizarDiaArena);
+
+app.get('/api/exchange/quote', exchangeController.getQuote);
+app.get('/api/exchange/chart', exchangeController.getChartData);
+app.post('/api/exchange/trade', authMiddleware, exchangeController.executeTrade); // Precisa do middleware de auth
+app.post('/api/exchange/admin', authMiddleware, exchangeController.adminUpdateParams); // Adicionar verificação de admin
+
+// Rotas ADMIN do Banco Central (Protegidas)
+// Importante: Adicione middleware de auth/admin na vida real. Por enquanto, via código.
+app.get('/api/exchange/admin', exchangeController.getAdminStats);
+app.post('/api/exchange/admin/toggle', exchangeController.toggleMarket);
 
 
 // Rotas Legado/Simples

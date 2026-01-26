@@ -28,6 +28,21 @@ const SystemStateSchema = new mongoose.Schema({
     // --- LEDGER ---
     total_staked_liquid: { type: Number, default: 0 }, // TVL Liquido
     total_staked_locked: { type: Number, default: 0 }, // TVL Locked
+
+    // --- BONDING CURVE PARAMETERS (AMM) ---
+    glue_price_base: { type: Number, default: 50 }, // Preço inicial se supply fosse 0
+    glue_price_slope: { type: Number, default: 0.5 }, // O "Degrau". A cada 1 GLUE, sobe 0.5 Coins
+    glue_supply_circulating: { type: Number, default: 0 }, // Supply atual no mercado
+    
+    // Controle de Volatilidade (Admin)
+    market_is_open: { type: Boolean, default: true },
+
+    // --- BONDING CURVE PARAMETERS (AMM EXPONENCIAL) ---
+    glue_price_base: { type: Number, default: 1200 }, // Preço inicial (Gênesis)
+    glue_price_multiplier: { type: Number, default: 1.20 }, // 1.20 é INSANO, mas você configura no painel!
+    glue_supply_circulating: { type: Number, default: 0 },
+    
+    market_is_open: { type: Boolean, default: true },
 });
 
 module.exports = mongoose.models.SystemState || mongoose.model('SystemState', SystemStateSchema);

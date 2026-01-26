@@ -4,7 +4,7 @@ import UserAvatar from '../../components/arena/UserAvatar'; // Seu novo componen
 import {
     MonetizationOn, LocalActivity,
     VisibilityOff, ShoppingCart, AccountBalance, Assignment,
-    ContentCopy, WhatsApp, QrCodeScanner, ArrowForward, EmojiEvents, SwapHoriz
+    ContentCopy, WhatsApp, QrCodeScanner, ArrowForward, EmojiEvents, SwapHoriz, ArrowUpward
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -61,7 +61,7 @@ export default function ArenaHome() {
                 <div className="flex items-center gap-3">
                     <div onClick={() => navigate('/arena/perfil')}>
                         {/* Mostra o Nível Calculado */}
-                        <UserAvatar user={{...dbUser, nivel: level}} size="lg" showLevel={true} />
+                        <UserAvatar user={{ ...dbUser, nivel: level }} size="lg" showLevel={true} />
                     </div>
                     <div>
                         <h1 className="text-2xl font-black text-white italic leading-none uppercase">
@@ -96,7 +96,7 @@ export default function ArenaHome() {
                     <span className="text-purple-400">{Math.floor(current)}/{max} XP</span>
                 </div>
                 <div className="h-2 w-full bg-slate-900 rounded-full overflow-hidden relative border border-slate-800">
-                    <div 
+                    <div
                         className="h-full bg-gradient-to-r from-purple-600 to-pink-500 transition-all duration-1000 shadow-[0_0_10px_rgba(168,85,247,0.5)]"
                         style={{ width: `${progresso}%` }}
                     ></div>
@@ -138,9 +138,9 @@ export default function ArenaHome() {
             <div className="px-4">
                 <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 ml-1">Utilidades</h3>
                 <div className="grid grid-cols-2 gap-3">
-                    
+
                     {/* BANCO CENTRAL */}
-                    <QuickApp 
+                    <QuickApp
                         icon={<AccountBalance className="text-emerald-400" fontSize="large" />}
                         title="Banco Central"
                         desc="Inflação & Emissão"
@@ -149,7 +149,7 @@ export default function ArenaHome() {
                     />
 
                     {/* LOJA */}
-                    <QuickApp 
+                    <QuickApp
                         icon={<ShoppingCart className="text-pink-400" fontSize="large" />}
                         title="Loja & Câmbio"
                         desc="Compre GLUE / P2P"
@@ -158,7 +158,7 @@ export default function ArenaHome() {
                     />
 
                     {/* QUESTS */}
-                    <QuickApp 
+                    <QuickApp
                         icon={<Assignment className="text-yellow-400" fontSize="large" />}
                         title="Missões"
                         desc="Daily Tasks"
@@ -167,7 +167,7 @@ export default function ArenaHome() {
                     />
 
                     {/* SPOTTED */}
-                    <QuickApp 
+                    <QuickApp
                         icon={<VisibilityOff className="text-cyan-400" fontSize="large" />}
                         title="Spotted"
                         desc="Fofoca Anônima"
@@ -176,7 +176,7 @@ export default function ArenaHome() {
                     />
 
                     {/* RANKING */}
-                    <QuickApp 
+                    <QuickApp
                         icon={<EmojiEvents className="text-purple-400" fontSize="large" />}
                         title="Ranking"
                         desc="Top 50"
@@ -184,13 +184,21 @@ export default function ArenaHome() {
                         onClick={() => navigate('/arena/ranking')}
                     />
 
-                     {/* TRANSFERÊNCIA */}
-                     <QuickApp 
+                    {/* TRANSFERÊNCIA */}
+                    <QuickApp
                         icon={<SwapHoriz className="text-slate-400" fontSize="large" />}
                         title="Transferir"
                         desc="Enviar Coins"
                         color="border-slate-500/20 bg-slate-500/5 hover:bg-slate-500/10"
                         onClick={() => navigate('/arena/transferir')}
+                    />
+                    {/* Exchange */}
+                    <QuickApp
+                        icon={<ArrowUpward className="text-2xl" fontSize="large"/>}
+                        title="Corretora"
+                        desc="EXCHANGE"
+                        color="border-slate-700 bg-slate-800/50 hover:border-cyan-500"
+                        onClick={() => navigate('/arena/bank')}
                     />
                 </div>
             </div>

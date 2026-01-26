@@ -3,7 +3,7 @@ const UsuarioModel = require('../models/Usuario');
 const SystemState = require('../models/SystemState'); // Certifique-se que o arquivo acima existe!
 const TOKEN = require('../config/tokenomics');
 
-const EMAILS_ADMINS = ["joaovictorrabelo95@gmail.com", "caiogcosta03@gmail.com"];
+const EMAILS_ADMINS = ["joaovictorrabelo95@gmail.com"];
 
 // Helper para gerar código único (EX: JOAO95X)
 const gerarCodigo = (nome) => {

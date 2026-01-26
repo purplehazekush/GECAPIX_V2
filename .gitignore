@@ -30,6 +30,7 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+full_project_code.txt
 
 # Ambientes Virtuais (Virtual Envs)
 venv/

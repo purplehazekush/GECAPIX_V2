@@ -20,6 +20,7 @@
     "date-fns": "^4.1.0",
     "firebase": "^12.7.0",
     "katex": "^0.16.27",
+    "lightweight-charts": "^5.1.0",
     "lucide-react": "^0.562.0",
     "react": "^19.2.0",
     "react-chessboard": "^5.8.6",

@@ -27,6 +27,7 @@ import Ledger from './pages/arena/Ledger';
 import ArenaSpotted from './pages/arena/Spotted';
 import CentralBank from './pages/arena/CentralBank';
 import ArenaStore from './pages/arena/Store'; // <--- Importe
+import AdminBankPanel from './components/arena/bank/AdminBankPanel';
 
 function AppRoutes() {
   const { user, dbUser, loading } = useAuth();
@@ -77,6 +78,7 @@ function AppRoutes() {
         
         {/* Rota do Xerife */}
         <Route path="admin/validacao" element={<ValidationPanel />} />
+        <Route path="admin/bankpanel" element={<AdminBankPanel />} />
       </Route>
 
       <Route 
