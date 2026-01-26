@@ -13,7 +13,7 @@ exports.aplicarJurosDiarios = async (currentDay) => {
         // Baseado na curva de emissão do dia
         const dailyEmission = EmissionCurve.getDailyCashbackPool(currentDay);
         const rewardPool = dailyEmission * TOKEN.BANK.STAKING_ALLOCATION;
-        
+
         console.log(`   -> Emissão Hoje: ${dailyEmission} GC | Pote Staking: ${Math.floor(rewardPool)} GC`);
 
         // 2. CALCULAR O TVL (TOTAL VALUE LOCKED)
@@ -43,9 +43,9 @@ exports.aplicarJurosDiarios = async (currentDay) => {
         // 5. APLICAR CAP (CIRCUIT BREAKER)
         // O rendimento líquido é 1x o baseYield. Verificamos se estoura o teto.
         const maxLiq = TOKEN.BANK.MAX_DAILY_YIELD_LIQUID;
-        
+
         if (baseYield > maxLiq) {
-            console.log(`   -> Teto atingido! (Calculado: ${(baseYield*100).toFixed(2)}% > Max: ${(maxLiq*100).toFixed(2)}%)`);
+            console.log(`   -> Teto atingido! (Calculado: ${(baseYield * 100).toFixed(2)}% > Max: ${(maxLiq * 100).toFixed(2)}%)`);
             baseYield = maxLiq;
             // O que sobra, fica no SystemState (não é distribuído), servindo de reserva
         }
@@ -53,33 +53,30 @@ exports.aplicarJurosDiarios = async (currentDay) => {
         // Taxas Finais
         const aprLiquido = baseYield;
         const aprLocked = baseYield * lockedWeight;
-        
+
         // Trava final de segurança pro Locked também
         const finalAprLocked = Math.min(aprLocked, TOKEN.BANK.MAX_DAILY_YIELD_LOCKED);
 
-        console.log(`   -> APR FINAL: Líquido ${(aprLiquido*100).toFixed(4)}% | Locked ${(finalAprLocked*100).toFixed(4)}%`);
+        console.log(`   -> APR FINAL: Líquido ${(aprLiquido * 100).toFixed(4)}% | Locked ${(finalAprLocked * 100).toFixed(4)}%`);
 
         // 6. APLICAR RENDIMENTOS (UPDATE MASSIVO)
-        
+
         // A. Líquido (Com bônus de classe Especulador aplicado sobre a taxa dinâmica)
         const speculatorMult = TOKEN.CLASSES.ESPECULADOR.STAKING_YIELD_MULT;
-        
-        // Normais
+
+        // Normais (Não Especuladores)
         await UsuarioModel.updateMany(
             { saldo_staking_liquido: { $gt: 0 }, classe: { $ne: 'ESPECULADOR' } },
             { $mul: { saldo_staking_liquido: (1 + aprLiquido) } }
         );
 
-        // Filtro adicional: status 'ativo'
-        await UsuarioModel.updateMany(
-            { saldo_staking_liquido: { $gt: 0 }, status: 'ativo', classe: { $ne: 'ESPECULADOR' } },
-            { $mul: { saldo_staking_liquido: baseRate } }
-        );
+        // Especuladores (Ganha Bônus)
+        // 🔥 CORREÇÃO AQUI: Substituir 'baseRate' por (1 + (aprLiquido * speculatorMult))
+        const aprEspeculador = aprLiquido * speculatorMult;
 
-        // B. Locked (Títulos)
-        await LockedBondModel.updateMany(
-            { status: 'ATIVO' },
-            { $mul: { valor_atual: (1 + finalAprLocked) } }
+        await UsuarioModel.updateMany(
+            { saldo_staking_liquido: { $gt: 0 }, status: 'ativo', classe: 'ESPECULADOR' }, // 🔥 CORREÇÃO: classe É 'ESPECULADOR'
+            { $mul: { saldo_staking_liquido: (1 + aprEspeculador) } }
         );
 
         // 7. SALVAR INDICADORES NO BANCO CENTRAL (Para o Front ver)

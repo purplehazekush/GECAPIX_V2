@@ -4,15 +4,15 @@ require('dotenv').config({ path: '../.env' }); // Pega a chave secreta do seu .e
 
 const API_URL = 'http://72.62.87.8:3001/api';
 const BOT_SECRET = process.env.BOT_SECRET;
-const INTERVALO = 5000; // 5 segundos
+const INTERVALO = 12000; //  segundos
 
 async function runBot() {
     console.log("🤖 BOT MARKET MAKER EM OPERAÇÃO...");
     console.log(`📡 Alvo: ${API_URL}`);
 
     setInterval(async () => {
-        const isBuying = Math.random() > 0.51; // 5% chance de compra
-        const amount = Math.floor(Math.random() * 3) + 1; // 1 a 10 tokens
+        const isBuying = Math.random() > 0.53; // 5% chance de compra
+        const amount = Math.floor(Math.random() * 4) + 1; // 1 a 4 tokens
 
         try {
             await axios.post(`${API_URL}/exchange/trade`, {

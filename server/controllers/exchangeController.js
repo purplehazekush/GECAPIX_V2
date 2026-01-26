@@ -8,13 +8,13 @@ const mongoose = require('mongoose');
 const calculateGeometricCost = (startSupply, amount, basePrice, multiplier) => {
     // Open: Preço do supply atual
     const startUnitPrice = basePrice * Math.pow(multiplier, startSupply);
-    
+
     let totalCost = 0;
     let currentPrice = startUnitPrice;
 
     for (let i = 0; i < amount; i++) {
         totalCost += currentPrice;
-        currentPrice *= multiplier; 
+        currentPrice *= multiplier;
     }
 
     // Close: Preço do supply FUTURO (após a compra de todas as unidades)
@@ -51,14 +51,14 @@ exports.getQuote = async (req, res) => {
             // Venda: Custo para descer a escada
             // Supply novo seria supply - qtd
             if (supply < qtd) return res.status(400).json({ error: "Liquidez insuficiente" });
-            
+
             const startSupply = supply - qtd;
             // O valor recebido é o custo que foi pago para subir esses degraus no passado
             const { totalCost, startUnitPrice, endUnitPrice } = calculateGeometricCost(startSupply, qtd, base, mult);
-            
+
             // Taxa de Slippage/Queima na venda (ex: 5%)
             const burn = totalCost * 0.05;
-            
+
             result = {
                 total_coins: Math.floor(totalCost - burn),
                 price_start: endUnitPrice, // Na venda, começamos do preço alto
@@ -76,7 +76,7 @@ exports.getQuote = async (req, res) => {
 exports.executeTrade = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
-    
+
     try {
         const { action, amount } = req.body;
         const state = await SystemState.findOne({ season_id: 1 }).session(session);
@@ -112,13 +112,15 @@ exports.executeTrade = async (req, res) => {
 
         } else if (action === 'sell') {
             if (user.saldo_glue < qtd) throw new Error("GLUE insuficiente");
-            
+
             const newSupply = supply - qtd;
             const { totalCost, startUnitPrice, endUnitPrice } = calculateGeometricCost(newSupply, qtd, base, mult);
-            
+
             // LÓGICA DE TAXA (5%)
             const fee = Math.ceil(totalCost * 0.05);
             const receive = Math.floor(totalCost - fee);
+            const feePart = Math.floor(fee / 2);
+            const burnPart = fee - feePart;
 
             user.saldo_glue -= qtd;
             user.saldo_coins += receive;
@@ -126,12 +128,21 @@ exports.executeTrade = async (req, res) => {
             state.total_burned += fee;
             finalPrice = startUnitPrice;
 
-            // Redireciona a taxa para a carteira de taxas
+            // Envia Metade para Fees
             await Usuario.updateOne(
                 { email: "trading_fees@gecapix.com" },
-                { $inc: { saldo_coins: fee } },
+                { $inc: { saldo_coins: feePart } },
                 { session }
             );
+
+            // Envia Metade para Burn (Remove de circulação efetivamente)
+            await Usuario.updateOne(
+                { email: "burn_address@gecapix.com" },
+                { $inc: { saldo_coins: burnPart } },
+                { session }
+            );
+
+            state.total_burned += burnPart; // Atualiza estatística global
 
             await Trade.create([{
                 userId: user._id, type: 'SELL', amount_glue: qtd, amount_coins: receive,
@@ -149,9 +160,9 @@ exports.executeTrade = async (req, res) => {
         // 📡 NOTIFICAÇÃO REAL-TIME VIA SOCKET
         const io = req.app.get('io');
         if (io) {
-            io.emit('market_update', { 
-                newPrice: finalPrice, 
-                supply: state.glue_supply_circulating 
+            io.emit('market_update', {
+                newPrice: finalPrice,
+                supply: state.glue_supply_circulating
             });
         }
 
@@ -169,7 +180,7 @@ exports.executeTrade = async (req, res) => {
 exports.getChartData = async (req, res) => {
     try {
         const { tf } = req.query; // ex: 1, 5, 15 (em minutos)
-        const interval = parseInt(tf) || 1; 
+        const interval = parseInt(tf) || 1;
         const intervalMs = interval * 60 * 1000;
 
         const trades = await Trade.find().sort({ timestamp: 1 });
@@ -216,9 +227,9 @@ exports.getChartData = async (req, res) => {
 // Admin
 exports.adminUpdateParams = async (req, res) => {
     const { multiplier, base } = req.body;
-    await SystemState.updateOne({ season_id: 1 }, { 
+    await SystemState.updateOne({ season_id: 1 }, {
         glue_price_multiplier: multiplier,
-        glue_price_base: base 
+        glue_price_base: base
     });
     res.json({ success: true });
 };

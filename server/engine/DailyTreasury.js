@@ -56,4 +56,20 @@ exports.runDailyClosing = async () => {
     console.log(`✅ [TREASURY] Dia ${effectiveDay} consolidado.`);
     console.log(`   -> Referral Reward Hoje: ${unitReward} GC`);
     console.log(`   -> Referral Pool: ${refPool} GC`);
+
+    // 6. REGISTRO CONTÁBIL DA EMISSÃO
+// O sistema "imprime" dinheiro enviando da Treasury para o Pote de Recompensas (conceitualmente)
+// Na prática, os usuários ganham dinheiro "do ar" (mint), mas para auditar, podemos debitar a Treasury.
+
+const totalMintedToday = refPool + cashPool; // O que foi disponibilizado
+
+await UsuarioModel.updateOne(
+    { email: "treasury@gecapix.com" },
+    { 
+        $inc: { saldo_coins: -totalMintedToday },
+        $push: { extrato: { tipo: 'SAIDA', valor: totalMintedToday, descricao: `Emissão Dia ${effectiveDay}`, categoria: 'SYSTEM', data: new Date() } }
+    }
+);
+
+console.log(`🖨️ [MINT] ${totalMintedToday} GC emitidos pela Tesouraria.`);
 };

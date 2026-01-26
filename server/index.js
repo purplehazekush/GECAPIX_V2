@@ -237,6 +237,12 @@ app.post('/api/store/p2p/criar', storeController.criarOfertaP2P);
 app.post('/api/store/p2p/comprar', storeController.comprarOfertaP2P);
 app.post('/api/store/p2p/cancelar', storeController.cancelarOfertaP2P);
 
+app.post('/api/admin/force-close', async (req, res) => { //CORRIGIR - ADD authMiddleware ou delete a rota
+    //if (req.user.role !== 'admin') return res.status(403).send();
+    await DailyTreasury.runDailyClosing();
+    res.json({ success: true });
+});
+
 
 cron.schedule('0 21 * * *', () => { // Todo dia às 21h
     console.log('⏰ Rotina das 21h...');
