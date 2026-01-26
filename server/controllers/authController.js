@@ -194,3 +194,12 @@ exports.uploadComprovante = async (req, res) => {
         res.status(500).json({ error: "Erro upload" });
     }
 };
+
+exports.getMe = async (req, res) => {
+    try {
+        const usuario = await Usuario.findById(req.user._id);
+        res.json(usuario);
+    } catch (error) {
+        res.status(500).json({ error: "Erro ao buscar perfil" });
+    }
+};
