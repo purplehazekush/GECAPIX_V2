@@ -6,6 +6,7 @@ build/
 coverage/
 .vscode/lpc_full.zip
 server/lpc_full.zip
+lpc_full.zip
 
 
 # --- PYTHON IGNORE ---

@@ -5,7 +5,7 @@ import { Toaster } from 'react-hot-toast'; // <--- 1. IMPORT NOVO
 
 // SEUS IMPORTS ORIGINAIS (MANTIDOS)
 import Login from './components/Login';
-import Layout from './components/Layout'; 
+import Layout from './components/Layout';
 import Feed from './pages/Feed';
 import Stats from './pages/Stats';
 import Admin from './pages/Admin';
@@ -13,9 +13,9 @@ import Admin from './pages/Admin';
 import ArenaRanking from './pages/arena/Ranking';
 import ArenaLayout from './components/arena/ArenaLayout';
 import ArenaHome from './pages/arena/Home';
-import TransferCoins from './pages/arena/Transfer'; 
+import TransferCoins from './pages/arena/Transfer';
 import ArenaProfile from './pages/arena/Profile';
-import ArenaMemes from './pages/arena/Memes'; 
+import ArenaMemes from './pages/arena/Memes';
 import ArenaQuests from './pages/arena/Quests';
 import Laboratorio from './pages/arena/Laboratorio';
 import ArenaSolver from './pages/arena/Solver'; // A página da IA
@@ -27,7 +27,7 @@ import Ledger from './pages/arena/Ledger';
 import ArenaSpotted from './pages/arena/Spotted';
 import CentralBank from './pages/arena/CentralBank';
 import ArenaStore from './pages/arena/Store'; // <--- Importe
-import AdminBankPanel from './components/arena/bank/AdminBankPanel';
+import BankPanel from './components/arena/bank/AdminBankPanel';
 
 function AppRoutes() {
   const { user, dbUser, loading } = useAuth();
@@ -66,7 +66,7 @@ function AppRoutes() {
         <Route path="memes" element={<ArenaMemes />} />
         <Route path="quests" element={<ArenaQuests />} />
         <Route path="laboratorio" element={<Laboratorio />} />
-        
+
         <Route path="games" element={<GamesLobby />} />
         <Route path="tokenomics" element={<Tokenomics />} />
         <Route path="ledger" element={<Ledger />} />
@@ -75,15 +75,19 @@ function AppRoutes() {
         <Route path="bank" element={<CentralBank />} />
         <Route path="loja" element={<ArenaStore />} />
         <Route path="games/play/:roomId" element={<GameRoom />} />
-        
-        {/* Rota do Xerife */}
-        <Route path="admin/validacao" element={<ValidationPanel />} />
-        <Route path="admin/bankpanel" element={<AdminBankPanel />} />
+
+        {/* Rota do Xerife */} 
+        {dbUser.role === 'admin' && (
+          <Route path="admin/validacao" element={<ValidationPanel />} />
+        )}
+        {dbUser.role === 'admin' && (
+          <Route path="admin/bankpanel" element={<BankPanel />} />
+        )}
       </Route>
 
-      <Route 
-        path="*" 
-        element={<Navigate to={isMembroGestao ? "/" : "/arena"} replace />} 
+      <Route
+        path="*"
+        element={<Navigate to={isMembroGestao ? "/" : "/arena"} replace />}
       />
     </Routes>
   );
@@ -92,26 +96,26 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-       <AuthProvider>
-          {/* 2. CONFIGURAÇÃO DO TOAST (GLOBAL) */}
-          <Toaster 
-            position="top-center" 
-            reverseOrder={false}
-            toastOptions={{
-              style: {
-                background: '#1e293b',
-                color: '#fff',
-                border: '1px solid #334155',
-                fontSize: '14px',
-                fontWeight: 'bold'
-              },
-              success: { iconTheme: { primary: '#4ade80', secondary: '#1e293b' } },
-              error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
-            }} 
-          />
-          
-          <AppRoutes />
-       </AuthProvider>
+      <AuthProvider>
+        {/* 2. CONFIGURAÇÃO DO TOAST (GLOBAL) */}
+        <Toaster
+          position="top-center"
+          reverseOrder={false}
+          toastOptions={{
+            style: {
+              background: '#1e293b',
+              color: '#fff',
+              border: '1px solid #334155',
+              fontSize: '14px',
+              fontWeight: 'bold'
+            },
+            success: { iconTheme: { primary: '#4ade80', secondary: '#1e293b' } },
+            error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
+          }}
+        />
+
+        <AppRoutes />
+      </AuthProvider>
     </BrowserRouter>
   );
 }
