@@ -76,6 +76,16 @@ exports.resolverQuestao = async (req, res) => {
             adapte o estilo de escrita, mas garanta que a saída será similar em estrutura da exemplificada aqui
             4. independentemente da matéria, tente aplicar esse mesmo espirito das ordens anteriores.
             5. para objetos como seno, e cosseno, utlize sin, cos (padrão em ingles - o latex nao sabe o que é um 'sen').
+            6. NÃO coloque frases inteiras dentro de blocos matemáticos. O LaTeX remove os espaços.
+               ERRADO: "Analisandocadaalternativa" (ocorre se você puser texto cru em math mode)
+               CERTO: "Analisando cada alternativa:" (Texto puro no JSON, fora do LaTeX)
+            7. Se precisar de texto DENTRO de uma equação, use '\\\\text{texto com espaços}'.
+               Ex: "x = 10 \\\\text{ metros}"
+
+            --- REGRAS DE ACENTUAÇÃO (CRÍTICO) ---
+            1. USE UNICODE DIRETO: 'ç', 'ã', 'é', 'ó'.
+            2. PROIBIDO usar comandos de escape antigos como: \\\\c{c}, \\\\~{a}, \\\\'e.
+               O renderizador web não entende esses comandos antigos.
 
             --- REGRAS DE VISUALIZAÇÃO (LATEX) ---
             1. Use '\\\\displaystyle' para frações e integrais.
