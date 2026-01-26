@@ -56,14 +56,27 @@ export default function SolutionBubble({ msg }: SolutionProps) {
     }, [msg.dados_ia]);
 
     // --- RENDERIZADORES CORE ---
+    // --- RENDERIZADORES SEGUROS (COM AUTO-CORREÇÃO) ---
     const SafeBlockMath = ({ children }: { children: string }) => {
         if (!children) return null;
-        const cleanMath = children.replace(/\$/g, '').replace(/\\\\ \n/g, '\\\\ ').trim();
+        
+        // LIMPEZA AGRESSIVA:
+        const cleanMath = children
+            .replace(/\$/g, '')               // Remove cifrões
+            .replace(/\\\(|\\\)|\\\[|\\\]/g, '') // Remove delimitadores sobrando
+            .replace(/\\sen\b/g, '\\sin')     // CORREÇÃO CRÍTICA: \sen -> \sin
+            .replace(/\\\\ \n/g, '\\\\ ')     // Corrige quebras de linha bugadas
+            .trim();
+
         return (
-            <BlockMath
-                errorColor={'#ef4444'}
-                renderError={() => <span className="text-red-400 text-xs font-mono break-all">{cleanMath}</span>}
-                settings={{ strict: false, trust: true }}
+            <BlockMath 
+                errorColor={'#ef4444'} 
+                renderError={(err) => (
+                    <span className="text-red-400 text-xs font-mono break-all" title={err.message}>
+                        {cleanMath}
+                    </span>
+                )}
+                settings={{ strict: false, trust: true }} 
             >
                 {cleanMath}
             </BlockMath>
@@ -71,7 +84,12 @@ export default function SolutionBubble({ msg }: SolutionProps) {
     };
 
     const SafeInlineMath = ({ children }: { children: string }) => {
-        const cleanMath = children ? children.replace(/\$/g, '').trim() : '';
+        const cleanMath = children
+            .replace(/\$/g, '')
+            .replace(/\\\(|\\\)|\\\[|\\\]/g, '')
+            .replace(/\\sen\b/g, '\\sin') // CORREÇÃO CRÍTICA AQUI TAMBÉM
+            .trim();
+            
         return (
             <InlineMath errorColor={'#ef4444'} settings={{ strict: false, trust: true }}>
                 {cleanMath}
