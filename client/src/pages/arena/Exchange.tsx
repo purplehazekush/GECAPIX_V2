@@ -23,28 +23,25 @@ export default function ArenaExchange() {
     // Linhas do Gráfico
     const [chartLines, setChartLines] = useState<any[]>([]);
 
+    // 1. Otimização do fetchData
     const fetchData = async () => {
         try {
-            // 1. Chart Data
+            // Passamos o timeframe atual na requisição
             const chartRes = await api.get(`/exchange/chart?tf=${timeframe}`);
+
+            // Apenas uma chamada de setHistory (a lib lightweight-charts já entende o formato vindo do back)
             setHistory(chartRes.data);
-            const formattedHistory = chartRes.data.map((t: any) => ({ ...t, price: t.close }));
-            setHistory(formattedHistory);
 
-            // 2. Market Params
-            const statsRes = await api.get('/exchange/admin'); // Ou /stats se você mudou
+            // ... (código de statsRes e marketParams mantido igual) ...
+            const statsRes = await api.get('/exchange/admin');
             const { basePrice, multiplier, circulatingSupply } = statsRes.data;
-
             setMarketParams({ base: basePrice, mult: multiplier, supply: circulatingSupply });
 
-            // Preço Atual (Spot)
             const currentPrice = basePrice * Math.pow(multiplier, circulatingSupply);
             setStats({ price: currentPrice });
 
-            // Cálculo do impacto real (Preço Médio ou Preço Final)
+            // ... (código de chartLines mantido igual) ...
             const amountNum = parseInt(amount) || 1;
-
-            // Preço onde o gráfico vai parar se você comprar/vender tudo
             const finalAskPrice = currentPrice * Math.pow(multiplier, amountNum);
             const finalBidPrice = currentPrice * Math.pow(multiplier, -amountNum);
 
@@ -53,10 +50,16 @@ export default function ArenaExchange() {
                 { price: finalBidPrice, color: '#f87171', title: `SELL IMPACT (-${amountNum})` }
             ]);
 
-            reloadUser?.(); // Atualiza saldo do header
-
+            reloadUser?.();
         } catch (e) { console.error(e); }
     };
+
+    // 2. Correção de Reatividade
+    useEffect(() => {
+        fetchData(); // Chama imediatamente ao montar ou mudar timeframe
+        const interval = setInterval(fetchData, 2000);
+        return () => clearInterval(interval);
+    }, [timeframe]); // 🔥 ADICIONADO: Agora reage ao clique do botão!
 
     // Efeito para buscar Cotação quando o usuário digita
     useEffect(() => {
@@ -137,8 +140,8 @@ export default function ArenaExchange() {
                         key={tf}
                         onClick={() => setTimeframe(tf)}
                         className={`px-3 py-1 rounded-md text-[10px] font-mono transition-all ${timeframe === tf
-                                ? 'bg-cyan-500 text-black font-bold'
-                                : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                            ? 'bg-cyan-500 text-black font-bold'
+                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                             }`}
                     >
                         {tf === '60' ? '1H' : `${tf}M`}

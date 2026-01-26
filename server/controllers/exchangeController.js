@@ -6,7 +6,7 @@ const mongoose = require('mongoose');
 
 // --- MATEMÁTICA EXPONENCIAL ---
 const calculateGeometricCost = (startSupply, amount, basePrice, multiplier) => {
-    // Preço de Abertura (Open): Onde o supply está agora
+    // Open: Preço do supply atual
     const startUnitPrice = basePrice * Math.pow(multiplier, startSupply);
     
     let totalCost = 0;
@@ -17,8 +17,8 @@ const calculateGeometricCost = (startSupply, amount, basePrice, multiplier) => {
         currentPrice *= multiplier; 
     }
 
-    // Preço de Fechamento (Close): Onde o supply vai parar após o trade
-    // Isso garante que Open_proximo = Close_atual
+    // Close: Preço do supply FUTURO (após a compra de todas as unidades)
+    // Isso garante que o fechamento desta vela seja a abertura da próxima.
     const endUnitPrice = basePrice * Math.pow(multiplier, startSupply + amount);
 
     return { totalCost, startUnitPrice, endUnitPrice };
