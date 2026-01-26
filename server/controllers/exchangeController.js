@@ -1,6 +1,6 @@
 // server/controllers/exchangeController.js
 const SystemState = require('../models/SystemState');
-const Usuario = require('../models/Usuario');
+const UsuarioModel = require('../models/Usuario');
 const Trade = require('../models/Trade');
 const mongoose = require('mongoose');
 
@@ -80,7 +80,7 @@ exports.executeTrade = async (req, res) => {
     try {
         const { action, amount } = req.body;
         const state = await SystemState.findOne({ season_id: 1 }).session(session);
-        const user = await Usuario.findById(req.user._id).session(session);
+        const user = await UsuarioModel.findById(req.user._id).session(session);
 
         if (!state.market_is_open) throw new Error("Mercado Fechado");
         const qtd = parseInt(amount);

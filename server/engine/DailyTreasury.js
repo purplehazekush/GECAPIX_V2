@@ -4,6 +4,7 @@ const SystemState = require('../models/SystemState');
 const EmissionCurve = require('./EmissionCurve');
 const TOKEN = require('../config/tokenomics');
 const InterestEngine = require('./InterestEngine'); // <--- Importe
+const UsuarioModel = require('./models/Usuario');
 
 exports.runDailyClosing = async () => {
     console.log("🏦 [TREASURY] Iniciando fechamento diário...");
