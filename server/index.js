@@ -98,6 +98,19 @@ app.use((req, res, next) => {
     next();
 });
 
+// 1. Crie esse mini-middleware no seu index.js antes das rotas
+const authSimples = async (req, res, next) => {
+    // Pegamos o email que o axios vai enviar
+    const email = req.headers['x-user-email']; 
+    if (!email) return res.status(401).json({ error: "Identifique-se primeiro!" });
+    
+    const user = await UsuarioModel.findOne({ email });
+    if (!user) return res.status(404).json({ error: "Usuário não existe" });
+    
+    req.user = user; // Agora o controller sabe quem você é!
+    next();
+};
+
 
 
 app.get('/api/tokenomics', statsController.getTokenomics);
@@ -150,9 +163,10 @@ app.post('/api/admin/reset', adminController.resetSeason);
 
 app.get('/api/exchange/quote', exchangeController.getQuote);
 app.get('/api/exchange/chart', exchangeController.getChartData);
-app.post('/api/exchange/trade', exchangeController.executeTrade);
 
-// ESTA É A LINHA QUE ESTÁ FALTANDO PARA O FRONT FUNCIONAR:
+
+// 2. Aplique ele na rota de trade
+app.post('/api/exchange/trade', authSimples, exchangeController.executeTrade);
 app.get('/api/exchange/stats', exchangeController.getAdminStats); 
 
 // As de admin podem continuar aqui

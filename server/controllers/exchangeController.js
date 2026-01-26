@@ -191,8 +191,6 @@ exports.adminUpdateParams = async (req, res) => {
     res.json({ success: true });
 };
 
-// ... (código anterior)
-
 // GET: Retorna dados sensíveis para o Painel do BC
 exports.getAdminStats = async (req, res) => {
     try {
