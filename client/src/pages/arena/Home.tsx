@@ -198,7 +198,7 @@ export default function ArenaHome() {
                         title="Corretora"
                         desc="EXCHANGE"
                         color="border-slate-700 bg-slate-800/50 hover:border-cyan-500"
-                        onClick={() => navigate('/arena/bank')}
+                        onClick={() => navigate('/arena/admin/bankpanel')}
                     />
                 </div>
             </div>
