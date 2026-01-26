@@ -167,8 +167,6 @@ exports.login = async (req, res) => {
     }
 };
 
-// ... (código do login que já existe) ...
-
 // ADICIONE ISTO NO FINAL DO ARQUIVO:
 exports.uploadComprovante = async (req, res) => {
     try {
@@ -194,5 +192,14 @@ exports.uploadComprovante = async (req, res) => {
     } catch (e) {
         console.error("Erro Upload:", e);
         res.status(500).json({ error: "Erro upload" });
+    }
+};
+
+exports.getMe = async (req, res) => {
+    try {
+        const usuario = await Usuario.findById(req.user._id);
+        res.json(usuario);
+    } catch (error) {
+        res.status(500).json({ error: "Erro ao buscar perfil" });
     }
 };

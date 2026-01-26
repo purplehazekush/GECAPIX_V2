@@ -98,12 +98,15 @@ app.use((req, res, next) => {
     next();
 });
 
+
+
 app.get('/api/tokenomics', statsController.getTokenomics);
 app.get('/api/tokenomics/history', statsController.getHistoricalStats); // <--- NOVA ROTA
 app.get('/api/tokenomics/ledger', statsController.getGlobalTransactions);
 
 // 1. AUTH
 app.post('/api/auth/login', authLimiter, authController.login);
+app.get('/api/auth/me', authController.getMe);
 
 // 2. PIX & VENDAS
 app.get('/api/pix', pixController.getFeed);
@@ -144,7 +147,6 @@ app.post('/api/admin/validacao', adminController.moderarUsuario);
 app.post('/api/admin/recursos', adminController.darRecursos);
 app.post('/api/admin/reset', adminController.resetSeason);
 // ROTA DE DEBUG (Apagar em produção)
-app.post('/api/debug/fechar-mercado', memeController.finalizarDiaArena);
 
 app.get('/api/exchange/quote', exchangeController.getQuote);
 app.get('/api/exchange/chart', exchangeController.getChartData);
