@@ -3,14 +3,21 @@ const Usuario = require('../models/Usuario');
 
 exports.authMiddleware = async (req, res, next) => {
     try {
-        // 1. CHECAGEM DO BOT (Bypass de Segurança)
-        const botSecret = req.headers['x-bot-secret'];
-        if (botSecret && botSecret === process.env.BOT_SECRET) {
-            // Se a chave bater, buscamos o usuário do bot no banco
-            const botUser = await Usuario.findOne({ email: 'bot@gecapix.com' });
+        const botSecretHeader = req.headers['x-bot-secret'];
+        
+        // Log para ver o que o servidor está recebendo (veja no pm2 logs)
+        // console.log("Header recebido:", botSecretHeader);
+        // console.log("Secret esperada:", process.env.BOT_SECRET);
+
+        if (botSecretHeader && botSecretHeader === process.env.BOT_SECRET) {
+            // O e-mail do bot tem que ser EXATAMENTE o que está no banco
+            const botUser = await Usuario.findOne({ email: 'market_maker_bot@gecapix.com' });
+            
             if (botUser) {
                 req.user = botUser;
-                return next(); // Pula a validação do Firebase
+                return next();
+            } else {
+                console.log("❌ Bot Secret ok, mas usuário bot@gecapix.com não existe no banco!");
             }
         }
 
