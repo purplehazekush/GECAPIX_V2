@@ -4,7 +4,7 @@ const ChatModel = require('../models/Mensagem');
 const TOKEN = require('../config/tokenomics');
 const Anthropic = require('@anthropic-ai/sdk');
 const axios = require('axios');
-const { oracleToolDefinition, sanitizarJsonComLatex } = require('../utils/aiTools'); 
+const { oracleToolDefinition, sanitizarJsonComLatex } = require('../utils/aiTools');
 const { ORACLE_SYSTEM_PROMPT } = require('../utils/oraclePrompts'); // <--- AQUI
 
 // =================================================================================
@@ -143,10 +143,10 @@ exports.resolverQuestao = async (req, res) => {
             model: "claude-sonnet-4-5-20250929",
             max_tokens: 3000,
             temperature: 0.1,
-            
+
             // AQUI ESTÁ A MUDANÇA: Usamos a variável importada
             system: ORACLE_SYSTEM_PROMPT,
-            
+
             tools: [oracleToolDefinition],
             tool_choice: { type: "tool", name: "entregar_gabarito" },
             messages: [
@@ -169,6 +169,39 @@ exports.resolverQuestao = async (req, res) => {
                 }
             ],
         });
+
+        // ✅ SUBSTITUA PELO PARSE INTELIGENTE (Solução 1 + 3 Integradas)
+
+        // 1. Verifica se o modelo usou a Tool (O jeito novo e seguro)
+        const toolUse = msg.content.find(c => c.type === "tool_use" && c.name === "entregar_gabarito");
+        let resultadoAI;
+
+        if (toolUse) {
+            console.log("🛠️ Tool Use detectado. JSON estruturado recebido com sucesso.");
+            resultadoAI = toolUse.input; // O SDK da Anthropic JÁ entregou o JSON pronto aqui!
+        } else {
+            // 2. Fallback (Plano B): Se ele mandou texto, usamos o sanitizador
+            console.warn("⚠️ Tool Use falhou. Tentando parse manual com Sanitizador...");
+
+            // Tenta achar algum bloco de texto
+            const textContent = msg.content.find(c => c.type === "text")?.text || "";
+
+            // Se achou texto, aplica a limpeza e o truque da chave '{'
+            if (textContent) {
+                // Se não começar com {, adicionamos. Se já começar, mantemos.
+                const rawText = textContent.trim().startsWith('{') ? textContent : "{" + textContent;
+                const jsonSanitizado = sanitizarJsonComLatex(rawText);
+
+                try {
+                    resultadoAI = JSON.parse(jsonSanitizado);
+                } catch (e) {
+                    console.error("❌ Falha no Parse Manual:", e.message);
+                    throw new Error("Falha ao ler resposta da IA"); // Joga pro catch final
+                }
+            } else {
+                throw new Error("IA não retornou nem Tool nem Texto válido.");
+            }
+        }
 
         // =================================================================================
         // 💾 PERSISTÊNCIA E COBRANÇA
