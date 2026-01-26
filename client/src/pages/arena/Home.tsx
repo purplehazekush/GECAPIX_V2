@@ -193,12 +193,13 @@ export default function ArenaHome() {
                         onClick={() => navigate('/arena/transferir')}
                     />
                     {/* Exchange */}
+                    {/* Clique para ir ao Trade */}
                     <QuickApp
-                        icon={<ArrowUpward className="text-2xl" fontSize="large"/>}
+                        icon={<ArrowUpward className="text-2xl text-cyan-400" />}
                         title="Corretora"
-                        desc="EXCHANGE"
-                        color="border-slate-700 bg-slate-800/50 hover:border-cyan-500"
-                        onClick={() => navigate('/arena/admin/bankpanel')}
+                        desc="TRADE REAL-TIME"
+                        color="border-cyan-500/20 bg-cyan-500/5 hover:bg-cyan-500/10"
+                        onClick={() => navigate('/arena/exchange')}
                     />
                 </div>
             </div>
