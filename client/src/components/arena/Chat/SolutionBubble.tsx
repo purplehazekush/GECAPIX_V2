@@ -94,61 +94,69 @@ export default function SolutionBubble({ msg }: SolutionProps) {
         });
     };
 
-    // --- RENDERIZADOR INTELIGENTE V4 (Com removedor de \text{}) ---
+    // --- RENDERIZADOR INTELIGENTE V5 (Detector de Frases) ---
     const RenderSmartStep = ({ step }: { step: string }) => {
+        
+        // 1. LIMPEZA DE COMANDOS DE TEXTO E ACENTOS ARCAICOS
+        let cleanStep = step
+            .replace(/^\\text\{(.+?)\}\s*(.*)/, '$1 $2') // Remove \text{} do inicio
+            .replace(/\\c\{c\}/g, 'ç') // Corrige \c{c} -> ç
+            .replace(/\\~\{a\}/g, 'ã') // Corrige \~{a} -> ã
+            .replace(/\\(['`^~])\{([aeiou])\}/g, '$2'); // Tenta limpar outros acentos quebrados
 
-        // LIMPEZA DE "VÍCIOS" DA IA:
-        // Se a string começar com "\text{Label: }", vamos arrancar o \text{ e ficar só com "Label: "
-        // Regex: Procura por \text{QualquerCoisa:} no inicio
-        let cleanStep = step;
-        const textCommandMatch = step.match(/^\\text\{(.+?)\}\s*(.*)/);
-
-        if (textCommandMatch) {
-            // Transforma "\text{Região: } Math" em "Região: Math"
-            cleanStep = textCommandMatch[1] + " " + textCommandMatch[2];
-        }
-
-        // AGORA APLICA A LÓGICA DE SPLIT NORMAL
+        // 2. DETECÇÃO DE RÓTULO (Roxo: Preto)
         const colonIndex = cleanStep.indexOf(':');
-        // Aceita rótulos um pouco maiores (até 40 chars) para pegar "Substituição u=...:"
-        const hasLabel = colonIndex > -1 && colonIndex < 40;
-
-        if (hasLabel) {
-            const label = cleanStep.substring(0, colonIndex + 1).replace(/\\/g, ''); // Remove barras sobrando no label
+        // Aceita rótulos até 50 chars se não tiver "math pesado" antes dos dois pontos
+        const preColon = cleanStep.substring(0, colonIndex);
+        const isLabelMath = preColon.includes('\\') || preColon.includes('=');
+        
+        if (colonIndex > -1 && colonIndex < 50 && !isLabelMath) {
+            const label = cleanStep.substring(0, colonIndex + 1);
             const content = cleanStep.substring(colonIndex + 1).trim();
-
+            
             if (content.length > 0) {
                 return (
                     <div className="flex flex-col sm:flex-row sm:items-baseline gap-2 py-1 border-l-2 border-purple-500/30 pl-3 bg-purple-500/5 rounded-r-lg">
-                        {/* Renderiza o Label como texto puro, forçando cor */}
                         <span className="text-xs font-bold text-purple-300 whitespace-nowrap shrink-0">
                             {label}
                         </span>
                         <div className="flex-1 overflow-x-auto custom-scrollbar">
-                            <SafeBlockMath>{content}</SafeBlockMath>
+                            {/* Recursivo: O conteúdo pode ser texto ou math */}
+                            <RenderContent content={content} />
                         </div>
                     </div>
                 );
             }
         }
 
-        // Resto da lógica (Texto vs Math Puro)...
-        const looksLikeText = cleanStep.split(' ').length > 6 && !cleanStep.includes('=') && !cleanStep.includes('\\');
+        // 3. DECISÃO FINAL: TEXTO vs MATH
+        return <RenderContent content={cleanStep} />;
+    };
 
-        if (looksLikeText) {
+    // Sub-componente para decidir como renderizar o miolo
+    const RenderContent = ({ content }: { content: string }) => {
+        // Se tiver comandos LaTeX claros (\frac, \int, \boxed, \sum) -> É MATH
+        const hasLatexCmd = /\\[a-zA-Z]+/.test(content);
+        
+        // Se NÃO tiver comandos LaTeX e tiver espaços e acentos -> É TEXTO
+        // (Isso conserta o "Analisandocadaalternativa")
+        const looksLikeSentence = !hasLatexCmd && (content.includes(' ') || /[áéíóúãõç]/i.test(content));
+
+        if (looksLikeSentence) {
             return (
-                <div className="text-sm text-slate-300 leading-relaxed py-1">
-                    {renderTextWithMath(cleanStep)}
+                <div className="text-sm text-slate-300 leading-relaxed py-1 whitespace-pre-wrap font-sans">
+                    {renderTextWithMath(content)}
                 </div>
             );
         }
 
+        // Padrão: Math Block
         return (
             <div className="py-2 overflow-x-auto custom-scrollbar">
-                <SafeBlockMath>{cleanStep}</SafeBlockMath>
+                <SafeBlockMath>{content}</SafeBlockMath>
             </div>
         );
-    };
+    }
 
     const getDifficultyColor = (diff: string) => {
         const d = (diff || '').toLowerCase();
