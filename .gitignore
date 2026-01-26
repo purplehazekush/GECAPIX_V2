@@ -32,6 +32,7 @@ wheels/
 *.egg
 MANIFEST
 full_project_code.txt
+firebase-admin.json
 
 # Ambientes Virtuais (Virtual Envs)
 venv/

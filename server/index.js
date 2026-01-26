@@ -9,6 +9,8 @@ const cron = require('node-cron');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const hpp = require('hpp');
+const admin = require('firebase-admin');
+const serviceAccount = require('./config/firebase-admin.json');
 
 // --- CONTROLLERS ---
 const authController = require('./controllers/authController'); 
@@ -30,6 +32,14 @@ const exchangeController = require('./controllers/exchangeController')
 const { authMiddleware } = require('./middlewares/authMiddleware');
 
 const app = express();
+
+// Inicializa o Firebase Admin antes de qualquer rota ou middleware
+if (!admin.apps.length) {
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+    });
+    console.log("🔥 Firebase Admin inicializado com sucesso!");
+}
 
 // 1. Configurações Básicas
 app.set('trust proxy', 1);
