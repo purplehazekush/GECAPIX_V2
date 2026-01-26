@@ -6,7 +6,7 @@ import {
 } from '@mui/icons-material';
 import 'katex/dist/katex.min.css';
 import { BlockMath, InlineMath } from 'react-katex';
-import { fixLatexAccents, detectContentType } from '../../../utils/textCleaner'; // Ajuste o caminho se necessário
+import { fixLatexAccents, detectContentType, unwrapBoxedLabels } from '../../../utils/textCleaner';
 
 interface SolutionProps {
     msg: {
@@ -24,8 +24,6 @@ export default function SolutionBubble({ msg }: SolutionProps) {
     useEffect(() => {
         try {
             let rawData = msg.dados_ia;
-            
-            // 1. Limpeza e Parse inicial do JSON
             if (typeof rawData === 'string') {
                 const cleanString = rawData.replace(/[\n\r]/g, " ");
                 try { rawData = JSON.parse(cleanString); } 
@@ -34,7 +32,6 @@ export default function SolutionBubble({ msg }: SolutionProps) {
 
             if (!rawData || typeof rawData !== 'object') throw new Error("Dados vazios.");
 
-            // 2. Normalização de Estrutura (Legado vs Novo)
             let roteiroFinal = [];
             if (Array.isArray(rawData.roteiro_estruturado)) {
                 roteiroFinal = rawData.roteiro_estruturado;
@@ -42,12 +39,11 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                 roteiroFinal = [{ titulo: null, passos: rawData.memoria_calculo }];
             }
 
-            // 3. Set State
             setData({
                 topico: rawData.topico || "Geral",
                 dificuldade: rawData.dificuldade || "N/A",
                 resultado_unico: rawData.resultado_unico || rawData.resultado_principal || null,
-                itens_rapidos: Array.isArray(rawData.itens_rapidos) ? rawData.itens_rapidos : (Array.isArray(rawData.itens) ? rawData.itens : []),
+                itens_rapidos: Array.isArray(rawData.itens_rapidos) ? rawData.itens_rapidos : [],
                 roteiro_estruturado: roteiroFinal,
                 teoria: rawData.teoria || "Sem teoria disponível.",
                 alerta: rawData.alerta || null
@@ -59,17 +55,17 @@ export default function SolutionBubble({ msg }: SolutionProps) {
         }
     }, [msg.dados_ia]);
 
-    // --- RENDERIZADORES SEGUROS (INTEGRADOS COM TEXTCLEANER) ---
+    // --- RENDERIZADORES CORE ---
 
     const SafeBlockMath = ({ children }: { children: string }) => {
         if (!children) return null;
-        // Limpa cifrões, espaços e corrige acentos (ex: \c{c} -> ç)
+        // Aplica unwrap primeiro (caso seja um resultado único boxed) e depois limpa
+        const raw = unwrapBoxedLabels(children);
         const cleanMath = fixLatexAccents(
-            children
-                .replace(/\$/g, '')
-                .replace(/\\\\ \n/g, '\\\\ ')
-                .replace(/\\sen\b/g, '\\sin') // Vacina anti-português para Math
-                .trim()
+            raw.replace(/\$/g, '')
+               .replace(/\\\\ \n/g, '\\\\ ')
+               .replace(/\\sen\b/g, '\\sin')
+               .trim()
         );
 
         return (
@@ -85,10 +81,9 @@ export default function SolutionBubble({ msg }: SolutionProps) {
 
     const SafeInlineMath = ({ children }: { children: string }) => {
         const cleanMath = fixLatexAccents(
-            children
-                .replace(/\$/g, '')
-                .replace(/\\sen\b/g, '\\sin')
-                .trim()
+            children.replace(/\$/g, '')
+                    .replace(/\\sen\b/g, '\\sin')
+                    .trim()
         );
         return (
             <InlineMath errorColor={'#ef4444'} settings={{ strict: false, trust: true }}>
@@ -100,7 +95,6 @@ export default function SolutionBubble({ msg }: SolutionProps) {
     const renderTextWithMath = (text: string) => {
         if (!text) return null;
         const cleanText = fixLatexAccents(text);
-        
         const parts = cleanText.split(/(\\\(.*?\\\)|\\\[.*?\\\]|\$.*?\$)/g);
         return parts.map((part, index) => {
             if ((part.startsWith('\\(') && part.endsWith('\\)')) || (part.startsWith('$') && part.endsWith('$'))) {
@@ -114,15 +108,17 @@ export default function SolutionBubble({ msg }: SolutionProps) {
         });
     };
 
-    // --- RENDERIZADOR INTELIGENTE V6 (COM TEXT CLEANER) ---
+    // --- RENDERIZADOR INTELIGENTE V7 ---
     const RenderSmartStep = ({ step }: { step: string }) => {
-        // 1. Limpeza inicial de acentos
-        const content = fixLatexAccents(step);
+        // 1. Remove Caixa se existir (\boxed{Resposta: A} -> Resposta: A)
+        let content = unwrapBoxedLabels(step);
+        // 2. Corrige acentos
+        content = fixLatexAccents(content);
         
-        // 2. Detecção de Rótulo "Label: Conteúdo"
+        // 3. Detecção de Rótulo
         const colonIndex = content.indexOf(':');
-        // Rótulo válido se for curto e não tiver comando LaTeX antes dos dois pontos
         const preColon = content.substring(0, colonIndex);
+        // Só é rótulo se não tiver barra invertida antes dos dois pontos
         const isLabelValid = colonIndex > -1 && colonIndex < 50 && !preColon.includes('\\');
 
         if (isLabelValid) {
@@ -131,23 +127,20 @@ export default function SolutionBubble({ msg }: SolutionProps) {
             
             return (
                 <div className="flex flex-col sm:flex-row sm:items-baseline gap-2 py-1 border-l-2 border-purple-500/30 pl-3 bg-purple-500/5 rounded-r-lg">
-                    {/* Label sempre como texto Sans-Serif */}
+                    {/* Renderiza Label como TEXTO PURO (Sans Serif) */}
                     <span className="text-xs font-bold text-purple-300 whitespace-nowrap shrink-0 font-sans">
                         {label}
                     </span>
                     <div className="flex-1 overflow-x-auto custom-scrollbar">
-                        {/* O resto decide se é Math ou Texto */}
                         <RenderAutoContent content={rest} />
                     </div>
                 </div>
             );
         }
 
-        // 3. Sem rótulo, analisa tudo
         return <RenderAutoContent content={content} />;
     };
 
-    // Sub-componente de decisão (Math vs Texto)
     const RenderAutoContent = ({ content }: { content: string }) => {
         const type = detectContentType(content);
 
@@ -204,7 +197,7 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                     <span className="text-[10px] font-black uppercase bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">
                         Oráculo Solver
                     </span>
-                    <span className="text-[9px] text-slate-600">v3.7</span>
+                    <span className="text-[9px] text-slate-600">v3.8</span>
                 </div>
                 <div className="flex gap-2">
                     <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700">
@@ -220,32 +213,21 @@ export default function SolutionBubble({ msg }: SolutionProps) {
 
             <div className="bg-slate-900 border border-purple-500/30 rounded-2xl overflow-hidden shadow-2xl">
                 
-                {/* Imagem Banner */}
                 {msg.imagem_original && (
-                    <div 
-                        onClick={() => setShowOriginalImage(true)}
-                        className="w-full h-32 md:h-40 bg-black/50 relative group cursor-pointer border-b border-purple-500/20 overflow-hidden"
-                    >
-                        <img 
-                            src={msg.imagem_original} 
-                            alt="Questão" 
-                            className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all duration-500 transform group-hover:scale-105" 
-                        />
+                    <div onClick={() => setShowOriginalImage(true)} className="w-full h-32 md:h-40 bg-black/50 relative group cursor-pointer border-b border-purple-500/20 overflow-hidden">
+                        <img src={msg.imagem_original} alt="Questão" className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all duration-500 transform group-hover:scale-105" />
                         <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
-                            <ZoomIn className="text-white text-[12px]" />
-                            <span className="text-[10px] text-white font-bold">Ver Original</span>
+                            <ZoomIn className="text-white text-[12px]" /> <span className="text-[10px] text-white font-bold">Ver Original</span>
                         </div>
                     </div>
                 )}
 
-                {/* Tabs */}
                 <div className="grid grid-cols-3 border-b border-slate-800 bg-slate-950">
                     <TabButton active={activeTab === 'rapida'} onClick={() => setActiveTab('rapida')} icon={<Bolt sx={{fontSize:16}}/>} label="Rápida" color="text-yellow-400" />
                     <TabButton active={activeTab === 'roteiro'} onClick={() => setActiveTab('roteiro')} icon={<Assignment sx={{fontSize:16}}/>} label="Roteiro" color="text-cyan-400" />
                     <TabButton active={activeTab === 'teoria'} onClick={() => setActiveTab('teoria')} icon={<School sx={{fontSize:16}}/>} label="Teoria" color="text-purple-400" />
                 </div>
 
-                {/* Body */}
                 <div className="p-4 bg-slate-900 min-h-[160px]">
                     {data.alerta && (
                         <div className="mb-4 flex gap-2 bg-yellow-500/10 p-2 rounded-lg border border-yellow-500/20 items-start">
@@ -254,7 +236,6 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                         </div>
                     )}
 
-                    {/* === ABA RÁPIDA === */}
                     {activeTab === 'rapida' && (
                         <div className="animate-fade-in h-full flex flex-col justify-center">
                             {hasMultipleItems ? (
@@ -280,21 +261,17 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                         </div>
                     )}
 
-                    {/* === ABA ROTEIRO (Blocos Inteligentes) === */}
                     {activeTab === 'roteiro' && (
                         <div className="space-y-6 animate-fade-in">
                             {data.roteiro_estruturado.length > 0 ? (
                                 data.roteiro_estruturado.map((bloco: any, bIdx: number) => (
                                     <div key={bIdx} className="relative">
-                                        {/* Título do Bloco (Ex: Item A) */}
                                         {bloco.titulo && (
                                             <div className="flex items-center gap-2 mb-3 bg-slate-950/50 p-2 rounded-lg border border-slate-800/50">
                                                 <div className="w-2 h-2 rounded-full bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.5)]"></div>
                                                 <h4 className="text-xs font-black text-cyan-400 uppercase tracking-wide">{bloco.titulo}</h4>
                                             </div>
                                         )}
-                                        
-                                        {/* Passos do Bloco */}
                                         <div className="space-y-3 pl-2 border-l-2 border-slate-800/50 ml-1">
                                             {bloco.passos.map((step: string, sIdx: number) => (
                                                 <div key={sIdx} className="flex gap-3 group items-baseline">
@@ -306,7 +283,6 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                                                     <div className="flex-1 min-w-0">
                                                         <div className="bg-slate-950 border border-slate-800 rounded-lg px-3 min-h-[30px] hover:border-cyan-500/20 transition-colors flex items-center">
                                                             <div className="w-full">
-                                                                {/* Renderização Inteligente (Texto ou Math) */}
                                                                 <RenderSmartStep step={step} />
                                                             </div>
                                                         </div>
@@ -322,7 +298,6 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                         </div>
                     )}
 
-                    {/* === ABA TEORIA === */}
                     {activeTab === 'teoria' && (
                         <div className="animate-fade-in">
                             <div className="text-xs text-slate-300 leading-7 text-justify whitespace-pre-line font-light prose-invert font-sans">
@@ -333,11 +308,10 @@ export default function SolutionBubble({ msg }: SolutionProps) {
                 </div>
             </div>
 
-            {/* Modal Fullscreen */}
             {showOriginalImage && (
                 <div className="fixed inset-0 z-[999] bg-black/95 flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowOriginalImage(false)}>
                     <img src={msg.imagem_original} className="max-w-full max-h-full object-contain" alt="Original" />
-                    <button className="absolute top-4 right-4 text-white bg-white/10 p-2 rounded-full"><ZoomIn/></button>
+                    <button className="absolute top-4 right-4 text-white bg-white/10 p-2 rounded-full"><ZoomIn /></button>
                 </div>
             )}
         </div>
