@@ -75,12 +75,16 @@ exports.resolverQuestao = async (req, res) => {
             3. Se for uma integral for trigonométrica, revise a identidade usada. Se nao for uma questão matemática,
             adapte o estilo de escrita, mas garanta que a saída será similar em estrutura da exemplificada aqui
             4. independentemente da matéria, tente aplicar esse mesmo espirito das ordens anteriores.
-            5. para objetos como seno, e cosseno, utlize sin, cos (padrão em ingles - o latex nao sabe o que é um 'sen').
+            5. OPERADORES: Use padrao internacional: \\sin, \\cos, \\tan, \\arcsin (NÃO use \\sen, \\tg).
             6. NÃO coloque frases inteiras dentro de blocos matemáticos. O LaTeX remove os espaços.
                ERRADO: "Analisandocadaalternativa" (ocorre se você puser texto cru em math mode)
                CERTO: "Analisando cada alternativa:" (Texto puro no JSON, fora do LaTeX)
             7. Se precisar de texto DENTRO de uma equação, use '\\\\text{texto com espaços}'.
                Ex: "x = 10 \\\\text{ metros}"
+            8. SEPARAÇÃO TEXTO vs MATH:
+                - NÃO escreva frases inteiras dentro de blocos matemáticos ($...$).
+                - ERRADO: $A integral converge pois o limite é zero$ (Fica tudo junto sem espaços).
+                - CORRETO: "A integral converge pois o limite é zero" (Texto JSON) e depois a fórmula $ \\int ... $.
 
             --- REGRAS DE ACENTUAÇÃO (CRÍTICO) ---
             1. USE UNICODE DIRETO: 'ç', 'ã', 'é', 'ó'.

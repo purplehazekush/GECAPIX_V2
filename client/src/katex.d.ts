@@ -1,3 +1,4 @@
+// client/src/katex.d.ts
 declare module 'react-katex' {
   import { FC } from 'react';
 
