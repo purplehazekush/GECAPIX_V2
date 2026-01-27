@@ -42,9 +42,6 @@ export const TradingChart = (props: ChartProps) => {
   // Guardar referências das linhas criadas para poder remover depois
   const linesRef = useRef<any[]>([]);
 
-  // ... (Código de criação do gráfico MANTIDO IGUAL até o seriesRef.current = newSeries) ...
-  // ... Cole a parte do useEffect de inicialização aqui se precisar, mas o foco é o update abaixo ...
-
   // Setup inicial (Simplificado para caber na resposta - mantenha o seu createChart original)
   useEffect(() => {
     if (!chartContainerRef.current) return;

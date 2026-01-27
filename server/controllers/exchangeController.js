@@ -129,14 +129,14 @@ exports.executeTrade = async (req, res) => {
             finalPrice = startUnitPrice;
 
             // Envia Metade para Fees
-            await Usuario.updateOne(
+            await UsuarioModel.updateOne(
                 { email: "trading_fees@gecapix.com" },
                 { $inc: { saldo_coins: feePart } },
                 { session }
             );
 
             // Envia Metade para Burn (Remove de circulação efetivamente)
-            await Usuario.updateOne(
+            await UsuarioModel.updateOne(
                 { email: "burn_address@gecapix.com" },
                 { $inc: { saldo_coins: burnPart } },
                 { session }
