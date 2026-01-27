@@ -68,55 +68,78 @@ exports.getCandidates = async (req, res) => {
     }
 };
 
-// 3. DAR LIKE (Normal)
+// 3. DAR LIKE (COM RECOMPENSA DE MATCH)
 exports.sendLike = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
         const { targetProfileId } = req.body;
+        
+        // Carrega dados
         const user = await UsuarioModel.findById(req.user._id).session(session);
         const myProfile = await DatingProfile.findOne({ userId: user._id }).session(session);
         const targetProfile = await DatingProfile.findById(targetProfileId).session(session);
 
         if (!targetProfile) throw new Error("Usuário não encontrado.");
         
-        // Cobrança
+        // Verifica se já deu like antes (evitar cobrança dupla e bug)
+        if (myProfile.likes_enviados.includes(targetProfileId)) {
+            throw new Error("Você já curtiu essa pessoa.");
+        }
+
+        // Cobrança do Like (Custo)
         if (user.saldo_coins < TOKEN.DATING.LIKE_COST) throw new Error("Saldo insuficiente.");
         
+        // 1. Aplica Custo e XP do Like
         user.saldo_coins -= TOKEN.DATING.LIKE_COST;
-        user.xp += TOKEN.DATING.LIKE_XP;
+        user.xp += TOKEN.DATING.LIKE_XP_REWARD || 10;
         
-        // Lógica do Like
+        // 2. Registra o Like
         myProfile.likes_enviados.push(targetProfile._id);
         targetProfile.likes_recebidos.push(myProfile._id);
 
-        // CHECK MATCH
-        // Se o alvo já me deu like (está na minha lista de likes_recebidos do banco? não, verificamos se EU estou na lista de enviados DELE)
-        // Mais fácil: Verificar se o alvo já deu like em mim.
+        // 3. CHECK MATCH (A Mágica)
+        // Se eu estou na lista de likes enviados DELE, é match.
         const isMatch = targetProfile.likes_enviados.includes(myProfile._id.toString());
 
         if (isMatch) {
-            // REGISTRA O MATCH PARA OS DOIS
+            // --- A. Registra Match nos Arrays ---
             myProfile.matches.push(targetProfile._id);
             targetProfile.matches.push(myProfile._id);
 
-            // ENVIA EMAIL SISTEMA PARA MIM
+            // --- B. Chuva de Coins (Recompensa) ---
+            const MATCH_BONUS = 250;
+            
+            // Paga eu
+            user.saldo_coins += MATCH_BONUS;
+            user.extrato.push({ tipo: 'ENTRADA', valor: MATCH_BONUS, descricao: `Match com ${targetProfile.nome}!`, categoria: 'GAME', data: new Date() });
+
+            // Paga o Crush (Update direto no Usuario model dele)
+            await UsuarioModel.updateOne(
+                { _id: targetProfile.userId },
+                { 
+                    $inc: { saldo_coins: MATCH_BONUS },
+                    $push: { extrato: { tipo: 'ENTRADA', valor: MATCH_BONUS, descricao: `Match com ${myProfile.nome}!`, categoria: 'GAME', data: new Date() } }
+                },
+                { session }
+            );
+
+            // --- C. Notificações (Correio) ---
             myProfile.correio.push({
                 tipo: 'MATCH',
                 remetente_id: targetProfile._id,
                 remetente_nome: targetProfile.nome,
                 remetente_foto: targetProfile.fotos[0],
-                mensagem: `Deu Match! O telefone de ${targetProfile.nome} é: ${targetProfile.telefone}`,
+                mensagem: `❤️ DEU MATCH! Vocês ganharam ${MATCH_BONUS} GC cada! Telefone: ${targetProfile.telefone}`,
                 telefone_revelado: targetProfile.telefone
             });
 
-            // ENVIA EMAIL SISTEMA PARA O CRUSH
             targetProfile.correio.push({
                 tipo: 'MATCH',
                 remetente_id: myProfile._id,
                 remetente_nome: myProfile.nome,
                 remetente_foto: myProfile.fotos[0],
-                mensagem: `Deu Match! O telefone de ${myProfile.nome} é: ${myProfile.telefone}`,
+                mensagem: `❤️ DEU MATCH! Vocês ganharam ${MATCH_BONUS} GC cada! Telefone: ${myProfile.telefone}`,
                 telefone_revelado: myProfile.telefone
             });
         }
@@ -124,38 +147,37 @@ exports.sendLike = async (req, res) => {
         await user.save({ session });
         await myProfile.save({ session });
         await targetProfile.save({ session });
+        
         await session.commitTransaction();
-
-        res.json({ success: true, match: isMatch });
+        res.json({ success: true, match: isMatch, coins_reward: isMatch ? 250 : 0 });
 
     } catch (e) {
         await session.abortTransaction();
+        console.error("Erro Like:", e); // Log para debug
         res.status(400).json({ error: e.message });
     } finally {
         session.endSession();
     }
 };
 
-// 4. SUPER LIKE (Pago e Poderoso)
+// 4. SUPER LIKE (Correção do Histórico)
 exports.sendSuperLike = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
         const { targetProfileId } = req.body;
+        // ... (carregamento dos models igual ao anterior) ...
         const user = await UsuarioModel.findById(req.user._id).session(session);
         const myProfile = await DatingProfile.findOne({ userId: user._id }).session(session);
         const targetProfile = await DatingProfile.findById(targetProfileId).session(session);
 
+        // ... (verificações de saldo iguais ao anterior) ...
         const COST_COINS = TOKEN.DATING.SUPERLIKE_COST_COINS;
         const COST_GLUE = TOKEN.DATING.SUPERLIKE_COST_GLUE;
 
         if (user.saldo_coins < COST_COINS || user.saldo_glue < COST_GLUE) {
             throw new Error("Saldo insuficiente (Requer Coins + Glue).");
         }
-
-        // 1. Debita do Usuário
-        user.saldo_coins -= COST_COINS;
-        user.saldo_glue -= COST_GLUE;
 
         // 2. Distribuição Econômica
         const recipientShare = Math.floor(COST_COINS * TOKEN.DATING.SUPERLIKE_DISTRIBUTION.RECIPIENT);
@@ -179,33 +201,31 @@ exports.sendSuperLike = async (req, res) => {
         const SystemState = require('../models/SystemState');
         await SystemState.updateOne({ season_id: 2 }, { $inc: { total_burned: burnShare } }, { session });
 
-        // 3. Ação do Super Like (Fura fila e entrega telefone)
-        // O Super Like NÃO gera match automático nos apps reais, ele destaca.
-        // MAS na sua regra: "vai direto pro email".
-        
-        // 3. Ação do Super Like
+        // 2. Ação do Super Like
         targetProfile.correio.push({
             tipo: 'SUPERLIKE',
             remetente_id: myProfile._id,
             remetente_nome: myProfile.nome,
             remetente_foto: myProfile.fotos[0],
-            mensagem: `🔥 SUPER LIKE! ${myProfile.nome} gostou muito de você. Telefone: ${myProfile.telefone}`,
+            mensagem: `🔥 SUPER LIKE! ${myProfile.nome} investiu pesado em você. Telefone: ${myProfile.telefone}`,
             telefone_revelado: myProfile.telefone
         });
 
-        // 🔥 CORREÇÃO: Só adiciona aos arrays se AINDA NÃO estiver lá (caso seja um Upgrade)
-        if (!myProfile.likes_enviados.includes(targetProfile._id)) {
+        // 🔥 CORREÇÃO: ADICIONAR AO HISTÓRICO DO REMETENTE
+        // Isso garante que apareça na aba "Likes Enviados" com opção de upgrade desabilitada (pois já é super)
+        if (!myProfile.likes_enviados.includes(targetProfile._id.toString())) {
             myProfile.likes_enviados.push(targetProfile._id);
         }
-        if (!targetProfile.likes_recebidos.includes(myProfile._id)) {
+        // Adiciona aos recebidos do alvo para possibilitar o Match futuro se ele der like de volta
+        if (!targetProfile.likes_recebidos.includes(myProfile._id.toString())) {
             targetProfile.likes_recebidos.push(myProfile._id);
         }
 
         await user.save({ session });
         await myProfile.save({ session });
         await targetProfile.save({ session });
+        
         await session.commitTransaction();
-
         res.json({ success: true, message: "Super Like enviado!" });
 
     } catch (e) {
