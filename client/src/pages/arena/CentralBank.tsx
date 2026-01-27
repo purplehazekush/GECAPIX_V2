@@ -9,6 +9,8 @@ import { BankHeader } from '../../components/arena/bank/BankHeader';
 import { OverviewTab } from '../../components/arena/bank/OverviewTab';
 import { LiquidStakingTab } from '../../components/arena/bank/LiquidStakingTab';
 import { BondsTab } from '../../components/arena/bank/BondsTab';
+import { History as HistoryIcon } from '@mui/icons-material';
+import { LedgerTab } from '../../components/arena/bank/LedgerTab'; // Importe novo
 
 export default function CentralBank() {
     const { dbUser, setDbUser } = useAuth();
@@ -44,19 +46,21 @@ export default function CentralBank() {
 
             <Tabs 
                 value={tab} onChange={(_, v) => setTab(v)} 
-                textColor="inherit" indicatorColor="secondary" variant="fullWidth" 
+                textColor="inherit" indicatorColor="secondary" variant="scrollable" scrollButtons="auto"
                 className="bg-slate-900 rounded-xl border border-slate-800 shadow-inner mb-4"
             >
                 <Tab icon={<PieChart fontSize="small"/>} label={<span className="text-[10px] font-black">VISÃO GERAL</span>} />
                 <Tab icon={<Savings fontSize="small"/>} label={<span className="text-[10px] font-black">CDI (LÍQUIDO)</span>} />
-                <Tab icon={<LockClock fontSize="small"/>} label={<span className="text-[10px] font-black">TESOURO (IPCA)</span>} />
+                <Tab icon={<LockClock fontSize="small"/>} label={<span className="text-[10px] font-black">TESOURO</span>} />
+                {/* NOVA ABA AQUI: */}
+                <Tab icon={<HistoryIcon fontSize="small"/>} label={<span className="text-[10px] font-black">LIVRO RAZÃO</span>} />
             </Tabs>
 
             {tab === 0 && <OverviewTab status={status} tokenomics={tokenomics} />}
-            
             {tab === 1 && <LiquidStakingTab user={dbUser} status={status} onUpdateUser={setDbUser} />}
-            
             {tab === 2 && <BondsTab user={dbUser} status={status} onUpdateUser={setDbUser} />}
+            {/* RENDERIZA AQUI: */}
+            {tab === 3 && <LedgerTab />}
         </div>
     );
 }
