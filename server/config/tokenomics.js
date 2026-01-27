@@ -94,9 +94,18 @@ module.exports = {
     },
     
     // --- 8. CARTEIRAS ---
+    // --- 8. CARTEIRAS DE SISTEMA (EMAILS OBRIGATÓRIOS) ---
+    // Substitua a seção antiga WALLETS inteira por esta:
     WALLETS: {
-        BURN_ADDRESS: "0x000000000000000000000000000000000000dEaD",
-        TREASURY_ADDRESS: "0xGecaTreasuryFoundation"
+        // Endereços "Fakes" para lógica interna
+        BURN: "burn_address@gecapix.com",
+        TREASURY: "treasury@gecapix.com",
+        FEES: "trading_fees@gecapix.com",
+        BANK: "central_bank@gecapix.com", // Bot Market Maker
+        
+        // Mantido para referência futura se precisarmos mostrar endereço Hex
+        BURN_ADDRESS_HEX: "0x000000000000000000000000000000000000dEaD",
+        TREASURY_ADDRESS_HEX: "0xGecaTreasuryFoundation"
     },
 
     // --- 9. RPG CLASS BONUSES ---
