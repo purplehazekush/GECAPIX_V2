@@ -9,19 +9,15 @@
 const SEASON_LENGTH = 180; 
 
 module.exports = {
-    // --- 1. MACROECONOMIA (SEASON) ---
     SEASON: {
-        ID: 1,
-        START_DATE: "2026-02-01T00:00:00Z", 
+        ID: 2, 
+        START_DATE: new Date().toISOString(), 
         LENGTH: SEASON_LENGTH,
-        CROSSOVER_DAY: 68 
     },
     
-    // --- 2. HARD CAPS ---
+    // --- 2. HARD CAPS & ALOCAÇÃO INICIAL ---
     CAPS: {
-        TOTAL_SUPPLY: 1_000_000_000,
-        REFERRAL_POOL: 60_000_000,
-        CASHBACK_POOL: 200_000_000,
+        TOTAL_SUPPLY: 1_000_000_000, // 1 Bilhão
         INITIAL_USER_BALANCE: 1000
     },
 
@@ -73,39 +69,32 @@ module.exports = {
         YIELD_PERCENT: 0.20
     },
 
-    // --- 7. SISTEMA BANCÁRIO (FALTAVA ISSO) ---
-    // --- 7. SISTEMA BANCÁRIO (DEFI DINÂMICO) ---
+    ALLOCATION: {
+        LOCKED_TREASURY: 500_000_000, // 50% (Travado 6 meses)
+        CASHBACK_FUND:   165_000_000, // 16.5% (Fundo de Cashback)
+        CENTRAL_BANK:    100_000_000, // 10% (Liquidez do Bot/Market Maker)
+        // O RESTANTE (~23.5%) vai para o Tesouro Geral (Referral, Games, Drops)
+    },
+
     BANK: {
-        // Alocação: Quanto da emissão diária de Cashback vai para juros?
-        STAKING_ALLOCATION: 0.30, // 30% do pote diário é distribuído
-
-        // Multiplicador de Risco (Locked ganha X vezes mais que Liquid)
-        LOCKED_WEIGHT: 2.0, // Quem trava ganha 3x mais yield
-
-        // Circuit Breaker (Teto Máximo de APR Diário)
-        MAX_DAILY_YIELD_LIQUID: 0.01, // Max 1% ao dia pro Líquido (365% a.a.)
-        MAX_DAILY_YIELD_LOCKED: 0.025, // Max 3% ao dia pro Locked (Explosivo)
-
+        STAKING_ALLOCATION: 0.30, 
+        LOCKED_WEIGHT: 2.0, 
+        MAX_DAILY_YIELD_LIQUID: 0.01, 
+        MAX_DAILY_YIELD_LOCKED: 0.025, 
         LOCKED_PERIOD_DAYS: 30,
-        
-        // Multas (Mantém igual)
         PENALTY_MAX: 0.40,
         PENALTY_MIN: 0.10,
     },
     
-    // --- 8. CARTEIRAS ---
-    // --- 8. CARTEIRAS DE SISTEMA (EMAILS OBRIGATÓRIOS) ---
-    // Substitua a seção antiga WALLETS inteira por esta:
+    // --- 8. CARTEIRAS DE SISTEMA (EMAILS) ---
     WALLETS: {
-        // Endereços "Fakes" para lógica interna
-        BURN: "burn_address@gecapix.com",
-        TREASURY: "treasury@gecapix.com",
-        FEES: "trading_fees@gecapix.com",
-        BANK: "central_bank@gecapix.com", // Bot Market Maker
+        TREASURY: "treasury@gecapix.com",       // Tesouro Geral (O Resto)
+        TREASURY_LOCKED: "locked@gecapix.com",  // Tesouro Bloqueado (500kk)
+        CASHBACK: "cashback@gecapix.com",       // Fundo Cashback (165kk)
+        BANK: "central_bank@gecapix.com",       // Banco Central (100kk)
         
-        // Mantido para referência futura se precisarmos mostrar endereço Hex
-        BURN_ADDRESS_HEX: "0x000000000000000000000000000000000000dEaD",
-        TREASURY_ADDRESS_HEX: "0xGecaTreasuryFoundation"
+        FEES: "trading_fees@gecapix.com",       // Coletor de Taxas
+        BURN: "burn_address@gecapix.com"        // Cemitério
     },
 
     // --- 9. RPG CLASS BONUSES ---

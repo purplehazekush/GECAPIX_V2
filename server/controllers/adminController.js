@@ -60,26 +60,24 @@ exports.resetSeason = async (req, res) => {
         const { confirm } = req.body;
         if (confirm !== "PROTOCOL_GENESIS_EXECUTE") return res.status(400).json({ error: "Confirmação inválida" });
 
-        console.log("⚠️ INICIANDO PROTOCOLO GÊNESIS...");
+        console.log("⚠️ INICIANDO PROTOCOLO GÊNESIS (ALOCAÇÃO DETALHADA)...");
 
-        // 1. A GRANDE QUEIMA (Wipeout)
-        await Trade.deleteMany({});
-        await LockedBond.deleteMany({});
-        await MarketOrder.deleteMany({});
-        await DailyStats.deleteMany({});
-        await Meme.deleteMany({});
-        await Spotted.deleteMany({});
+        // 1. A GRANDE QUEIMA (Limpeza das Collections)
+        await Promise.all([
+            require('../models/Trade').deleteMany({}),
+            require('../models/LockedBond').deleteMany({}),
+            require('../models/MarketOrder').deleteMany({}),
+            require('../models/DailyStats').deleteMany({}),
+            require('../models/Meme').deleteMany({}),
+            require('../models/Spotted').deleteMany({})
+        ]);
         
         console.log("✅ Dados transacionais deletados.");
 
-        // --- VALORES DE SEGURANÇA (FAILSAFE) ---
-        // Se o tokenomics.js falhar, usamos estes valores padrão para não gerar NaN
-        const INIT_BALANCE = TOKEN.CAPS?.INITIAL_USER_BALANCE || 1000;
-        const TOTAL_SUPPLY = TOKEN.CAPS?.TOTAL_SUPPLY || 1_000_000_000;
-
-        // 2. REBOOT DOS USUÁRIOS
+        // 2. REBOOT DOS USUÁRIOS (Drop Inicial)
         const systemEmails = Object.values(TOKEN.WALLETS);
-        
+        const INIT_BALANCE = TOKEN.CAPS.INITIAL_USER_BALANCE || 1000;
+
         await UsuarioModel.updateMany(
             { email: { $nin: systemEmails } },
             {
@@ -95,43 +93,93 @@ exports.resetSeason = async (req, res) => {
                     extrato: [{ 
                         tipo: 'ENTRADA', 
                         valor: INIT_BALANCE, 
-                        descricao: 'Gênesis: Season 2 Start', 
+                        descricao: 'Season 2: Airdrop Inicial', 
                         categoria: 'SYSTEM', 
                         data: new Date() 
                     }]
                 }
             }
         );
-        
-        console.log(`✅ Usuários resetados (Saldo Inicial: ${INIT_BALANCE}).`);
 
-        // 3. RECRIAR CARTEIRAS DE SISTEMA
+        // 3. ENGENHARIA FINANCEIRA (Criação das Carteiras)
+        
+        // Remove carteiras antigas para recriar limpo
         await UsuarioModel.deleteMany({ email: { $in: systemEmails } });
 
-        // Cálculo Matemático Protegido
+        // --- CÁLCULO DO TESOURO GERAL (O RESTO) ---
         const totalUsers = await UsuarioModel.countDocuments({ email: { $nin: systemEmails } });
-        const circulatingStart = totalUsers * INIT_BALANCE;
-        const treasuryBalance = TOTAL_SUPPLY - circulatingStart;
+        const distributedToUsers = totalUsers * INIT_BALANCE;
+        
+        const fixedAllocations = 
+            TOKEN.ALLOCATION.LOCKED_TREASURY + 
+            TOKEN.ALLOCATION.CASHBACK_FUND + 
+            TOKEN.ALLOCATION.CENTRAL_BANK;
 
-        console.log(`📊 Auditoria: Supply Total (${TOTAL_SUPPLY}) - Circulante (${circulatingStart}) = Tesouro (${treasuryBalance})`);
+        const generalTreasuryBalance = TOKEN.CAPS.TOTAL_SUPPLY - fixedAllocations - distributedToUsers;
 
-        if (isNaN(treasuryBalance)) {
-            throw new Error("Erro de cálculo matemático: Treasury Balance resultou em NaN.");
+        console.log(`📊 AUDITORIA DO SUPPLY (1 Bilhão):`);
+        console.log(`   - Travado 6 Meses: ${TOKEN.ALLOCATION.LOCKED_TREASURY.toLocaleString()}`);
+        console.log(`   - Fundo Cashback:  ${TOKEN.ALLOCATION.CASHBACK_FUND.toLocaleString()}`);
+        console.log(`   - Banco Central:   ${TOKEN.ALLOCATION.CENTRAL_BANK.toLocaleString()}`);
+        console.log(`   - Usuários (${totalUsers}):    ${distributedToUsers.toLocaleString()}`);
+        console.log(`   ------------------------------------------`);
+        console.log(`   = TESOURO GERAL:   ${generalTreasuryBalance.toLocaleString()} (Disponível para Referral/Games)`);
+
+        if (generalTreasuryBalance < 0) {
+            throw new Error("ERRO CRÍTICO: Alocação excede o Supply Total!");
         }
 
         const walletsToCreate = [
+            // 1. TESOURO GERAL (Carteira Principal)
             {
                 email: TOKEN.WALLETS.TREASURY,
-                nome: "Tesouro Nacional",
+                nome: "Tesouro Geral",
                 role: "admin",
                 status: "ativo",
-                saldo_coins: treasuryBalance, // Agora garantido que é número
+                saldo_coins: generalTreasuryBalance,
                 classe: "TECNOMANTE",
-                avatar_slug: "bank"
+                avatar_slug: "bank",
+                extrato: [{ tipo: 'ENTRADA', valor: generalTreasuryBalance, descricao: 'Gênesis: Alocação Geral', categoria: 'SYSTEM' }]
             },
+            // 2. TESOURO BLOQUEADO (500kk)
+            {
+                email: TOKEN.WALLETS.TREASURY_LOCKED,
+                nome: "Fundo Soberano (Travado)",
+                role: "admin",
+                status: "ativo", // Ativo, mas ninguém mexe
+                saldo_coins: TOKEN.ALLOCATION.LOCKED_TREASURY,
+                classe: "TECNOMANTE",
+                avatar_slug: "safe",
+                bio: "Fundos bloqueados por 6 meses para garantia de lastro.",
+                extrato: [{ tipo: 'ENTRADA', valor: TOKEN.ALLOCATION.LOCKED_TREASURY, descricao: 'Gênesis: Alocação Travada', categoria: 'SYSTEM' }]
+            },
+            // 3. FUNDO DE CASHBACK (165kk)
+            {
+                email: TOKEN.WALLETS.CASHBACK,
+                nome: "Pool de Cashback",
+                role: "admin",
+                status: "ativo",
+                saldo_coins: TOKEN.ALLOCATION.CASHBACK_FUND,
+                classe: "BARDO",
+                avatar_slug: "gift",
+                extrato: [{ tipo: 'ENTRADA', valor: TOKEN.ALLOCATION.CASHBACK_FUND, descricao: 'Gênesis: Pool Cashback', categoria: 'SYSTEM' }]
+            },
+            // 4. BANCO CENTRAL (100kk - Market Maker)
+            {
+                email: TOKEN.WALLETS.BANK,
+                nome: "Banco Central (Bot)",
+                role: "gm",
+                status: "ativo",
+                saldo_coins: TOKEN.ALLOCATION.CENTRAL_BANK,
+                saldo_glue: 100000, // Estoque inicial de GLUE para vender
+                classe: "ESPECULADOR",
+                avatar_slug: "robot",
+                extrato: [{ tipo: 'ENTRADA', valor: TOKEN.ALLOCATION.CENTRAL_BANK, descricao: 'Gênesis: Liquidez Inicial', categoria: 'SYSTEM' }]
+            },
+            // 5. CARTEIRAS DE SERVIÇO (Zeradas)
             {
                 email: TOKEN.WALLETS.FEES,
-                nome: "Fundo de Taxas",
+                nome: "Coletor de Taxas",
                 role: "admin",
                 status: "ativo",
                 saldo_coins: 0,
@@ -140,49 +188,50 @@ exports.resetSeason = async (req, res) => {
             },
             {
                 email: TOKEN.WALLETS.BURN,
-                nome: "Buraco Negro (Burn)",
+                nome: "Buraco Negro",
                 role: "admin",
                 status: "banido",
                 saldo_coins: 0,
                 classe: "BRUXO",
                 avatar_slug: "fire"
-            },
-            {
-                email: TOKEN.WALLETS.BANK,
-                nome: "Banco Central (Bot)",
-                role: "gm",
-                status: "ativo",
-                saldo_coins: 1000000, 
-                saldo_glue: 100000,
-                classe: "ESPECULADOR",
-                avatar_slug: "robot"
             }
         ];
 
         await UsuarioModel.insertMany(walletsToCreate);
-        console.log("✅ Carteiras do Sistema recriadas.");
+        console.log("✅ Carteiras do Sistema alocadas com sucesso.");
 
-        // 4. REBOOT DO BANCO CENTRAL
+        // 4. REBOOT DO ESTADO DO SISTEMA
         await SystemState.deleteMany({});
         
         await SystemState.create({
             season_id: TOKEN.SEASON.ID || 2,
             season_start_date: new Date(),
             current_day: 0,
+            last_processed_day: -1, // Importante para o DailyTreasury rodar hoje a noite (ou agora)
+            
             glue_price_base: 50,
             glue_price_multiplier: 1.05,
             glue_supply_circulating: 0,
+            
             total_burned: 0,
             total_fees_collected: 0,
-            market_is_open: true
+            market_is_open: true,
+
+            // Inicializa os potes com zero, o DailyTreasury vai encher eles logo em seguida
+            referral_pool_available: 0,
+            cashback_pool_available: 0
         });
 
-        console.log("✅ Banco Central reiniciado.");
+        console.log("✅ SystemState reiniciado.");
 
         res.json({ 
             success: true, 
-            message: "PROTOCOL GENESIS COMPLETED.",
-            stats: { users: totalUsers, treasury: treasuryBalance }
+            message: "PROTOCOL GENESIS COMPLETED. ALLOCATION DONE.",
+            stats: {
+                users_count: totalUsers,
+                general_treasury: generalTreasuryBalance,
+                locked_funds: TOKEN.ALLOCATION.LOCKED_TREASURY
+            }
         });
 
     } catch (e) {
