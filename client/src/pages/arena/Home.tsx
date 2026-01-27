@@ -4,7 +4,7 @@ import UserAvatar from '../../components/arena/UserAvatar'; // Seu novo componen
 import {
     MonetizationOn, LocalActivity,
     VisibilityOff, ShoppingCart, AccountBalance, Assignment,
-    ContentCopy, WhatsApp, QrCodeScanner, ArrowForward, EmojiEvents, SwapHoriz, ArrowUpward
+    ContentCopy, WhatsApp, QrCodeScanner, ArrowForward, EmojiEvents, SwapHoriz, ArrowUpward, Favorite
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -200,6 +200,14 @@ export default function ArenaHome() {
                         desc="TRADE REAL-TIME"
                         color="border-cyan-500/20 bg-cyan-500/5 hover:bg-cyan-500/10"
                         onClick={() => navigate('/arena/exchange')}
+                    />
+                    {/* 🔥 GECAMATCH (NOVO) */}
+                    <QuickApp
+                        icon={<Favorite className="text-rose-500" fontSize="large" />}
+                        title="GecaMatch"
+                        desc="Encontre seu Duo"
+                        color="border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10"
+                        onClick={() => navigate('/arena/dating')}
                     />
                 </div>
             </div>

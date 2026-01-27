@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const Usuario = require('../models/Usuario');
 const DatingProfile = require('../models/DatingProfile');
 
-const TARGET_EMAIL = 'woodprotocol@gmail.com';
+const TARGET_EMAIL = 'joaovitinhorabelo@gmail.com';
 
 
 
