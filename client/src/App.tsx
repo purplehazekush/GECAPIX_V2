@@ -80,15 +80,14 @@ function AppRoutes() {
 
         <Route path="games/play/:roomId" element={<GameRoom />} />
 
+        <Route path="market-lab" element={<MarketLab />} />
+
         {/* Rota do Xerife */} 
         {dbUser.role === 'admin' && (
           <Route path="admin/validacao" element={<ValidationPanel />} />
         )}
         {dbUser.role === 'admin' && (
           <Route path="admin/bankpanel" element={<BankPanel />} />
-        )}
-        {dbUser.role === 'admin' && (
-          <Route path="market-lab" element={<MarketLab />} />
         )}
                   
       </Route>
