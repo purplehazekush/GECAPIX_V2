@@ -195,6 +195,10 @@ app.post('/api/exchange/admin', exchangeController.adminUpdateParams);
 app.post('/api/exchange/admin/toggle', exchangeController.toggleMarket);
 
 
+
+app.post('/api/exchange/simulate', exchangeController.simulateMarket);
+
+
 // Rotas Legado/Simples
 const UsuarioModel = require('./models/Usuario');
 app.get('/api/admin/usuarios', async (req, res) => {

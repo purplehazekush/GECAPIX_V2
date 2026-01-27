@@ -266,3 +266,90 @@ exports.toggleMarket = async (req, res) => {
         res.status(500).json({ error: "Erro ao alternar mercado" });
     }
 };
+
+// SIMULAÇÃO DE MONTE CARLO PARA O LAB
+exports.simulateMarket = async (req, res) => {
+    try {
+        const { 
+            ticks = 200, 
+            biasMean, biasDev, 
+            dampenerMean, dampenerDev,
+            driftMean, driftDev 
+        } = req.body;
+
+        // Config Inicial (Mock)
+        let currentSupply = 1000;
+        let basePrice = 50; 
+        let multiplier = 1.0003;
+        
+        // Estado do Bot Simulado
+        let botState = {
+            targetSupply: currentSupply,
+            bias: parseFloat(biasMean),
+            dampener: parseFloat(dampenerMean),
+            drift: parseFloat(driftMean)
+        };
+
+        const candles = [];
+        let currentPrice = basePrice * Math.pow(multiplier, currentSupply);
+        
+        // Helper Gaussiano (Local)
+        const gaussian = (mean, dev) => {
+            const u = 1 - Math.random();
+            const v = Math.random();
+            const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+            return z * dev + mean;
+        };
+
+        const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
+
+        // Loop de Simulação
+        let currentCandle = { time: 0, open: currentPrice, high: currentPrice, low: currentPrice, close: currentPrice };
+        
+        for (let i = 0; i < ticks; i++) {
+            // 1. Recalibra Personalidade (a cada 15 ticks simulados)
+            if (i % 15 === 0) {
+                botState.bias = gaussian(parseFloat(biasMean), parseFloat(biasDev));
+                botState.dampener = gaussian(parseFloat(dampenerMean), parseFloat(dampenerDev));
+                botState.drift = gaussian(parseFloat(driftMean), parseFloat(driftDev));
+            }
+
+            // 2. Lógica do Bot
+            botState.targetSupply += botState.drift;
+            const gap = botState.targetSupply - currentSupply;
+            
+            let prob = 0.50 + botState.bias + (gap * botState.dampener);
+            prob = clamp(prob, 0.05, 0.95);
+
+            const isBuy = Math.random() < prob;
+            let amount = Math.floor(Math.random() * 3) + 1; // 1 a 3
+            if (Math.abs(gap) > 10) amount += 2;
+
+            // 3. Impacto no Preço (Bonding Curve Simplificada)
+            // Preço sobe/desce baseado no multiplier
+            if (isBuy) {
+                currentSupply += amount;
+                currentPrice *= Math.pow(multiplier, amount);
+            } else {
+                currentSupply -= amount;
+                currentPrice /= Math.pow(multiplier, amount);
+            }
+
+            // 4. Monta Candle (1 Candle a cada 5 ticks para não ficar gigante)
+            currentCandle.high = Math.max(currentCandle.high, currentPrice);
+            currentCandle.low = Math.min(currentCandle.low, currentPrice);
+            currentCandle.close = currentPrice;
+
+            if (i % 5 === 0) {
+                candles.push({ ...currentCandle, time: i }); // Time fictício
+                currentCandle = { time: i, open: currentPrice, high: currentPrice, low: currentPrice, close: currentPrice };
+            }
+        }
+        candles.push({ ...currentCandle, time: ticks });
+
+        res.json({ candles, finalSupply: currentSupply });
+
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+};
