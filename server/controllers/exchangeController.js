@@ -48,12 +48,8 @@ exports.getQuote = async (req, res) => {
                 price_end: endUnitPrice
             };
         } else {
-            // Venda: Custo para descer a escada
-            // Supply novo seria supply - qtd
-            if (supply < qtd) return res.status(400).json({ error: "Liquidez insuficiente" });
-
+            
             const startSupply = supply - qtd;
-            // O valor recebido é o custo que foi pago para subir esses degraus no passado
             const { totalCost, startUnitPrice, endUnitPrice } = calculateGeometricCost(startSupply, qtd, base, mult);
 
             // Taxa de Slippage/Queima na venda (ex: 5%)
@@ -61,8 +57,8 @@ exports.getQuote = async (req, res) => {
 
             result = {
                 total_coins: Math.floor(totalCost - burn),
-                price_start: endUnitPrice, // Na venda, começamos do preço alto
-                price_end: startUnitPrice  // E terminamos no baixo
+                price_start: endUnitPrice, 
+                price_end: startUnitPrice  
             };
         }
         res.json(result);
