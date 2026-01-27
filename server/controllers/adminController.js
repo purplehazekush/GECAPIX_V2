@@ -130,7 +130,7 @@ exports.resetSeason = async (req, res) => {
             // 1. TESOURO GERAL (Carteira Principal)
             {
                 email: TOKEN.WALLETS.TREASURY,
-                nome: "Tesouro Geral",
+                nome: "Tesouro",
                 role: "admin",
                 status: "ativo",
                 saldo_coins: generalTreasuryBalance,
@@ -141,7 +141,7 @@ exports.resetSeason = async (req, res) => {
             // 2. TESOURO BLOQUEADO (500kk)
             {
                 email: TOKEN.WALLETS.TREASURY_LOCKED,
-                nome: "Fundo Soberano (Travado)",
+                nome: "BLOQUEADO",
                 role: "admin",
                 status: "ativo", // Ativo, mas ninguém mexe
                 saldo_coins: TOKEN.ALLOCATION.LOCKED_TREASURY,
@@ -153,7 +153,7 @@ exports.resetSeason = async (req, res) => {
             // 3. FUNDO DE CASHBACK (165kk)
             {
                 email: TOKEN.WALLETS.CASHBACK,
-                nome: "Pool de Cashback",
+                nome: "Cashback",
                 role: "admin",
                 status: "ativo",
                 saldo_coins: TOKEN.ALLOCATION.CASHBACK_FUND,
@@ -164,11 +164,11 @@ exports.resetSeason = async (req, res) => {
             // 4. BANCO CENTRAL (100kk - Market Maker)
             {
                 email: TOKEN.WALLETS.BANK,
-                nome: "Banco Central (Bot)",
+                nome: "Banco",
                 role: "gm",
                 status: "ativo",
                 saldo_coins: TOKEN.ALLOCATION.CENTRAL_BANK,
-                saldo_glue: 100000, // Estoque inicial de GLUE para vender
+                saldo_glue: 25, // Estoque inicial de GLUE para vender
                 classe: "ESPECULADOR",
                 avatar_slug: "robot",
                 extrato: [{ tipo: 'ENTRADA', valor: TOKEN.ALLOCATION.CENTRAL_BANK, descricao: 'Gênesis: Liquidez Inicial', categoria: 'SYSTEM' }]
@@ -176,7 +176,7 @@ exports.resetSeason = async (req, res) => {
             // 5. CARTEIRAS DE SERVIÇO (Zeradas)
             {
                 email: TOKEN.WALLETS.FEES,
-                nome: "Coletor de Taxas",
+                nome: "FeeWallet",
                 role: "admin",
                 status: "ativo",
                 saldo_coins: 0,
@@ -185,7 +185,7 @@ exports.resetSeason = async (req, res) => {
             },
             {
                 email: TOKEN.WALLETS.BURN,
-                nome: "Buraco Negro",
+                nome: "BlackHole",
                 role: "admin",
                 status: "banido",
                 saldo_coins: 0,

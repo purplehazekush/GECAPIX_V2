@@ -1,6 +1,5 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
-import { Group, InfoOutlined } from '@mui/icons-material';
-import { Tooltip } from '@mui/material';
+import { Group, Lock, Public, Storefront, LocalAtm } from '@mui/icons-material';
 import UserAvatar from '../UserAvatar'; 
 
 interface OverviewTabProps {
@@ -8,150 +7,207 @@ interface OverviewTabProps {
     tokenomics: any;
 }
 
-// Cores Semânticas
 const COLORS = {
-    COMMUNITY: '#22d3ee', // Cyan (Alunos)
-    CASHBACK: '#a855f7',  // Purple
-    ECOSYSTEM: '#6366f1', // Indigo (Tesouro Geral)
-    BANK: '#f59e0b',      // Amber (Liquidez AMM)
-    FEES: '#10b981',      // Emerald
-    BURN: '#ef4444'       // Red
+    COMMUNITY: '#22d3ee',
+    CASHBACK: '#a855f7',
+    ECOSYSTEM: '#6366f1',
+    BANK: '#f59e0b',
+    FEES: '#10b981',
+    LOCKED: '#475569'
 };
 
-export const OverviewTab = ({ status, tokenomics }: OverviewTabProps) => {
-    if (!tokenomics) return <div className="text-center text-xs text-slate-500 animate-pulse">Carregando dados on-chain...</div>;
+export const OverviewTab = ({ tokenomics }: OverviewTabProps) => {
+    if (!tokenomics) return <div className="text-center text-xs text-slate-500 animate-pulse">Sincronizando Ledger...</div>;
 
-    // Dados para o Gráfico
-    // O TOTAL deste gráfico será (Supply Total - Locked Treasury)
+    // 1. Dados para os Cards de Destaque
+    const totalSupply = tokenomics.supply;
+    const lockedAmount = tokenomics.wallets?.locked || 0;
+    const activeSupply = totalSupply - lockedAmount;
+    const distributionRatio = (activeSupply / totalSupply) * 100;
+
+    // 2. Construção da Lista Unificada (Sistema + Humanos)
+    // Criamos objetos visuais para as carteiras de sistema
+    const systemWalletsList = [
+        { 
+            nome: 'Fundo Soberano (Bloqueado)', 
+            saldo_coins: lockedAmount, 
+            avatar_slug: 'safe', 
+            classe: 'TECNOMANTE', 
+            isSystem: true 
+        },
+        { 
+            nome: 'Tesouro Geral (Ecossistema)', 
+            saldo_coins: tokenomics.wallets?.treasury || 0, 
+            avatar_slug: 'bank', 
+            classe: 'TECNOMANTE', 
+            isSystem: true 
+        },
+        { 
+            nome: 'Pool Cashback', 
+            saldo_coins: tokenomics.wallets?.cashback || 0, 
+            avatar_slug: 'gift', 
+            classe: 'BARDO', 
+            isSystem: true 
+        },
+        { 
+            nome: 'Banco Central (Liquidez)', 
+            saldo_coins: tokenomics.wallets?.bank || 0, 
+            avatar_slug: 'robot', 
+            classe: 'ESPECULADOR', 
+            isSystem: true 
+        },
+        { 
+            nome: 'Taxas Acumuladas', 
+            saldo_coins: tokenomics.wallets?.fees || 0, 
+            avatar_slug: 'tax', 
+            classe: 'ESPECULADOR', 
+            isSystem: true 
+        }
+    ];
+
+    // Junta tudo e ordena por saldo
+    const richList = [...systemWalletsList, ...tokenomics.whales]
+        .sort((a, b) => b.saldo_coins - a.saldo_coins); // Do maior pro menor
+
+    // 3. Dados Gráfico (Pizza)
     const pieData = [
         { name: 'Comunidade', value: tokenomics.circulating, color: COLORS.COMMUNITY },
-        { name: 'Fundo Cashback', value: tokenomics.wallets?.cashback || 0, color: COLORS.CASHBACK },
+        { name: 'Cashback', value: tokenomics.wallets?.cashback || 0, color: COLORS.CASHBACK },
         { name: 'Ecossistema', value: tokenomics.wallets?.treasury || 0, color: COLORS.ECOSYSTEM },
         { name: 'Liquidez BC', value: tokenomics.wallets?.bank || 0, color: COLORS.BANK },
         { name: 'Taxas', value: tokenomics.wallets?.fees || 0, color: COLORS.FEES },
-        // Burn não entra no gráfico de distribuição de ativos pois não é ativo, mas pode ser mostrado num card separado
-    ];
-
-    // Filtra para não mostrar fatias zeradas ou negativas
-    const activeData = pieData.filter(d => d.value > 0);
-    
-    // Calcula o total visível no gráfico para a porcentagem ficar correta
-    const totalVisivel = activeData.reduce((acc, curr) => acc + curr.value, 0);
+    ].filter(d => d.value > 0);
 
     return (
         <div className="space-y-6 animate-slide-up">
             
-            {/* KPI Cards */}
-            <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 relative group">
-                    <div className="flex items-center gap-1 mb-1">
-                        <p className="text-[10px] text-slate-500 font-bold uppercase">Inflação (APR)</p>
-                        <Tooltip title="Rendimento base do Staking Líquido ontem." arrow>
-                            <InfoOutlined sx={{ fontSize: 12 }} className="text-slate-600"/>
-                        </Tooltip>
-                    </div>
-                    {/* Fallback visual se for 0 */}
-                    <p className="text-2xl font-black text-white">
-                        {status?.last_apr_liquid > 0 
-                            ? (status.last_apr_liquid * 100).toFixed(3) 
-                            : "0.500"}% <span className="text-xs text-slate-500 font-bold">a.d.</span>
-                    </p>
-                </div>
-                
-                <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800">
-                    <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Queimado (Deflação)</p>
-                    <p className="text-2xl font-black text-rose-500 flex items-center gap-2">
-                        🔥 {tokenomics.wallets?.burn?.toLocaleString()}
-                    </p>
-                </div>
-            </div>
-
-            {/* Gráfico de Distribuição */}
-            <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800">
-                <h3 className="text-xs font-bold text-slate-400 uppercase mb-4 text-center">Distribuição Ativa (Exclui Bloqueado)</h3>
-                
-                <div className="flex flex-col md:flex-row items-center justify-around gap-6">
-                    {/* Donut */}
-                    <div className="h-48 w-48 relative">
-                        <ResponsiveContainer>
-                            <PieChart>
-                                <Pie 
-                                    data={activeData} 
-                                    cx="50%" cy="50%" 
-                                    innerRadius={50} outerRadius={70} 
-                                    paddingAngle={4} 
-                                    dataKey="value"
-                                    stroke="none"
-                                >
-                                    {activeData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} />
-                                    ))}
-                                </Pie>
-                                <RechartsTooltip 
-                                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px' }}
-                                    itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
-                                    formatter={(value: any) => value?.toLocaleString()}
-                                />
-                            </PieChart>
-                        </ResponsiveContainer>
-                        {/* Texto Central */}
-                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                            <span className="text-[10px] font-bold text-slate-500">TOTAL ATIVO</span>
-                            <span className="text-xs font-black text-white">500M</span>
+            {/* --- DESTAQUE 1: COTAÇÃO REAL WORLD --- */}
+            <div className="bg-gradient-to-r from-yellow-600 via-yellow-500 to-yellow-600 p-0.5 rounded-2xl shadow-lg shadow-yellow-900/20">
+                <div className="bg-slate-900 rounded-[14px] p-4 flex justify-between items-center relative overflow-hidden">
+                    <div className="absolute -right-6 -top-6 text-yellow-500/10"><Storefront sx={{ fontSize: 100 }} /></div>
+                    
+                    <div>
+                        <p className="text-[10px] text-yellow-500 font-bold uppercase tracking-widest mb-1 flex items-center gap-1">
+                            <LocalAtm fontSize="inherit"/> Cotação Comercial
+                        </p>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-sm font-bold text-slate-400">R$ 1,00 =</span>
+                            <span className="text-3xl font-black text-white">{tokenomics.cashback_rate} <span className="text-sm text-yellow-500">GC</span></span>
                         </div>
-                    </div>
-
-                    {/* Legenda Dinâmica */}
-                    <div className="grid grid-cols-1 gap-2 w-full max-w-[200px]">
-                        {activeData.map((d, i) => (
-                            <div key={i} className="flex justify-between items-center text-xs">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} />
-                                    <span className="text-slate-300 font-bold">{d.name}</span>
-                                </div>
-                                <span className="font-mono text-slate-500">
-                                    {((d.value / totalVisivel) * 100).toFixed(1)}%
-                                </span>
-                            </div>
-                        ))}
+                        <p className="text-[9px] text-slate-500 mt-1">Válido para compras na Cantina/Lojinha.</p>
                     </div>
                 </div>
             </div>
 
-            {/* Top Holders (Filtrado) */}
-            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800">
-                <h3 className="text-xs font-bold text-slate-400 uppercase mb-4 flex items-center gap-2">
-                    <Group fontSize="small"/> Top Holders (Comunidade)
-                </h3>
-                <div className="space-y-3">
-                    {tokenomics.whales.map((whale: any, idx: number) => (
-                        <div key={idx} className="flex justify-between items-center group cursor-default">
-                            <div className="flex items-center gap-3">
-                                <span className={`
-                                    font-mono font-bold w-5 h-5 flex items-center justify-center rounded text-[10px]
-                                    ${idx === 0 ? 'bg-yellow-500/20 text-yellow-500' : 
-                                      idx === 1 ? 'bg-slate-500/20 text-slate-300' : 
-                                      idx === 2 ? 'bg-orange-700/20 text-orange-400' : 'text-slate-600'}
-                                `}>
-                                    {idx + 1}
-                                </span>
-                                <UserAvatar user={whale} size="sm" />
-                                <div>
-                                    <p className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">
-                                        {whale.nome.split(' ')[0]}
-                                    </p>
-                                    <p className="text-[9px] text-slate-500 uppercase font-bold tracking-wider">
-                                        {whale.classe || 'Novato'}
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="text-right">
-                                <span className="text-xs font-mono font-bold text-slate-300 group-hover:text-emerald-400 transition-colors">
-                                    {whale.saldo_coins.toLocaleString()}
-                                </span>
-                            </div>
+            {/* --- DESTAQUE 2: SUPPLY E BLOQUEIO --- */}
+            <div className="grid grid-cols-2 gap-3">
+                {/* Supply Total */}
+                <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800">
+                    <div className="flex justify-between items-start mb-2">
+                        <p className="text-[10px] text-slate-500 font-bold uppercase">Supply Total</p>
+                        <Public sx={{ fontSize: 14 }} className="text-slate-600"/>
+                    </div>
+                    <p className="text-lg font-black text-white truncate">1.000.000.000</p>
+                    <div className="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
+                        <div 
+                            className="h-full bg-emerald-500 rounded-full" 
+                            style={{ width: `${distributionRatio}%` }}
+                        />
+                    </div>
+                    <div className="flex justify-between mt-1">
+                        <span className="text-[9px] text-emerald-500 font-bold">{distributionRatio.toFixed(1)}% Liberado</span>
+                        <span className="text-[9px] text-slate-500">Max Cap</span>
+                    </div>
+                </div>
+
+                {/* Bloqueado */}
+                <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800">
+                    <div className="flex justify-between items-start mb-2">
+                        <p className="text-[10px] text-slate-500 font-bold uppercase">Cofre Bloqueado</p>
+                        <Lock sx={{ fontSize: 14 }} className="text-slate-600"/>
+                    </div>
+                    <p className="text-lg font-black text-slate-400 truncate">
+                        {lockedAmount.toLocaleString()}
+                    </p>
+                    <p className="text-[9px] text-slate-500 mt-1 flex items-center gap-1">
+                        <Lock sx={{fontSize: 10}}/> Travado por 6 meses
+                    </p>
+                </div>
+            </div>
+
+            {/* --- GRÁFICO --- */}
+            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 flex flex-col items-center">
+                <h3 className="text-xs font-bold text-slate-400 uppercase mb-2">Distribuição do Capital Ativo</h3>
+                <div className="h-40 w-full max-w-[200px]">
+                    <ResponsiveContainer>
+                        <PieChart>
+                            <Pie 
+                                data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={3} dataKey="value" stroke="none"
+                            >
+                                {pieData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
+                            </Pie>
+                            <RechartsTooltip 
+                                contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', fontSize: '12px' }}
+                                itemStyle={{ color: '#fff' }}
+                                formatter={(value: any) => value?.toLocaleString()}
+                            />
+                        </PieChart>
+                    </ResponsiveContainer>
+                </div>
+                {/* Legenda simples */}
+                <div className="flex flex-wrap justify-center gap-3 mt-2">
+                    {pieData.map((d, i) => (
+                        <div key={i} className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} />
+                            <span className="text-[9px] text-slate-400 font-bold">{d.name}</span>
                         </div>
                     ))}
+                </div>
+            </div>
+
+            {/* --- LISTA DE MAIORES INVESTIDORES (SISTEMA + HUMANOS) --- */}
+            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800">
+                <h3 className="text-xs font-bold text-slate-400 uppercase mb-4 flex items-center gap-2">
+                    <Group fontSize="small"/> Ranking de Riqueza
+                </h3>
+                <div className="space-y-3">
+                    {richList.map((wallet: any, idx: number) => {
+                        const isSystem = wallet.isSystem;
+                        
+                        return (
+                            <div key={idx} className={`flex justify-between items-center p-2 rounded-lg ${isSystem ? 'bg-slate-800/50 border border-slate-700/50' : 'bg-transparent'}`}>
+                                <div className="flex items-center gap-3">
+                                    <span className={`
+                                        font-mono font-bold w-5 h-5 flex items-center justify-center rounded text-[10px]
+                                        ${idx === 0 ? 'bg-yellow-500/20 text-yellow-500' : 
+                                          idx === 1 ? 'bg-slate-500/20 text-slate-300' : 
+                                          idx === 2 ? 'bg-orange-700/20 text-orange-400' : 'text-slate-600'}
+                                    `}>
+                                        {idx + 1}
+                                    </span>
+                                    
+                                    <UserAvatar user={wallet} size="sm" />
+                                    
+                                    <div>
+                                        <div className="flex items-center gap-1.5">
+                                            <p className={`text-xs font-bold ${isSystem ? 'text-indigo-300' : 'text-white'}`}>
+                                                {wallet.nome.split(' ')[0]}
+                                            </p>
+                                            {isSystem && <Lock sx={{fontSize: 8}} className="text-slate-500"/>}
+                                        </div>
+                                        <p className="text-[9px] text-slate-500 uppercase font-bold tracking-wider">
+                                            {wallet.classe || 'Entidade'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <span className={`text-xs font-mono font-bold ${isSystem ? 'text-slate-400' : 'text-emerald-400'}`}>
+                                        {Math.floor(wallet.saldo_coins).toLocaleString()}
+                                    </span>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
         </div>

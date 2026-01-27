@@ -39,6 +39,10 @@ const SystemStateSchema = new mongoose.Schema({
     glue_supply_circulating: { type: Number, default: 0 },
     
     market_is_open: { type: Boolean, default: true },
+
+    // 🔥 NOVO CAMPO: Cotação do Mundo Real
+    // Ex: 120 significa que R$ 1,00 vale 120 Coins na sede do geca
+    real_world_cashback_rate: { type: Number, default: 120 },
 });
 
 module.exports = mongoose.models.SystemState || mongoose.model('SystemState', SystemStateSchema);

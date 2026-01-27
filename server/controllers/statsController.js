@@ -3,9 +3,11 @@ const PixModel = require('../models/Pix');
 const UsuarioModel = require('../models/Usuario');
 const DailyStatsModel = require('../models/DailyStats');
 const TOKEN = require('../config/tokenomics'); // Importante para pegar os e-mails
+const SystemState = require('../models/SystemState');
 
 exports.getTokenomics = async (req, res) => {
     try {
+        const state = await SystemState.findOne({ season_id: 1 }) || {};
         // 1. Supply Total Real (Soma de todos os saldos no banco)
         const aggregator = await UsuarioModel.aggregate([
             { $group: { _id: null, totalSupply: { $sum: "$saldo_coins" } } }
@@ -55,13 +57,15 @@ exports.getTokenomics = async (req, res) => {
             supply,
             holders,
             circulating: communityCirculating, // Isso é o que está na mão dos alunos
+            // 🔥 Adicionamos a cotação aqui
+            cashback_rate: state.real_world_cashback_rate || 120, 
             wallets: {
-                treasury: val('TREASURY'), // Geral
-                locked: val('TREASURY_LOCKED'), // 500M
-                cashback: val('CASHBACK'),
-                bank: val('BANK'), // BC
-                fees: val('FEES'),
-                burn: val('BURN')
+                treasury: walletMap['treasury'] || 0,
+                locked: walletMap['locked'] || 0,
+                cashback: walletMap['cashback'] || 0,
+                bank: walletMap['central_bank'] || 0,
+                fees: walletMap['trading_fees'] || 0,
+                burn: walletMap['burn'] || 0
             },
             whales
         });
