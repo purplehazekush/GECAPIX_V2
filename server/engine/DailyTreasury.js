@@ -90,5 +90,5 @@ exports.runDailyClosing = async () => {
     await state.save();
 
     console.log(`✅ [TREASURY] Fechamento do Dia ${targetDay} concluído com sucesso.`);
-    console.log(`   -> Emitido: ${totalMintedToday} GC`);
+
 };

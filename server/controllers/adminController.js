@@ -101,12 +101,11 @@ exports.resetSeason = async (req, res) => {
         // 3. ENGENHARIA FINANCEIRA (Criação das Carteiras)
         
         // Remove carteiras antigas para recriar limpo
-        await UsuarioModel.deleteMany({ email: { $in: systemEmails } });
-
-        // --- CÁLCULO DO TESOURO GERAL (O RESTO) ---
+        // Cálculos
         const totalUsers = await UsuarioModel.countDocuments({ email: { $nin: systemEmails } });
         const distributedToUsers = totalUsers * INIT_BALANCE;
         
+        // Somas fixas
         const fixedAllocations = 
             TOKEN.ALLOCATION.LOCKED_TREASURY + 
             TOKEN.ALLOCATION.CASHBACK_FUND + 
@@ -114,78 +113,66 @@ exports.resetSeason = async (req, res) => {
 
         const generalTreasuryBalance = TOKEN.CAPS.TOTAL_SUPPLY - fixedAllocations - distributedToUsers;
 
-        console.log(`📊 AUDITORIA DO SUPPLY (1 Bilhão):`);
-        console.log(`   - Travado 6 Meses: ${TOKEN.ALLOCATION.LOCKED_TREASURY.toLocaleString()}`);
-        console.log(`   - Fundo Cashback:  ${TOKEN.ALLOCATION.CASHBACK_FUND.toLocaleString()}`);
-        console.log(`   - Banco Central:   ${TOKEN.ALLOCATION.CENTRAL_BANK.toLocaleString()}`);
-        console.log(`   - Usuários (${totalUsers}):    ${distributedToUsers.toLocaleString()}`);
-        console.log(`   ------------------------------------------`);
-        console.log(`   = TESOURO GERAL:   ${generalTreasuryBalance.toLocaleString()} (Disponível para Referral/Games)`);
-
-        if (generalTreasuryBalance < 0) {
-            throw new Error("ERRO CRÍTICO: Alocação excede o Supply Total!");
-        }
-
         const walletsToCreate = [
-            // 1. TESOURO GERAL (Carteira Principal)
+            // 1. TESOURO GERAL (O Resto)
             {
                 email: TOKEN.WALLETS.TREASURY,
-                nome: "Tesouro",
+                nome: "Tesouro Geral", // Nome ajustado
                 role: "admin",
                 status: "ativo",
                 saldo_coins: generalTreasuryBalance,
                 classe: "TECNOMANTE",
                 avatar_slug: "bank",
-                extrato: [{ tipo: 'ENTRADA', valor: generalTreasuryBalance, descricao: 'Gênesis: Alocação Geral', categoria: 'SYSTEM' }]
+                extrato: [{ tipo: 'ENTRADA', valor: generalTreasuryBalance, descricao: 'Gênesis', categoria: 'SYSTEM', data: new Date() }]
             },
             // 2. TESOURO BLOQUEADO (500kk)
             {
-                email: TOKEN.WALLETS.TREASURY_LOCKED,
-                nome: "BLOQUEADO",
+                email: TOKEN.WALLETS.TREASURY_LOCKED, // Certifique-se que esta chave existe no tokenomics!
+                nome: "Fundo Soberano", // Nome ajustado
                 role: "admin",
-                status: "ativo", // Ativo, mas ninguém mexe
+                status: "ativo",
                 saldo_coins: TOKEN.ALLOCATION.LOCKED_TREASURY,
                 classe: "TECNOMANTE",
                 avatar_slug: "safe",
-                bio: "Fundos bloqueados por 6 meses para garantia de lastro.",
-                extrato: [{ tipo: 'ENTRADA', valor: TOKEN.ALLOCATION.LOCKED_TREASURY, descricao: 'Gênesis: Alocação Travada', categoria: 'SYSTEM' }]
+                extrato: [{ tipo: 'ENTRADA', valor: TOKEN.ALLOCATION.LOCKED_TREASURY, descricao: 'Gênesis', categoria: 'SYSTEM', data: new Date() }]
             },
             // 3. FUNDO DE CASHBACK (165kk)
             {
                 email: TOKEN.WALLETS.CASHBACK,
-                nome: "Cashback",
+                nome: "Pool Cashback",
                 role: "admin",
                 status: "ativo",
                 saldo_coins: TOKEN.ALLOCATION.CASHBACK_FUND,
                 classe: "BARDO",
                 avatar_slug: "gift",
-                extrato: [{ tipo: 'ENTRADA', valor: TOKEN.ALLOCATION.CASHBACK_FUND, descricao: 'Gênesis: Pool Cashback', categoria: 'SYSTEM' }]
+                extrato: [{ tipo: 'ENTRADA', valor: TOKEN.ALLOCATION.CASHBACK_FUND, descricao: 'Gênesis', categoria: 'SYSTEM', data: new Date() }]
             },
-            // 4. BANCO CENTRAL (100kk - Market Maker)
+            // 4. BANCO CENTRAL (100kk)
             {
                 email: TOKEN.WALLETS.BANK,
-                nome: "Banco",
+                nome: "Banco Central",
                 role: "gm",
                 status: "ativo",
                 saldo_coins: TOKEN.ALLOCATION.CENTRAL_BANK,
-                saldo_glue: 25, // Estoque inicial de GLUE para vender
+                saldo_glue: 100000,
                 classe: "ESPECULADOR",
                 avatar_slug: "robot",
-                extrato: [{ tipo: 'ENTRADA', valor: TOKEN.ALLOCATION.CENTRAL_BANK, descricao: 'Gênesis: Liquidez Inicial', categoria: 'SYSTEM' }]
+                extrato: [{ tipo: 'ENTRADA', valor: TOKEN.ALLOCATION.CENTRAL_BANK, descricao: 'Gênesis', categoria: 'SYSTEM', data: new Date() }]
             },
-            // 5. CARTEIRAS DE SERVIÇO (Zeradas)
+            // 5. TAXAS (Começa zerado)
             {
                 email: TOKEN.WALLETS.FEES,
-                nome: "FeeWallet",
+                nome: "Taxas Acumuladas",
                 role: "admin",
                 status: "ativo",
                 saldo_coins: 0,
                 classe: "ESPECULADOR",
                 avatar_slug: "tax"
             },
+            // 6. BURN (Começa zerado)
             {
                 email: TOKEN.WALLETS.BURN,
-                nome: "BlackHole",
+                nome: "Buraco Negro",
                 role: "admin",
                 status: "banido",
                 saldo_coins: 0,
