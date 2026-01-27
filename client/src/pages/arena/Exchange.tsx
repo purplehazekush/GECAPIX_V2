@@ -56,8 +56,8 @@ export default function ArenaExchange() {
     const updateChartLines = (currPrice: number, mult: number, amt: string) => {
         const amountNum = Math.max(1, parseInt(amt) || 1);
         setChartLines([
-            { price: currPrice * Math.pow(mult, amountNum), color: '#4ade80', title: `ASK (+${amountNum})` },
-            { price: currPrice * Math.pow(mult, -amountNum), color: '#f87171', title: `BID (-${amountNum})` }
+            { price: currPrice /* * Math.pow(mult, amountNum)*/, color: '#f87171', title: `ASK` },
+            { price: currPrice * Math.pow(mult, -amountNum), color: '#f87171', title: `BID` }
         ]);
     };
 
