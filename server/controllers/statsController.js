@@ -7,72 +7,72 @@ const SystemState = require('../models/SystemState');
 
 exports.getTokenomics = async (req, res) => {
     try {
-        const state = await SystemState.findOne({ season_id: 1 }) || {};
-        // 1. Supply Total Real (Soma de todos os saldos no banco)
+        // 1. Supply Total
         const aggregator = await UsuarioModel.aggregate([
             { $group: { _id: null, totalSupply: { $sum: "$saldo_coins" } } }
         ]);
         const supply = aggregator[0]?.totalSupply || 0;
 
-        // 2. Mapeamento das Carteiras de Sistema
-        const systemEmails = Object.values(TOKEN.WALLETS);
-        
+        // 2. Definição Exata dos Emails de Sistema
+        const WALLETS = TOKEN.WALLETS;
+        const systemEmails = Object.values(WALLETS).map(email => email.toLowerCase());
+
+        // 3. Busca Carteiras de Sistema
         const systemWallets = await UsuarioModel.find({
             email: { $in: systemEmails }
         });
 
-        // Cria um mapa { 'treasury': 233000, 'locked': 500000, ... }
-        const walletMap = {};
-        systemWallets.forEach(w => {
-            // Identifica qual carteira é baseada no e-mail
-            const key = Object.keys(TOKEN.WALLETS).find(k => TOKEN.WALLETS[k] === w.email);
-            if (key) walletMap[key.toLowerCase()] = w.saldo_coins;
-        });
+        // 4. Mapeamento Preciso (Email -> Valor)
+        const getBalance = (targetEmail) => {
+            const wallet = systemWallets.find(w => w.email.toLowerCase() === targetEmail.toLowerCase());
+            return wallet ? wallet.saldo_coins : 0;
+        };
 
-        // Valores de segurança caso alguma carteira não exista ainda
-        const val = (key) => walletMap[key.toLowerCase()] || 0;
+        // 5. Valores para o Front
+        const walletsData = {
+            treasury: getBalance(WALLETS.TREASURY),
+            locked: getBalance(WALLETS.TREASURY_LOCKED),
+            cashback: getBalance(WALLETS.CASHBACK),
+            bank: getBalance(WALLETS.BANK),
+            fees: getBalance(WALLETS.FEES),
+            burn: getBalance(WALLETS.BURN)
+        };
 
-        // 3. Cálculo do Circulante da Comunidade
-        // Circulante = Total - Todas as Carteiras de Sistema
-        const totalSystem = systemWallets.reduce((acc, w) => acc + w.saldo_coins, 0);
-        const communityCirculating = supply - totalSystem;
+        // 6. Cálculo do Circulante (Total - Tudo que é do Sistema)
+        const totalSystemBalance = Object.values(walletsData).reduce((a, b) => a + b, 0);
+        const circulating = supply - totalSystemBalance;
 
-        // 4. Top Holders (Baleias Reais)
-        // 🔥 EXCLUI AS CARTEIRAS DE SISTEMA DA LISTA
+        // 7. Top Holders (Exclui RIGOROSAMENTE as carteiras de sistema)
         const whales = await UsuarioModel.find({
-            email: { $nin: systemEmails }, // Exclui Treasury, Bank, etc.
-            saldo_coins: { $gt: 0 } // Opcional: esconde zerados
+            email: { $nin: systemEmails }, // Exclui sistema
+            role: { $nin: ['admin', 'gm'] }, // Exclui admins humanos se quiser
+            saldo_coins: { $gt: 0 }
         })
         .sort({ saldo_coins: -1 })
         .limit(10)
         .select('nome saldo_coins avatar_slug classe');
 
-        // 5. Total de Holders (Pessoas reais)
         const holders = await UsuarioModel.countDocuments({ 
             email: { $nin: systemEmails },
             saldo_coins: { $gt: 0 }
         });
 
+        // Tenta pegar a cotação do SystemState
+        const SystemState = require('../models/SystemState');
+        const state = await SystemState.findOne({ season_id: TOKEN.SEASON.ID }) || {};
+
         res.json({
             supply,
             holders,
-            circulating: communityCirculating, // Isso é o que está na mão dos alunos
-            // 🔥 Adicionamos a cotação aqui
-            cashback_rate: state.real_world_cashback_rate || 120, 
-            wallets: {
-                treasury: walletMap['treasury'] || 0,
-                locked: walletMap['locked'] || 0,
-                cashback: walletMap['cashback'] || 0,
-                bank: walletMap['central_bank'] || 0,
-                fees: walletMap['trading_fees'] || 0,
-                burn: walletMap['burn'] || 0
-            },
+            circulating,
+            cashback_rate: state.real_world_cashback_rate || 120,
+            wallets: walletsData,
             whales
         });
 
     } catch (e) {
         console.error("Erro Tokenomics:", e);
-        res.status(500).json({ error: "Erro ao calcular tokenomics" });
+        res.status(500).json({ error: "Erro interno no stats" });
     }
 };
 
