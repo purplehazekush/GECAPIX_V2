@@ -50,9 +50,6 @@ exports.darRecursos = async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Erro recursos" }); }
 };
 
-// server/controllers/adminController.js
-
-// ... imports ...
 
 // 4. PROTOCOLO GÊNESIS (RESET TOTAL)
 exports.resetSeason = async (req, res) => {
@@ -204,13 +201,13 @@ exports.resetSeason = async (req, res) => {
         await SystemState.deleteMany({});
         
         await SystemState.create({
-            season_id: TOKEN.SEASON.ID || 2,
+            season_id: TOKEN.SEASON.ID || 1,
             season_start_date: new Date(),
             current_day: 0,
             last_processed_day: -1, // Importante para o DailyTreasury rodar hoje a noite (ou agora)
             
-            glue_price_base: 50,
-            glue_price_multiplier: 1.05,
+            glue_price_base: 1000,
+            glue_price_multiplier: 1.10,
             glue_supply_circulating: 0,
             
             total_burned: 0,

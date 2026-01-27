@@ -10,7 +10,7 @@ const SEASON_LENGTH = 180;
 
 module.exports = {
     SEASON: {
-        ID: 2, 
+        ID: 1, 
         START_DATE: new Date().toISOString(), 
         LENGTH: SEASON_LENGTH,
     },
