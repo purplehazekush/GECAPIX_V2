@@ -245,20 +245,37 @@ exports.getMailbox = async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Erro" }); }
 };
 
-
-// 6. VER QUEM EU JÁ DEI LIKE (Histórico)
+// 6. VER QUEM EU JÁ DEI LIKE (Histórico com Status)
 exports.getSentLikes = async (req, res) => {
     try {
         const myProfile = await DatingProfile.findOne({ userId: req.user._id });
         if (!myProfile) return res.status(404).json({ error: "Perfil off" });
 
         // Busca os perfis que estão no array likes_enviados
+        // Trazemos o campo 'correio' para verificar se mandamos Super Like
         const sentLikes = await DatingProfile.find({
             _id: { $in: myProfile.likes_enviados }
-        }).select('nome curso fotos genero'); // Traz o básico pra mostrar no grid
+        }).select('nome curso fotos genero correio'); 
 
-        res.json(sentLikes);
+        // Processa para adicionar flag 'isSuper'
+        const result = sentLikes.map(p => {
+            const superLikeEnviado = p.correio.some(
+                msg => msg.tipo === 'SUPERLIKE' && msg.remetente_id === myProfile._id.toString()
+            );
+
+            return {
+                _id: p._id,
+                nome: p.nome,
+                curso: p.curso,
+                fotos: p.fotos,
+                genero: p.genero,
+                isSuper: superLikeEnviado // <--- Flag vital para o Frontend
+            };
+        });
+
+        res.json(result);
     } catch (e) {
+        console.error(e);
         res.status(500).json({ error: "Erro ao buscar histórico." });
     }
 };

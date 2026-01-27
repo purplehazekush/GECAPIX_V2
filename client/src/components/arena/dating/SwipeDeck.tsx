@@ -48,6 +48,14 @@ export const SwipeDeck = ({ filters }: { filters: any }) => {
                 toast.success("Like enviado!", { icon: '❤️' });
             } catch (e: any) { return toast.error(e.response?.data?.error || "Sem saldo!"); }
         } else if (type === 'super') {
+            const confirmMsg = 
+                `🔥 ENVIAR SUPER LIKE?\n\n` +
+                `Isso custará 1 GLUE + 500 COINS.\n\n` +
+                `Efeito: Seu telefone será revelado IMEDIATAMENTE na caixa de entrada de ${candidates[current].nome}, sem precisar de match recíproco.\n\n` +
+                `Continuar?`;
+
+            if(!confirm(confirmMsg)) return;
+
             try {
                 await api.post('/dating/superlike', { targetProfileId: targetId });
                 toast.success("SUPER LIKE!", { icon: '🔥', style: { background: '#f59e0b', color: '#fff' } });

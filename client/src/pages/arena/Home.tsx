@@ -207,7 +207,7 @@ export default function ArenaHome() {
                         title="GecaMatch"
                         desc="Encontre seu Duo"
                         color="border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10"
-                        onClick={() => navigate('/arena/dating')}
+                        onClick={() => navigate('/arena/matching')}
                     />
                 </div>
             </div>
