@@ -21,7 +21,8 @@ module.exports = {
     CAPS: {
         TOTAL_SUPPLY: 1_000_000_000,
         REFERRAL_POOL: 60_000_000,
-        CASHBACK_POOL: 200_000_000
+        CASHBACK_POOL: 200_000_000,
+        INITIAL_USER_BALANCE: 1000
     },
 
     // --- 3. CURVAS MATEMÁTICAS ---
