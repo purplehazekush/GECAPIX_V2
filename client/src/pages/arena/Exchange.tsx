@@ -74,22 +74,21 @@ export default function ArenaExchange() {
 
         // Ouve atualizações do mercado
         const handleMarketUpdate = (data: any) => {
-            // data = { time, price, supply, ... }
-            
-            // 1. Atualiza Preço e Supply
             setPrice(data.price);
             setMarketParams(prev => ({ ...prev, supply: data.supply }));
             
-            // 2. Atualiza Gráfico (Merge inteligente)
             setHistory(prevHistory => {
+                if (prevHistory.length === 0) return prevHistory;
+
                 const lastCandle = prevHistory[prevHistory.length - 1];
                 
-                // Se o timestamp do trade for maior que o último candle + intervalo, cria novo
-                // (Lógica simplificada: Para 100% de precisão de timeframe no front, 
-                // seria ideal recalcular, mas para UX rápida, injetamos como update do último candle)
-                
-                if (lastCandle && data.time === lastCandle.time) {
-                    // Atualiza candle atual
+                // 🔥 CORREÇÃO: Arredonda o tempo do socket para o início do minuto (Bucket)
+                // Isso força o trade a entrar na vela atual em vez de criar uma nova
+                const socketTimeBucket = Math.floor(data.time / 60) * 60; 
+
+                // Verifica se o bucket do socket é igual ao da última vela
+                if (lastCandle.time === socketTimeBucket) {
+                    // É O MESMO MINUTO: Atualiza a vela existente (Merge)
                     return [
                         ...prevHistory.slice(0, -1),
                         {
@@ -100,22 +99,19 @@ export default function ArenaExchange() {
                         }
                     ];
                 } else {
-                    // Novo candle
+                    // NOVO MINUTO: Cria nova vela
                     return [
                         ...prevHistory,
                         {
-                            time: data.time,
-                            open: data.price, // Simplificação
-                            close: data.price,
+                            time: socketTimeBucket,
+                            open: lastCandle.close, 
                             high: data.price,
-                            low: data.price
+                            low: data.price,
+                            close: data.price
                         }
                     ];
                 }
             });
-
-            // Se fui eu que fiz o trade, atualizo meu saldo
-            // (Poderíamos filtrar pelo ID do usuário no payload do socket)
             reloadUser?.(); 
         };
 
