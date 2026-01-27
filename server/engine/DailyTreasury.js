@@ -59,23 +59,29 @@ exports.runDailyClosing = async () => {
     // Roda Juros DeFi
     await InterestEngine.aplicarJurosDiarios(targetDay);
 
-    // --- 5. CONTABILIDADE (MINT) ---
-    // Debita da Treasury para justificar a emissão
-    const totalMintedToday = refPool + cashPool;
+   // --- 5. CONTABILIDADE (MINT) ---
+    
+    // A. Debita do Tesouro Geral o Referral Pool
+    if (refPool > 0) {
+        await UsuarioModel.updateOne(
+            { email: TOKEN.WALLETS.TREASURY },
+            { 
+                $inc: { saldo_coins: -refPool },
+                $push: { extrato: { tipo: 'SAIDA', valor: refPool, descricao: `Emissão Referral Dia ${targetDay}`, categoria: 'SYSTEM', data: new Date() } }
+            }
+        );
+    }
 
-    await UsuarioModel.updateOne(
-        { email: TOKEN.WALLETS.TREASURY },
-        { 
-            $inc: { saldo_coins: -totalMintedToday },
-            $push: { extrato: { 
-                tipo: 'SAIDA', 
-                valor: totalMintedToday, 
-                descricao: `Emissão Dia ${targetDay}`, 
-                categoria: 'SYSTEM', 
-                data: new Date() 
-            }}
-        }
-    );
+    // B. Debita do Fundo Cashback o Cashback Pool
+    if (cashPool > 0) {
+        await UsuarioModel.updateOne(
+            { email: TOKEN.WALLETS.CASHBACK },
+            { 
+                $inc: { saldo_coins: -cashPool },
+                $push: { extrato: { tipo: 'SAIDA', valor: cashPool, descricao: `Emissão Cashback Dia ${targetDay}`, categoria: 'SYSTEM', data: new Date() } }
+            }
+        );
+    }
 
     // --- 6. FINALIZAÇÃO ---
     state.current_day = targetDay;
