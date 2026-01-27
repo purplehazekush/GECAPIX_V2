@@ -2,7 +2,75 @@
 const PixModel = require('../models/Pix');
 const UsuarioModel = require('../models/Usuario');
 const DailyStatsModel = require('../models/DailyStats');
-// ... imports existentes
+const TOKEN = require('../config/tokenomics'); // Importante para pegar os e-mails
+
+exports.getTokenomics = async (req, res) => {
+    try {
+        // 1. Supply Total Real (Soma de todos os saldos no banco)
+        const aggregator = await UsuarioModel.aggregate([
+            { $group: { _id: null, totalSupply: { $sum: "$saldo_coins" } } }
+        ]);
+        const supply = aggregator[0]?.totalSupply || 0;
+
+        // 2. Mapeamento das Carteiras de Sistema
+        const systemEmails = Object.values(TOKEN.WALLETS);
+        
+        const systemWallets = await UsuarioModel.find({
+            email: { $in: systemEmails }
+        });
+
+        // Cria um mapa { 'treasury': 233000, 'locked': 500000, ... }
+        const walletMap = {};
+        systemWallets.forEach(w => {
+            // Identifica qual carteira é baseada no e-mail
+            const key = Object.keys(TOKEN.WALLETS).find(k => TOKEN.WALLETS[k] === w.email);
+            if (key) walletMap[key.toLowerCase()] = w.saldo_coins;
+        });
+
+        // Valores de segurança caso alguma carteira não exista ainda
+        const val = (key) => walletMap[key.toLowerCase()] || 0;
+
+        // 3. Cálculo do Circulante da Comunidade
+        // Circulante = Total - Todas as Carteiras de Sistema
+        const totalSystem = systemWallets.reduce((acc, w) => acc + w.saldo_coins, 0);
+        const communityCirculating = supply - totalSystem;
+
+        // 4. Top Holders (Baleias Reais)
+        // 🔥 EXCLUI AS CARTEIRAS DE SISTEMA DA LISTA
+        const whales = await UsuarioModel.find({
+            email: { $nin: systemEmails }, // Exclui Treasury, Bank, etc.
+            saldo_coins: { $gt: 0 } // Opcional: esconde zerados
+        })
+        .sort({ saldo_coins: -1 })
+        .limit(10)
+        .select('nome saldo_coins avatar_slug classe');
+
+        // 5. Total de Holders (Pessoas reais)
+        const holders = await UsuarioModel.countDocuments({ 
+            email: { $nin: systemEmails },
+            saldo_coins: { $gt: 0 }
+        });
+
+        res.json({
+            supply,
+            holders,
+            circulating: communityCirculating, // Isso é o que está na mão dos alunos
+            wallets: {
+                treasury: val('TREASURY'), // Geral
+                locked: val('TREASURY_LOCKED'), // 500M
+                cashback: val('CASHBACK'),
+                bank: val('BANK'), // BC
+                fees: val('FEES'),
+                burn: val('BURN')
+            },
+            whales
+        });
+
+    } catch (e) {
+        console.error("Erro Tokenomics:", e);
+        res.status(500).json({ error: "Erro ao calcular tokenomics" });
+    }
+};
 
 exports.getStats = async (req, res) => {
     try {
@@ -91,37 +159,6 @@ exports.getStats = async (req, res) => {
     }
 };
 
-
-
-exports.getTokenomics = async (req, res) => {
-    try {
-        // 1. Supply Total (Soma de todos os saldos)
-        const aggregator = await UsuarioModel.aggregate([
-            { $group: { _id: null, totalSupply: { $sum: "$saldo_coins" }, totalUsers: { $sum: 1 } } }
-        ]);
-        const supply = aggregator[0]?.totalSupply || 0;
-        const holders = aggregator[0]?.totalUsers || 0;
-
-        // 2. Top Holders (As Baleias)
-        const whales = await UsuarioModel.find()
-            .sort({ saldo_coins: -1 })
-            .limit(10)
-            .select('nome saldo_coins avatar_slug classe');
-
-        // 3. Tesouro do Admin (Carteira que emite)
-        const treasury = await UsuarioModel.findOne({ role: 'admin' }).select('saldo_coins');
-
-        res.json({
-            supply,
-            holders,
-            treasury: treasury?.saldo_coins || 0,
-            circulating: supply - (treasury?.saldo_coins || 0),
-            whales
-        });
-    } catch (e) {
-        res.status(500).json({ error: "Erro no Tokenomics" });
-    }
-};
 
 exports.snapshotEconomy = async () => {
     try {
