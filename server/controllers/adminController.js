@@ -1,3 +1,4 @@
+// server/controllers/adminController.js
 const UsuarioModel = require('../models/Usuario');
 const SystemState = require('../models/SystemState');
 const Trade = require('../models/Trade');

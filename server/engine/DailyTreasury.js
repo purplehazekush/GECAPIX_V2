@@ -1,3 +1,4 @@
+// server/engine/DailyTreasury.js
 const SystemState = require('../models/SystemState');
 const UsuarioModel = require('../models/Usuario'); // Importe o model para debitar a Treasury
 const EmissionCurve = require('./EmissionCurve');

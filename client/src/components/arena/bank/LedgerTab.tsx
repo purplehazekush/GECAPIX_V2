@@ -1,3 +1,4 @@
+// client/src/components/arena/bank/LedgerTab.tsx
 import { useEffect, useState } from 'react';
 import { 
     History, ArrowUpward, ArrowDownward, 

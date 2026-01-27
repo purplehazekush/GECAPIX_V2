@@ -1,3 +1,4 @@
+// client/src/components/arena/dating/Mailbox.tsx
 import { useState, useEffect } from 'react';
 import { api } from '../../../lib/api';
 import { WhatsApp } from '@mui/icons-material';

@@ -1,3 +1,4 @@
+// client/src/components/arena/bank/OverviewTab.tsx
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { Group, Lock, Public, Storefront, LocalFireDepartment, InfoOutlined } from '@mui/icons-material';
 import { Tooltip } from '@mui/material';

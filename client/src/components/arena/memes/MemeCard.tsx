@@ -1,3 +1,4 @@
+// client/src/components/arena/memes/MemeCard.tsx
 import { ThumbUp, ThumbDown, TrendingUp, TrendingDown } from '@mui/icons-material';
 import UserAvatar from '../UserAvatar';
 

@@ -1,3 +1,4 @@
+// server/models/SystemState.js
 const mongoose = require('mongoose');
 
 const SystemStateSchema = new mongoose.Schema({

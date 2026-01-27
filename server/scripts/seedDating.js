@@ -1,3 +1,4 @@
+// server/scripts/seedDating.js
 // seedDating.js
 require('dotenv').config({ path: '../.env' });
 const mongoose = require('mongoose');

@@ -1,3 +1,4 @@
+// server/scripts/seedReverseLike.js
 // seedReverseLike.js
 require('dotenv').config({ path: '../.env' });
 const mongoose = require('mongoose');

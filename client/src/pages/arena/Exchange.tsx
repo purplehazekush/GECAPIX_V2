@@ -1,3 +1,4 @@
+// client/src/pages/arena/Exchange.tsx
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';

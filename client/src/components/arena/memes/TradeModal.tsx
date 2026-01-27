@@ -1,3 +1,4 @@
+// client/src/components/arena/memes/TradeModal.tsx
 import { Modal, Box } from '@mui/material';
 import { useState } from 'react';
 import { MonetizationOn, ThumbUp, ThumbDown } from '@mui/icons-material';

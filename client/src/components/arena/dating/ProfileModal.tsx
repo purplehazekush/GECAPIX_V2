@@ -1,3 +1,4 @@
+// client/src/components/arena/dating/ProfileModal.tsx
 import { Close, Verified } from '@mui/icons-material';
 
 interface ProfileModalProps {

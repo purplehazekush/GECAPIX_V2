@@ -1,3 +1,4 @@
+// client/src/components/arena/memes/MarketHeader.tsx
 import { CandlestickChart, AddPhotoAlternate } from '@mui/icons-material';
 
 interface MarketHeaderProps {

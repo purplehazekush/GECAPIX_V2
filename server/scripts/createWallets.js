@@ -1,3 +1,4 @@
+// server/scripts/createWallets.js
 // server/scripts/createSystemWallets.js
 require('dotenv').config({ path: '../.env' });
 const mongoose = require('mongoose');

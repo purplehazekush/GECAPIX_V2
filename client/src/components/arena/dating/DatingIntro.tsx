@@ -1,3 +1,4 @@
+// client/src/components/arena/dating/DatingIntro.tsx
 import { Favorite } from '@mui/icons-material';
 
 interface DatingIntroProps {
