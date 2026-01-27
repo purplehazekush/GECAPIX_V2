@@ -266,9 +266,6 @@ exports.toggleMarket = async (req, res) => {
         res.status(500).json({ error: "Erro ao alternar mercado" });
     }
 };
-// server/controllers/exchangeController.js
-
-// ... (Mantenha os imports e funções anteriores: getQuote, executeTrade...)
 
 // =================================================================
 // 🧪  MARKET LAB: SIMULADOR DE MONTE CARLO
@@ -290,11 +287,10 @@ const rollAttribute = (config, key) => {
     return clamp(rawValue, attr.MIN, attr.MAX);
 };
 
+// 🧪 MARKET LAB: SIMULADOR DE MONTE CARLO (CORRIGIDO)
 exports.simulateMarket = async (req, res) => {
     try {
-        // Recebe a CONFIGURAÇÃO COMPLETA do Front (igual ao arquivo botMaker.js)
         const { config, days = 30, simulations = 4 } = req.body;
-
         const results = [];
         
         // Configurações do ambiente simulado
@@ -302,21 +298,19 @@ exports.simulateMarket = async (req, res) => {
         const TOTAL_TICKS = Math.floor(TICKS_PER_DAY * days);
         const RECALIBRATION_TICKS = (config.RECALIBRATION_MINUTES * 60 * 1000) / config.TRADE_INTERVAL_MS;
         
-        // Output Resolution (Para não explodir o JSON)
-        // Agrupamos os trades em candles de 1 Hora para visualização longa
-        const CANDLE_INTERVAL_TICKS = (60 * 60 * 1000) / config.TRADE_INTERVAL_MS; // 1 Hora
+        // Output Resolution: 1 Candle a cada 1 Hora
+        const CANDLE_INTERVAL_TICKS = (60 * 60 * 1000) / config.TRADE_INTERVAL_MS; 
 
-        // Dados Iniciais do Mercado (Mock)
+        // Mock Inicial
         const INITIAL_SUPPLY = 1000;
         const BASE_PRICE = 50;
         const MULTIPLIER = 1.0003;
+        const NOW = Math.floor(Date.now() / 1000); // Timestamp Base em Segundos
 
-        // Roda N simulações (ex: 4)
         for (let s = 0; s < simulations; s++) {
             let currentSupply = INITIAL_SUPPLY;
             let currentPrice = BASE_PRICE * Math.pow(MULTIPLIER, currentSupply);
             
-            // Estado do Bot
             let botState = {
                 bullishBias: config.ATTRIBUTES.BULLISH_BIAS.MEAN,
                 dampener: config.ATTRIBUTES.VOLATILITY_DAMPENER.MEAN,
@@ -326,68 +320,72 @@ exports.simulateMarket = async (req, res) => {
             let marketMemory = { targetSupply: currentSupply };
             let candles = [];
             
-            // Candle temporário (Open, High, Low, Close)
-            let tempCandle = { 
-                o: currentPrice, h: currentPrice, l: currentPrice, c: currentPrice, 
-                vol: 0 
-            };
+            // Candle temporário
+            let tempCandle = { o: currentPrice, h: currentPrice, l: currentPrice, c: currentPrice, vol: 0 };
 
-            // --- O LOOP INSANO (Millions of Ops) ---
             for (let i = 0; i < TOTAL_TICKS; i++) {
-                
-                // 1. Recalibragem (A cada 15 min)
+                // 1. Recalibra
                 if (i % RECALIBRATION_TICKS === 0) {
                     botState.bullishBias = rollAttribute(config, 'BULLISH_BIAS');
                     botState.dampener = rollAttribute(config, 'VOLATILITY_DAMPENER');
                     botState.driftRate = rollAttribute(config, 'DRIFT_RATE');
                 }
 
-                // 2. Lógica de Decisão (Igual ao Bot Real)
+                // 2. Lógica Bot
                 marketMemory.targetSupply += botState.driftRate;
                 const gap = marketMemory.targetSupply - currentSupply;
+                
+                let prob = 0.50 + botState.bullishBias + (gap * botState.dampener);
+                prob = clamp(prob, 0.05, 0.95);
 
-                let rawProb = 0.50 + botState.bullishBias + (gap * botState.dampener);
-                let buyProbability = clamp(rawProb, 0.05, 0.95);
-
-                const isBuying = Math.random() < buyProbability;
+                const isBuy = Math.random() < prob;
                 
                 // Tamanho da Mão
                 let amount = Math.floor(Math.random() * config.HAND_SIZE.MAX) + config.HAND_SIZE.MIN;
                 if (Math.abs(gap) > 15) amount = Math.ceil(amount * 1.5);
 
-                // 3. Execução e Impacto no Preço
-                if (isBuying) {
+                // 3. Impacto Preço
+                if (isBuy) {
                     currentSupply += amount;
                     currentPrice *= Math.pow(MULTIPLIER, amount);
                 } else {
                     currentSupply -= amount;
-                    // Evita supply negativo na simulação para não quebrar logaritmos
-                    if(currentSupply < 1) currentSupply = 1; 
+                    if(currentSupply < 1) currentSupply = 1;
                     currentPrice /= Math.pow(MULTIPLIER, amount);
                 }
 
-                // 4. Montagem do Candle
+                // 4. Update Candle
                 tempCandle.h = Math.max(tempCandle.h, currentPrice);
                 tempCandle.l = Math.min(tempCandle.l, currentPrice);
                 tempCandle.c = currentPrice;
                 tempCandle.vol += amount;
 
-                // 5. Fechamento do Candle (A cada 1 Hora simulada)
-                if (i % CANDLE_INTERVAL_TICKS === 0) {
-                    // Timestamp fictício (horas incrementais)
-                    const time = (i / CANDLE_INTERVAL_TICKS) * 3600; 
+                // 5. Fecha Candle (1 Hora)
+                if (i > 0 && i % CANDLE_INTERVAL_TICKS === 0) {
+                    const timeOffset = (i / TICKS_PER_DAY) * 86400; // Segundos passados
+                    
                     candles.push({ 
-                        time: Math.floor(Date.now()/1000) + time, // Futuro relativo
+                        time: Math.floor(NOW + timeOffset), 
                         open: tempCandle.o, 
                         high: tempCandle.h, 
                         low: tempCandle.l, 
                         close: tempCandle.c 
                     });
                     
-                    // Reset Candle
                     tempCandle = { o: currentPrice, h: currentPrice, l: currentPrice, c: currentPrice, vol: 0 };
                 }
             }
+            
+            // Push do último candle (CORREÇÃO AQUI)
+            // Calculamos o tempo final baseado no total de ticks, não no índice cru
+            const finalTimeOffset = (TOTAL_TICKS / TICKS_PER_DAY) * 86400;
+            candles.push({ 
+                time: Math.floor(NOW + finalTimeOffset), // Timestamp correto
+                open: tempCandle.o, 
+                high: tempCandle.h, 
+                low: tempCandle.l, 
+                close: tempCandle.c 
+            });
             
             results.push({ id: s, candles, finalSupply: currentSupply, finalPrice: currentPrice });
         }
@@ -396,6 +394,6 @@ exports.simulateMarket = async (req, res) => {
 
     } catch (e) {
         console.error(e);
-        res.status(500).json({ error: "Erro na simulação numérica." });
+        res.status(500).json({ error: e.message });
     }
 };
