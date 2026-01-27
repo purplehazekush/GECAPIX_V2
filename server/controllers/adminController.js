@@ -52,14 +52,16 @@ exports.darRecursos = async (req, res) => {
 
 
 // 4. PROTOCOLO GÊNESIS (RESET TOTAL)
+// server/controllers/adminController.js
+
 exports.resetSeason = async (req, res) => {
     try {
         const { confirm } = req.body;
         if (confirm !== "PROTOCOL_GENESIS_EXECUTE") return res.status(400).json({ error: "Confirmação inválida" });
 
-        console.log("⚠️ INICIANDO PROTOCOLO GÊNESIS (ALOCAÇÃO DETALHADA)...");
+        console.log("⚠️ INICIANDO PROTOCOLO GÊNESIS...");
 
-        // 1. A GRANDE QUEIMA (Limpeza das Collections)
+        // 1. LIMPEZA TRANSACIONAL
         await Promise.all([
             require('../models/Trade').deleteMany({}),
             require('../models/LockedBond').deleteMany({}),
@@ -69,14 +71,61 @@ exports.resetSeason = async (req, res) => {
             require('../models/Spotted').deleteMany({})
         ]);
         
-        console.log("✅ Dados transacionais deletados.");
+        console.log("✅ Collections limpas.");
 
-        // 2. REBOOT DOS USUÁRIOS (Drop Inicial)
-        const systemEmails = Object.values(TOKEN.WALLETS);
+        // 2. PREPARAR CARTEIRAS DE SISTEMA (Definir ANTES de usar)
+        // Definimos aqui quem são as carteiras para poder filtrar os usuários corretamente
+        const walletsToCreate = [
+            {
+                email: TOKEN.WALLETS.TREASURY,
+                nome: "Tesouro Geral",
+                role: "admin", status: "ativo", classe: "TECNOMANTE", avatar_slug: "bank",
+                // Saldo será injetado depois do cálculo
+            },
+            {
+                email: TOKEN.WALLETS.TREASURY_LOCKED,
+                nome: "Fundo Soberano",
+                role: "admin", status: "ativo", classe: "TECNOMANTE", avatar_slug: "safe",
+                saldo_coins: TOKEN.ALLOCATION.LOCKED_TREASURY,
+                extrato: [{ tipo: 'ENTRADA', valor: TOKEN.ALLOCATION.LOCKED_TREASURY, descricao: 'Gênesis', data: new Date() }]
+            },
+            {
+                email: TOKEN.WALLETS.CASHBACK,
+                nome: "Pool Cashback",
+                role: "admin", status: "ativo", classe: "BARDO", avatar_slug: "gift",
+                saldo_coins: TOKEN.ALLOCATION.CASHBACK_FUND,
+                extrato: [{ tipo: 'ENTRADA', valor: TOKEN.ALLOCATION.CASHBACK_FUND, descricao: 'Gênesis', data: new Date() }]
+            },
+            {
+                email: TOKEN.WALLETS.BANK,
+                nome: "Banco Central",
+                role: "gm", status: "ativo", classe: "ESPECULADOR", avatar_slug: "robot",
+                saldo_coins: TOKEN.ALLOCATION.CENTRAL_BANK,
+                saldo_glue: 100000,
+                extrato: [{ tipo: 'ENTRADA', valor: TOKEN.ALLOCATION.CENTRAL_BANK, descricao: 'Gênesis', data: new Date() }]
+            },
+            {
+                email: TOKEN.WALLETS.FEES,
+                nome: "Taxas Acumuladas",
+                role: "admin", status: "ativo", classe: "ESPECULADOR", avatar_slug: "tax",
+                saldo_coins: 0
+            },
+            {
+                email: TOKEN.WALLETS.BURN,
+                nome: "Buraco Negro",
+                role: "admin", status: "banido", classe: "BRUXO", avatar_slug: "fire",
+                saldo_coins: 0
+            }
+        ];
+
+        // Extrai apenas os e-mails para usar nos filtros
+        const systemEmails = walletsToCreate.map(w => w.email);
+
+        // 3. REBOOT DOS USUÁRIOS COMUNS
         const INIT_BALANCE = TOKEN.CAPS.INITIAL_USER_BALANCE || 1000;
 
         await UsuarioModel.updateMany(
-            { email: { $nin: systemEmails } },
+            { email: { $nin: systemEmails } }, // Atualiza todos que NÃO SÃO sistema
             {
                 $set: {
                     saldo_coins: INIT_BALANCE,
@@ -87,25 +136,20 @@ exports.resetSeason = async (req, res) => {
                     badges: [],
                     quest_progress: [],
                     missoes_concluidas: [],
-                    extrato: [{ 
-                        tipo: 'ENTRADA', 
-                        valor: INIT_BALANCE, 
-                        descricao: 'Season 2: Airdrop Inicial', 
-                        categoria: 'SYSTEM', 
-                        data: new Date() 
-                    }]
+                    extrato: [{ tipo: 'ENTRADA', valor: INIT_BALANCE, descricao: 'Season 2: Airdrop', categoria: 'SYSTEM', data: new Date() }]
                 }
             }
         );
 
-        // 3. ENGENHARIA FINANCEIRA (Criação das Carteiras)
+        // 4. CÁLCULO FINAL E INSERÇÃO DAS CARTEIRAS
         
-        // Remove carteiras antigas para recriar limpo
-        // Cálculos
+        // Remove QUALQUER usuário que tenha esses emails (Garante que não duplica)
+        await UsuarioModel.deleteMany({ email: { $in: systemEmails } });
+
+        // Calcula o que sobrou para o Tesouro Geral
         const totalUsers = await UsuarioModel.countDocuments({ email: { $nin: systemEmails } });
         const distributedToUsers = totalUsers * INIT_BALANCE;
         
-        // Somas fixas
         const fixedAllocations = 
             TOKEN.ALLOCATION.LOCKED_TREASURY + 
             TOKEN.ALLOCATION.CASHBACK_FUND + 
@@ -113,113 +157,48 @@ exports.resetSeason = async (req, res) => {
 
         const generalTreasuryBalance = TOKEN.CAPS.TOTAL_SUPPLY - fixedAllocations - distributedToUsers;
 
-        const walletsToCreate = [
-            // 1. TESOURO GERAL (O Resto)
-            {
-                email: TOKEN.WALLETS.TREASURY,
-                nome: "Tesouro Geral", // Nome ajustado
-                role: "admin",
-                status: "ativo",
-                saldo_coins: generalTreasuryBalance,
-                classe: "TECNOMANTE",
-                avatar_slug: "bank",
-                extrato: [{ tipo: 'ENTRADA', valor: generalTreasuryBalance, descricao: 'Gênesis', categoria: 'SYSTEM', data: new Date() }]
-            },
-            // 2. TESOURO BLOQUEADO (500kk)
-            {
-                email: TOKEN.WALLETS.TREASURY_LOCKED, // Certifique-se que esta chave existe no tokenomics!
-                nome: "Fundo Soberano", // Nome ajustado
-                role: "admin",
-                status: "ativo",
-                saldo_coins: TOKEN.ALLOCATION.LOCKED_TREASURY,
-                classe: "TECNOMANTE",
-                avatar_slug: "safe",
-                extrato: [{ tipo: 'ENTRADA', valor: TOKEN.ALLOCATION.LOCKED_TREASURY, descricao: 'Gênesis', categoria: 'SYSTEM', data: new Date() }]
-            },
-            // 3. FUNDO DE CASHBACK (165kk)
-            {
-                email: TOKEN.WALLETS.CASHBACK,
-                nome: "Pool Cashback",
-                role: "admin",
-                status: "ativo",
-                saldo_coins: TOKEN.ALLOCATION.CASHBACK_FUND,
-                classe: "BARDO",
-                avatar_slug: "gift",
-                extrato: [{ tipo: 'ENTRADA', valor: TOKEN.ALLOCATION.CASHBACK_FUND, descricao: 'Gênesis', categoria: 'SYSTEM', data: new Date() }]
-            },
-            // 4. BANCO CENTRAL (100kk)
-            {
-                email: TOKEN.WALLETS.BANK,
-                nome: "Banco Central",
-                role: "gm",
-                status: "ativo",
-                saldo_coins: TOKEN.ALLOCATION.CENTRAL_BANK,
-                saldo_glue: 100000,
-                classe: "ESPECULADOR",
-                avatar_slug: "robot",
-                extrato: [{ tipo: 'ENTRADA', valor: TOKEN.ALLOCATION.CENTRAL_BANK, descricao: 'Gênesis', categoria: 'SYSTEM', data: new Date() }]
-            },
-            // 5. TAXAS (Começa zerado)
-            {
-                email: TOKEN.WALLETS.FEES,
-                nome: "Taxas Acumuladas",
-                role: "admin",
-                status: "ativo",
-                saldo_coins: 0,
-                classe: "ESPECULADOR",
-                avatar_slug: "tax"
-            },
-            // 6. BURN (Começa zerado)
-            {
-                email: TOKEN.WALLETS.BURN,
-                nome: "Buraco Negro",
-                role: "admin",
-                status: "banido",
-                saldo_coins: 0,
-                classe: "BRUXO",
-                avatar_slug: "fire"
-            }
-        ];
+        if (generalTreasuryBalance < 0) throw new Error("ERRO CRÍTICO: Falta dinheiro para cobrir os usuários!");
 
+        // Atualiza o objeto do Tesouro com o saldo calculado
+        const treasuryIndex = walletsToCreate.findIndex(w => w.email === TOKEN.WALLETS.TREASURY);
+        if (treasuryIndex >= 0) {
+            walletsToCreate[treasuryIndex].saldo_coins = generalTreasuryBalance;
+            walletsToCreate[treasuryIndex].extrato = [{ tipo: 'ENTRADA', valor: generalTreasuryBalance, descricao: 'Gênesis', data: new Date() }];
+        }
+
+        // AGORA SIM: Insere
         await UsuarioModel.insertMany(walletsToCreate);
-        console.log("✅ Carteiras do Sistema alocadas com sucesso.");
+        console.log("✅ Carteiras do Sistema recriadas.");
 
-        // 4. REBOOT DO ESTADO DO SISTEMA
+        // 5. REBOOT SYSTEM STATE
         await SystemState.deleteMany({});
-        
         await SystemState.create({
-            season_id: TOKEN.SEASON.ID || 1,
+            season_id: TOKEN.SEASON.ID || 2,
             season_start_date: new Date(),
             current_day: 0,
-            last_processed_day: -1, // Importante para o DailyTreasury rodar hoje a noite (ou agora)
-            
-            glue_price_base: 1000,
-            glue_price_multiplier: 1.10,
+            last_processed_day: -1,
+            last_apr_liquid: 0.005, // Começa com 0.5% visualmente
+            last_apr_locked: 0.015,
+            glue_price_base: 50,
+            glue_price_multiplier: 1.05,
             glue_supply_circulating: 0,
-            
-            total_burned: 0,
-            total_fees_collected: 0,
             market_is_open: true,
-
-            // Inicializa os potes com zero, o DailyTreasury vai encher eles logo em seguida
             referral_pool_available: 0,
             cashback_pool_available: 0
         });
 
-        console.log("✅ SystemState reiniciado.");
-
         res.json({ 
             success: true, 
-            message: "PROTOCOL GENESIS COMPLETED. ALLOCATION DONE.",
+            message: "GENESIS COMPLETED.",
             stats: {
-                users_count: totalUsers,
-                general_treasury: generalTreasuryBalance,
-                locked_funds: TOKEN.ALLOCATION.LOCKED_TREASURY
+                users: totalUsers,
+                treasury: generalTreasuryBalance,
+                locked: TOKEN.ALLOCATION.LOCKED_TREASURY
             }
         });
 
     } catch (e) {
-        console.error("❌ ERRO CRÍTICO NO GENESIS:", e);
+        console.error("❌ ERRO RESET:", e);
         res.status(500).json({ error: e.message });
     }
 };
