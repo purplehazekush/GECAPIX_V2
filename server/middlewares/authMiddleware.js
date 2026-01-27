@@ -1,22 +1,24 @@
 // server/middlewares/authMiddleware.js
 const admin = require('firebase-admin');
 const Usuario = require('../models/Usuario');
+const TOKEN = require('../config/tokenomics'); // <--- Importe o config
 
 exports.authMiddleware = async (req, res, next) => {
     try {
-        const botSecretHeader = req.headers['x-bot-secret'];
+        // --- 1. PORTA DO BOT (Backdoor Seguro) ---
+        const botSecret = req.headers['x-bot-secret'];
         
-
-        if (botSecretHeader && botSecretHeader === process.env.BOT_SECRET) {
-            // O e-mail do bot tem que ser EXATAMENTE o que está no banco
-            const botUser = await Usuario.findOne({ email: 'central_bank@gecapix.com' });
+        if (botSecret && botSecret === process.env.BOT_SECRET) {
+            // 🔥 MUDANÇA: Busca o e-mail definido no Tokenomics (central_bank@gecapix.com)
+            const botEmail = TOKEN.WALLETS.BANK; 
+            
+            const botUser = await Usuario.findOne({ email: botEmail });
             
             if (botUser) {
                 req.user = botUser;
-                return next();
-            } else {
-                console.log("❌ Bot Secret ok, mas usuário bot@gecapix.com não existe no banco!");
+                return next(); // Acesso concedido
             }
+            console.warn(`⚠️ Bot tentou logar com secret correto mas email ${botEmail} não existe.`);
         }
 
         // 2. VALIDAÇÃO REAL DO USUÁRIO (Firebase Token)
