@@ -1,11 +1,10 @@
-// client/src/pages/arena/Exchange.tsx
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
-import { io } from 'socket.io-client';
+import { io, Socket } from 'socket.io-client';
 
-// Componentes Refatorados
+// Componentes
 import { MarketHeader } from '../../components/arena/exchange/MarketHeader';
 import { TimeframeSelector } from '../../components/arena/exchange/TimeframeSelector';
 import { ChartSection } from '../../components/arena/exchange/ChartSection';
@@ -14,10 +13,10 @@ import { TradePanel } from '../../components/arena/exchange/TradePanel';
 const SOCKET_URL = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'http://72.62.87.8:3001';
 
 export default function ArenaExchange() {
-    const { dbUser } = useAuth();
+    const { dbUser, reloadUser } = useAuth();
     
     // Estados Globais
-    const [history, setHistory] = useState([]);
+    const [history, setHistory] = useState<any[]>([]);
     const [marketParams, setMarketParams] = useState({ base: 0, mult: 0, supply: 0 });
     const [price, setPrice] = useState(0);
     
@@ -28,9 +27,11 @@ export default function ArenaExchange() {
     const [loading, setLoading] = useState(false);
     const [chartLines, setChartLines] = useState<any[]>([]);
 
-    // --- LÓGICA DE DADOS ---
+    // Socket Ref (Para não recriar a conexão)
+    const socketRef = useRef<Socket | null>(null);
 
-    const fetchData = useCallback(async () => {
+    // 1. CARGA INICIAL (HTTP)
+    const fetchInitialData = useCallback(async () => {
         try {
             const [chartRes, statsRes] = await Promise.all([
                 api.get(`/exchange/chart?tf=${timeframe}`),
@@ -40,40 +41,101 @@ export default function ArenaExchange() {
             const { basePrice, multiplier, circulatingSupply } = statsRes.data;
             const currentPrice = basePrice * Math.pow(multiplier, circulatingSupply);
             
-            // Dados Visualização
             setHistory(chartRes.data);
             setMarketParams({ base: basePrice, mult: multiplier, supply: circulatingSupply });
             setPrice(currentPrice);
 
-            // Linhas de Impacto (Bid/Ask)
-            const amountNum = Math.max(1, parseInt(amount) || 1);
-            setChartLines([
-                { price: currentPrice * Math.pow(multiplier, amountNum), color: '#4ade80', title: `ASK (+${amountNum})` },
-                { price: currentPrice * Math.pow(multiplier, -amountNum), color: '#f87171', title: `BID (-${amountNum})` }
-            ]);
+            // Calcula Linhas Iniciais
+            updateChartLines(currentPrice, multiplier, amount);
 
         } catch (e) { console.error("Sync Error:", e); }
-    }, [amount, timeframe]);
+    }, [timeframe]); // Só recria se mudar o Timeframe
 
-    // --- EFEITOS (SOCKETS & POLLING) ---
-    const fetchDataRef = useRef(fetchData);
-    useEffect(() => { fetchDataRef.current = fetchData; }, [fetchData]);
+    // Helper para atualizar linhas sem depender de estados externos
+    const updateChartLines = (currPrice: number, mult: number, amt: string) => {
+        const amountNum = Math.max(1, parseInt(amt) || 1);
+        setChartLines([
+            { price: currPrice * Math.pow(mult, amountNum), color: '#4ade80', title: `ASK (+${amountNum})` },
+            { price: currPrice * Math.pow(mult, -amountNum), color: '#f87171', title: `BID (-${amountNum})` }
+        ]);
+    };
 
+    // 2. CONEXÃO SOCKET (STREAMING)
     useEffect(() => {
-        // Socket Singleton
-        const socket = io(SOCKET_URL);
-        socket.on('market_update', () => fetchDataRef.current?.());
-        return () => { socket.disconnect(); };
-    }, []);
+        // Carrega dados iniciais
+        fetchInitialData();
 
+        // Conecta Socket
+        if (!socketRef.current) {
+            socketRef.current = io(SOCKET_URL);
+        }
+
+        const socket = socketRef.current;
+
+        // Ouve atualizações do mercado
+        const handleMarketUpdate = (data: any) => {
+            // data = { time, price, supply, ... }
+            
+            // 1. Atualiza Preço e Supply
+            setPrice(data.price);
+            setMarketParams(prev => ({ ...prev, supply: data.supply }));
+            
+            // 2. Atualiza Gráfico (Merge inteligente)
+            setHistory(prevHistory => {
+                const lastCandle = prevHistory[prevHistory.length - 1];
+                
+                // Se o timestamp do trade for maior que o último candle + intervalo, cria novo
+                // (Lógica simplificada: Para 100% de precisão de timeframe no front, 
+                // seria ideal recalcular, mas para UX rápida, injetamos como update do último candle)
+                
+                if (lastCandle && data.time === lastCandle.time) {
+                    // Atualiza candle atual
+                    return [
+                        ...prevHistory.slice(0, -1),
+                        {
+                            ...lastCandle,
+                            close: data.price,
+                            high: Math.max(lastCandle.high, data.price),
+                            low: Math.min(lastCandle.low, data.price)
+                        }
+                    ];
+                } else {
+                    // Novo candle
+                    return [
+                        ...prevHistory,
+                        {
+                            time: data.time,
+                            open: data.price, // Simplificação
+                            close: data.price,
+                            high: data.price,
+                            low: data.price
+                        }
+                    ];
+                }
+            });
+
+            // Se fui eu que fiz o trade, atualizo meu saldo
+            // (Poderíamos filtrar pelo ID do usuário no payload do socket)
+            reloadUser?.(); 
+        };
+
+        socket.on('market_update', handleMarketUpdate);
+
+        return () => {
+            socket.off('market_update', handleMarketUpdate);
+            // Não desconectamos aqui para manter a conexão viva ao trocar timeframes se possível,
+            // mas por segurança em React, desconectamos no unmount do componente pai.
+        };
+    }, [fetchInitialData, reloadUser]); // Roda ao mudar timeframe
+
+    // Recalcula linhas quando o usuário digita (Local, sem API)
     useEffect(() => {
-        // Polling Backup + Inicialização
-        fetchData();
-        const interval = setInterval(fetchData, 5000);
-        return () => clearInterval(interval);
-    }, [fetchData]); // Recria o intervalo se mudar o Timeframe
+        if (price && marketParams.base) {
+            updateChartLines(price, marketParams.mult, amount);
+        }
+    }, [amount, price, marketParams]);
 
-    // --- COTAÇÃO ---
+    // --- COTAÇÃO (HTTP - Apenas quando digita) ---
     useEffect(() => {
         const getQuote = async () => {
             if (!amount || parseInt(amount) <= 0) {
@@ -92,9 +154,9 @@ export default function ArenaExchange() {
                 });
             } catch (error) { console.warn("Quote Error"); }
         };
-        const timer = setTimeout(getQuote, 400);
+        const timer = setTimeout(getQuote, 400); // Debounce
         return () => clearTimeout(timer);
-    }, [amount, marketParams]);
+    }, [amount, marketParams]); // Depende dos parametros do mercado
 
     // --- AÇÃO ---
     const handleTrade = async (type: 'buy' | 'sell') => {
@@ -105,7 +167,7 @@ export default function ArenaExchange() {
             toast.success("Ordem Executada!");
             setAmount('');
             setQuote(null);
-            await fetchData(); 
+            // NÃO PRECISAMOS CHAMAR fetchData()! O Socket vai atualizar tudo.
         } catch (err: any) {
             toast.error(err.response?.data?.error || "Erro");
         } finally {
@@ -113,26 +175,12 @@ export default function ArenaExchange() {
         }
     };
 
-    // --- RENDER ---
+    // ... (Seu JSX de Renderização, usando os componentes refatorados)
     return (
         <div className="p-4 space-y-4 pb-24 max-w-4xl mx-auto">
-            
-            <MarketHeader 
-                price={price} 
-                supply={marketParams.supply} 
-                volume={history.length} 
-            />
-
-            <TimeframeSelector 
-                selected={timeframe} 
-                onSelect={setTimeframe} 
-            />
-
-            <ChartSection 
-                data={history} 
-                chartLines={chartLines} 
-            />
-
+            <MarketHeader price={price} supply={marketParams.supply} volume={history.length} />
+            <TimeframeSelector selected={timeframe} onSelect={setTimeframe} />
+            <ChartSection data={history} chartLines={chartLines} />
             <TradePanel 
                 amount={amount}
                 setAmount={setAmount}

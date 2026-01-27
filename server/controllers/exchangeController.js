@@ -155,15 +155,24 @@ exports.executeTrade = async (req, res) => {
         await state.save({ session });
 
         await session.commitTransaction();
+
         session.endSession();
 
         // 📡 NOTIFICAÇÃO REAL-TIME VIA SOCKET
         const io = req.app.get('io');
         if (io) {
-            io.emit('market_update', {
-                newPrice: finalPrice,
+            // Calculamos o candle atual para enviar junto
+            // Isso evita que o front precise dar GET /chart
+            const now = new Date();
+            const tradeData = {
+                time: Math.floor(now.getTime() / 1000), // Timestamp em segundos para o gráfico
+                price: finalPrice,
+                amount: qtd,
+                type: action,
                 supply: state.glue_supply_circulating
-            });
+            };
+
+            io.emit('market_update', tradeData);
         }
 
         res.json({ success: true });
