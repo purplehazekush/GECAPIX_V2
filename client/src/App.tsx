@@ -28,6 +28,7 @@ import CentralBank from './pages/arena/CentralBank';
 import ArenaStore from './pages/arena/Store'; // <--- Importe
 import BankPanel from './components/arena/bank/AdminBankPanel';
 import ArenaExchange from './pages/arena/Exchange'; //Corretora de GLUE/GECACOINS
+import Dating from './pages/arena/Dating';
 
 function AppRoutes() {
   const { user, dbUser, loading } = useAuth();
@@ -74,6 +75,7 @@ function AppRoutes() {
         <Route path="bank" element={<CentralBank />} />
         <Route path="loja" element={<ArenaStore />} />
         <Route path="exchange" element={<ArenaExchange />} />
+        <Route path="matching" element={<Dating />} />
         <Route path="games/play/:roomId" element={<GameRoom />} />
 
         {/* Rota do Xerife */} 
