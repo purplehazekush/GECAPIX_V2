@@ -119,27 +119,19 @@ exports.resetSeason = async (req, res) => {
         ];
 
         // Extrai apenas os e-mails para usar nos filtros
-        const systemEmails = walletsToCreate.map(w => w.email);
-
-        // 3. REBOOT DOS USUÁRIOS COMUNS
-        const INIT_BALANCE = TOKEN.CAPS.INITIAL_USER_BALANCE || 1000;
-
-        await UsuarioModel.updateMany(
-            { email: { $nin: systemEmails } }, // Atualiza todos que NÃO SÃO sistema
-            {
-                $set: {
-                    saldo_coins: INIT_BALANCE,
-                    saldo_glue: 0,
-                    saldo_staking_liquido: 0,
-                    xp: 0,
-                    nivel: 1,
-                    badges: [],
-                    quest_progress: [],
-                    missoes_concluidas: [],
-                    extrato: [{ tipo: 'ENTRADA', valor: INIT_BALANCE, descricao: 'Season 2: Airdrop', categoria: 'SYSTEM', data: new Date() }]
-                }
+        console.log("🛠️ Criando carteiras de sistema...");
+        
+        for (const wallet of walletsToCreate) {
+            try {
+                // Força a criação individual
+                await UsuarioModel.create(wallet);
+                console.log(`   ✅ Criada: ${wallet.nome} | Saldo: ${wallet.saldo_coins}`);
+            } catch (err) {
+                console.error(`   ❌ Falha ao criar ${wallet.nome}:`, err.message);
+                // Se falhar, tenta update (fallback)
+                await UsuarioModel.updateOne({ email: wallet.email }, { $set: wallet }, { upsert: true });
             }
-        );
+        }
 
         // 4. CÁLCULO FINAL E INSERÇÃO DAS CARTEIRAS
         

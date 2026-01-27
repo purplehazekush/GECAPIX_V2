@@ -28,6 +28,9 @@ export default function CentralBank() {
                     api.get('/tokenomics/status'),
                     api.get('/tokenomics')
                 ]);
+                
+                console.log("📊 DADOS TOKENOMICS RECEBIDOS:", t.data); // <--- DEBUG AQUI
+                
                 setStatus(s.data);
                 setTokenomics(t.data);
             } catch (e) { console.error(e); }
