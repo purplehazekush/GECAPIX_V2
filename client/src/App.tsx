@@ -23,7 +23,6 @@ import ValidationPanel from './pages/admin/ValidationPanel';
 import GamesLobby from './pages/arena/GamesLobby'; // <--- IMPORTE ISSO
 import GameRoom from './pages/arena/GameRoom';     // <--- E ISSO
 import Tokenomics from './pages/arena/Tokenomics';
-import Ledger from './pages/arena/Ledger';
 import ArenaSpotted from './pages/arena/Spotted';
 import CentralBank from './pages/arena/CentralBank';
 import ArenaStore from './pages/arena/Store'; // <--- Importe
@@ -70,7 +69,6 @@ function AppRoutes() {
 
         <Route path="games" element={<GamesLobby />} />
         <Route path="tokenomics" element={<Tokenomics />} />
-        <Route path="ledger" element={<Ledger />} />
         <Route path="spotted" element={<ArenaSpotted />} />
         <Route path="oraculo" element={<ArenaSolver />} />
         <Route path="bank" element={<CentralBank />} />
