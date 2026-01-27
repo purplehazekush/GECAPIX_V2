@@ -122,10 +122,10 @@ export default function ArenaHome() {
                             Evento Oficial
                         </span>
                         <h3 className="text-xl font-black text-white italic uppercase leading-none">
-                            Calourada 2026
+                            DT 2026
                         </h3>
                         <p className="text-[10px] text-slate-300 font-medium">
-                            Garanta seu ingresso com GecaCoins!
+                            Garanta seu ingresso!
                         </p>
                     </div>
                     <div className="absolute bottom-4 right-4 bg-white/10 p-2 rounded-full backdrop-blur-sm">
