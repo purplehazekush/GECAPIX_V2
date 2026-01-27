@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Star, Verified, LocalFireDepartment } from '@mui/icons-material';
+import { Star, LocalFireDepartment } from '@mui/icons-material';
 import { api } from '../../../lib/api';
 import toast from 'react-hot-toast';
 import { ProfileModal } from './ProfileModal'; // <--- Import Novo
