@@ -397,3 +397,115 @@ exports.simulateMarket = async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 };
+
+
+// 📊 SUPER SIMULAÇÃO (MONTE CARLO STATS)
+exports.runMonteCarloStats = async (req, res) => {
+    try {
+        const { config, days = 30, iterations = 10000 } = req.body;
+
+        // Configurações de Tempo
+        const TICKS_PER_DAY = (24 * 60 * 60 * 1000) / config.TRADE_INTERVAL_MS;
+        const TOTAL_TICKS = Math.floor(TICKS_PER_DAY * days);
+        const RECALIBRATION_TICKS = (config.RECALIBRATION_MINUTES * 60 * 1000) / config.TRADE_INTERVAL_MS;
+
+        // Constantes de Mercado
+        const INITIAL_SUPPLY = 1000;
+        const BASE_PRICE = 50;
+        const MULTIPLIER = 1.0003;
+        const INITIAL_PRICE = BASE_PRICE * Math.pow(MULTIPLIER, INITIAL_SUPPLY);
+
+        // Arrays para guardar resultados finais
+        const finalPrices = [];
+        const finalSupplies = [];
+        let totalVolume = 0;
+
+        // --- O LOOP DE 10.000 SIMULAÇÕES ---
+        for (let s = 0; s < iterations; s++) {
+            let currentSupply = INITIAL_SUPPLY;
+            let currentPrice = INITIAL_PRICE;
+            
+            // Estado do Bot (Resetado a cada simulação)
+            let botState = {
+                bullishBias: config.ATTRIBUTES.BULLISH_BIAS.MEAN,
+                dampener: config.ATTRIBUTES.VOLATILITY_DAMPENER.MEAN,
+                driftRate: config.ATTRIBUTES.DRIFT_RATE.MEAN
+            };
+            
+            let marketMemory = { targetSupply: currentSupply };
+
+            // Loop Temporal (Dias)
+            for (let i = 0; i < TOTAL_TICKS; i++) {
+                // 1. Recalibra
+                if (i % RECALIBRATION_TICKS === 0) {
+                    botState.bullishBias = rollAttribute(config, 'BULLISH_BIAS');
+                    botState.dampener = rollAttribute(config, 'VOLATILITY_DAMPENER');
+                    botState.driftRate = rollAttribute(config, 'DRIFT_RATE');
+                }
+
+                // 2. Lógica
+                marketMemory.targetSupply += botState.driftRate;
+                const gap = marketMemory.targetSupply - currentSupply;
+                
+                let prob = 0.50 + botState.bullishBias + (gap * botState.dampener);
+                prob = clamp(prob, 0.05, 0.95);
+
+                const isBuy = Math.random() < prob;
+                
+                let amount = Math.floor(Math.random() * config.HAND_SIZE.MAX) + config.HAND_SIZE.MIN;
+                if (Math.abs(gap) > 15) amount = Math.ceil(amount * 1.5);
+
+                // 3. Impacto (Matemática Pura, sem logs)
+                if (isBuy) {
+                    currentSupply += amount;
+                    // Otimização: Não precisamos calcular o preço a cada tick, só no final
+                    // Mas precisamos atualizar o supply para a lógica do bot funcionar
+                } else {
+                    currentSupply -= amount;
+                    if(currentSupply < 1) currentSupply = 1;
+                }
+                totalVolume += amount;
+            }
+
+            // Calcula preço final apenas no fim da simulação para economizar CPU
+            currentPrice = BASE_PRICE * Math.pow(MULTIPLIER, currentSupply);
+            
+            finalPrices.push(currentPrice);
+            finalSupplies.push(currentSupply);
+        }
+
+        // --- CÁLCULOS ESTATÍSTICOS ---
+        finalPrices.sort((a, b) => a - b); // Ordena para pegar mediana e percentis
+
+        const sum = finalPrices.reduce((a, b) => a + b, 0);
+        const avg = sum / finalPrices.length;
+        const min = finalPrices[0];
+        const max = finalPrices[finalPrices.length - 1];
+        const median = finalPrices[Math.floor(finalPrices.length / 2)];
+        
+        // Percentis (95% das vezes o preço fica acima de X)
+        const p05 = finalPrices[Math.floor(finalPrices.length * 0.05)]; // Pior caso razoável
+        const p95 = finalPrices[Math.floor(finalPrices.length * 0.95)]; // Melhor caso razoável
+
+        // Probabilidade de Alta (Quantas simulações terminaram acima do preço inicial?)
+        const bullishCount = finalPrices.filter(p => p > INITIAL_PRICE).length;
+        const winRate = (bullishCount / iterations) * 100;
+
+        res.json({
+            iterations,
+            avgPrice: avg,
+            medianPrice: median,
+            minPrice: min,
+            maxPrice: max,
+            p05Price: p05, // Suporte Estatístico
+            p95Price: p95, // Resistência Estatística
+            winRate, // Chance de Alta
+            initialPrice: INITIAL_PRICE,
+            avgVolumePerSim: Math.floor(totalVolume / iterations)
+        });
+
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+};

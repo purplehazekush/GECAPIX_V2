@@ -197,6 +197,7 @@ app.post('/api/exchange/admin/toggle', exchangeController.toggleMarket);
 
 
 app.post('/api/exchange/simulate', exchangeController.simulateMarket);
+app.post('/api/exchange/simulate-stats', exchangeController.runMonteCarloStats);
 
 
 // Rotas Legado/Simples

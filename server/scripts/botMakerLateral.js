@@ -8,7 +8,7 @@ const CONFIG = {
     
     // O coração do Bot
     INTERVAL_MS: 5000,          // Tenta operar a cada 5s
-    BULLISH_BIAS: 0.01,         // 8% de vantagem natural para compra (Drift de Alta)
+    BULLISH_BIAS: 0.01,         // 1% de vantagem natural para compra (Drift de Alta)
     VOLATILITY_DAMPENER: 0.01,   // Sensibilidade: Quanto maior, mais forte ele reage a desvios
     
     // Limites de Trade
