@@ -111,7 +111,7 @@ export default function ArenaHome() {
                 <div className="relative w-full h-32 rounded-2xl overflow-hidden group cursor-pointer border border-white/10 shadow-lg">
                     {/* Imagem de Fundo (Placeholder de festa) */}
                     <img
-                        src="https://ibb.co/BKZ1xnPN"
+                        src="https://i.ibb.co/gFTnp47V/DT2026.jpg"
                         className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-500"
                         alt="Festa"
                     />
