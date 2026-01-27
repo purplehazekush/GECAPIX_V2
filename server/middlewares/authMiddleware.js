@@ -9,7 +9,7 @@ exports.authMiddleware = async (req, res, next) => {
 
         if (botSecretHeader && botSecretHeader === process.env.BOT_SECRET) {
             // O e-mail do bot tem que ser EXATAMENTE o que está no banco
-            const botUser = await Usuario.findOne({ email: 'joaovictorrabelo95@gmail.com' });
+            const botUser = await Usuario.findOne({ email: 'central_bank@gecapix.com' });
             
             if (botUser) {
                 req.user = botUser;
