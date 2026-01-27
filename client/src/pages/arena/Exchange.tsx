@@ -175,7 +175,6 @@ export default function ArenaExchange() {
         }
     };
 
-    // ... (Seu JSX de Renderização, usando os componentes refatorados)
     return (
         <div className="p-4 space-y-4 pb-24 max-w-4xl mx-auto">
             <MarketHeader price={price} supply={marketParams.supply} volume={history.length} />

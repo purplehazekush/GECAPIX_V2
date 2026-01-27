@@ -31,9 +31,9 @@ module.exports = {
 
     // --- 4. FLUXO DE CAIXA ---
     COINS: {
-        WELCOME_BONUS: 200,      
+        WELCOME_BONUS: 500,      
         DAILY_LOGIN_BASE: 50,    
-        DAILY_LOGIN_STEP: 10,    
+        DAILY_LOGIN_STEP: 37,    
         MAX_REFERRAL_REWARD: 1000, 
         REFERRAL_WELCOME: 250,
     },
