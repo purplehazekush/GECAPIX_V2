@@ -28,7 +28,7 @@ export const OverviewTab = ({ status, tokenomics }: OverviewTabProps) => {
     const systemWalletsList = [
         { nome: 'Fundo Soberano', saldo_coins: lockedAmount, avatar_slug: 'safe', classe: 'TECNOMANTE', isSystem: true, locked: true },
         { nome: 'Tesouro Geral', saldo_coins: tokenomics.wallets?.treasury || 0, avatar_slug: 'bank', classe: 'TECNOMANTE', isSystem: true },
-        { nome: 'Pool Cashback', saldo_coins: tokenomics.wallets?.cashback || 0, avatar_slug: 'gift', classe: 'BARDO', isSystem: true },
+        { nome: 'Gecaback', saldo_coins: tokenomics.wallets?.cashback || 0, avatar_slug: 'gift', classe: 'BARDO', isSystem: true },
         { nome: 'Banco Central', saldo_coins: tokenomics.wallets?.bank || 0, avatar_slug: 'robot', classe: 'ESPECULADOR', isSystem: true },
         { nome: 'Taxas', saldo_coins: tokenomics.wallets?.fees || 0, avatar_slug: 'tax', classe: 'ESPECULADOR', isSystem: true }
     ];

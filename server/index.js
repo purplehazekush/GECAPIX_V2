@@ -30,6 +30,7 @@ const storeController = require('./controllers/storeController');
 const bankController = require('./controllers/bankController');
 const exchangeController = require('./controllers/exchangeController')
 const { authMiddleware } = require('./middlewares/authMiddleware');
+const datingController = require('./controllers/datingController'); // <--- IMPORT NOVO
 
 const app = express();
 
@@ -242,6 +243,13 @@ app.post('/api/admin/force-close', async (req, res) => { //CORRIGIR - ADD authMi
     await DailyTreasury.runDailyClosing();
     res.json({ success: true });
 });
+
+// 7. GECAMATCH (TINDER)
+app.post('/api/dating/optin', authMiddleware, datingController.optIn);
+app.get('/api/dating/candidates', authMiddleware, datingController.getCandidates);
+app.post('/api/dating/like', authMiddleware, datingController.sendLike);
+app.post('/api/dating/superlike', authMiddleware, datingController.sendSuperLike);
+app.get('/api/dating/mailbox', authMiddleware, datingController.getMailbox);
 
 
 cron.schedule('0 21 * * *', () => { // Todo dia às 21h

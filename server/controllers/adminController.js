@@ -138,10 +138,10 @@ exports.resetSeason = async (req, res) => {
             // 3. FUNDO DE CASHBACK
             {
                 email: TOKEN.WALLETS.CASHBACK,
-                nome: "Pool Cashback",
+                nome: "Gecaback",
                 role: "admin", status: "ativo", classe: "BARDO", avatar_slug: "gift",
                 saldo_coins: TOKEN.ALLOCATION.CASHBACK_FUND,
-                extrato: [{ tipo: 'ENTRADA', valor: TOKEN.ALLOCATION.CASHBACK_FUND, descricao: 'Gênesis: Pool Cashback', categoria: 'SYSTEM', data: new Date() }]
+                extrato: [{ tipo: 'ENTRADA', valor: TOKEN.ALLOCATION.CASHBACK_FUND, descricao: 'Gênesis: Pool Gecaback', categoria: 'SYSTEM', data: new Date() }]
             },
             // 4. BANCO CENTRAL
             {

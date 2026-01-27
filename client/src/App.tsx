@@ -27,7 +27,7 @@ import ArenaSpotted from './pages/arena/Spotted';
 import CentralBank from './pages/arena/CentralBank';
 import ArenaStore from './pages/arena/Store'; // <--- Importe
 import BankPanel from './components/arena/bank/AdminBankPanel';
-import ArenaExchange from './pages/arena/Exchange';
+import ArenaExchange from './pages/arena/Exchange'; //Corretora de GLUE/GECACOINS
 
 function AppRoutes() {
   const { user, dbUser, loading } = useAuth();

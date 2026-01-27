@@ -104,5 +104,23 @@ module.exports = {
         BARDO: { REFERRAL_BONUS_MULT: 1.25 },
         BRUXO: { GAME_WIN_MULT: 1.10 },
         NOVATO: { _dummy: 0 }
-    }
+    },
+
+    // --- 10. GECAMATCH (DATING) ---
+    DATING: {
+        LIKE_COST: 50,          // Custa 50 Coins dar like
+        LIKE_XP_REWARD: 10,     // Ganha 10 XP por interagir
+        
+        SUPERLIKE_COST_COINS: 500,
+        SUPERLIKE_COST_GLUE: 1, // Custa 1 Glue (R$ 4.20) + 500 Coins
+        
+        // Distribuição do Super Like (Coins)
+        SUPERLIKE_DISTRIBUTION: {
+            RECIPIENT: 0.50, // 50% vai pro crush
+            BURN: 0.25,      // 25% queimado
+            FEES: 0.25       // 25% pro projeto
+        }
+    },
+
+    
 };
