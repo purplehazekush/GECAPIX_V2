@@ -1,27 +1,26 @@
 // server/middlewares/authMiddleware.js
 const admin = require('firebase-admin');
 const Usuario = require('../models/Usuario');
-const TOKEN = require('../config/tokenomics'); // <--- Importe o config
+const TOKEN = require('../config/tokenomics'); 
 
-exports.authMiddleware = async (req, res, next) => {
+// 🔥 CORREÇÃO AQUI: Use module.exports direto
+module.exports = async (req, res, next) => {
     try {
         // --- 1. PORTA DO BOT (Backdoor Seguro) ---
         const botSecret = req.headers['x-bot-secret'];
         
         if (botSecret && botSecret === process.env.BOT_SECRET) {
-            // 🔥 MUDANÇA: Busca o e-mail definido no Tokenomics (central_bank@gecapix.com)
             const botEmail = TOKEN.WALLETS.BANK; 
-            
             const botUser = await Usuario.findOne({ email: botEmail });
             
             if (botUser) {
                 req.user = botUser;
-                return next(); // Acesso concedido
+                return next(); 
             }
             console.warn(`⚠️ Bot tentou logar com secret correto mas email ${botEmail} não existe.`);
         }
 
-        // 2. VALIDAÇÃO REAL DO USUÁRIO (Firebase Token)
+        // --- 2. VALIDAÇÃO REAL DO USUÁRIO ---
         const authHeader = req.headers.authorization;
         if (!authHeader?.startsWith('Bearer ')) {
             return res.status(401).json({ error: "Sessão expirada. Faça login novamente." });

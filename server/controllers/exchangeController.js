@@ -184,8 +184,6 @@ exports.executeTrade = async (req, res) => {
     }
 };
 
-// server/controllers/exchangeController.js
-
 exports.getChartData = async (req, res) => {
     try {
         const { tf } = req.query; // ex: 1, 5, 15 (em minutos)

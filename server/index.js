@@ -1,5 +1,7 @@
 // server/index.js
 require('dotenv').config();
+
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -29,10 +31,14 @@ const SystemState = require('./models/SystemState'); // <--- Importe
 const storeController = require('./controllers/storeController');
 const bankController = require('./controllers/bankController');
 const exchangeController = require('./controllers/exchangeController')
-const { authMiddleware } = require('./middlewares/authMiddleware');
+const authMiddleware = require('./middlewares/authMiddleware'); // <--- SEM CHAVES!
 const datingController = require('./controllers/datingController'); // <--- IMPORT NOVO
 
+
+
 const app = express();
+
+
 
 // Inicializa o Firebase Admin antes de qualquer rota ou middleware
 if (!admin.apps.length) {
@@ -126,21 +132,6 @@ app.use((req, res, next) => {
     console.log(`📡 [${req.method}] ${req.url}`);
     next();
 });
-
-// 1. Crie esse mini-middleware no seu index.js antes das rotas
-const authSimples = async (req, res, next) => {
-    // Pegamos o email que o axios vai enviar
-    const email = req.headers['x-user-email'];
-    if (!email) return res.status(401).json({ error: "Identifique-se primeiro!" });
-
-    const user = await UsuarioModel.findOne({ email });
-    if (!user) return res.status(404).json({ error: "Usuário não existe" });
-
-    req.user = user; // Agora o controller sabe quem você é!
-    next();
-};
-
-
 
 app.get('/api/tokenomics', statsController.getTokenomics);
 app.get('/api/tokenomics/history', statsController.getHistoricalStats); // <--- NOVA ROTA
