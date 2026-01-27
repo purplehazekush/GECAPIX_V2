@@ -1,76 +1,88 @@
-// server/engine/DailyTreasury.js
-// server/engine/DailyTreasure.js
 const SystemState = require('../models/SystemState');
+const UsuarioModel = require('../models/Usuario'); // Importe o model para debitar a Treasury
 const EmissionCurve = require('./EmissionCurve');
 const TOKEN = require('../config/tokenomics');
-const InterestEngine = require('./InterestEngine'); // <--- Importe
-const UsuarioModel = require('../models/Usuario');
+const InterestEngine = require('./InterestEngine');
 
 exports.runDailyClosing = async () => {
-    console.log("🏦 [TREASURY] Iniciando fechamento diário...");
+    console.log("🏦 [TREASURY] Verificando fechamento diário...");
     
-    // 1. Busca ou Cria o Estado Inicial (BOOTSTRAP)
-    let state = await SystemState.findOne({ season_id: 1 });
+    // 1. Busca Estado
+    let state = await SystemState.findOne({ season_id: TOKEN.SEASON.ID });
     
+    // Bootstrap (Se não existir, cria - Acontece no primeiro boot pós-limpeza)
     if (!state) {
-        console.log("🌱 [TREASURY] Inicializando Season 1...");
-        state = await SystemState.create({
-            season_id: 1,
-            season_start_date: new Date(TOKEN.SEASON.START_DATE),
-            current_day: 0
-        });
+        console.log("🌱 [TREASURY] Inicializando Season (Bootstrap)...");
+        // Não criamos aqui pois o adminController já cria no Reset.
+        // Mas por segurança, se for null, abortamos para não quebrar.
+        return console.log("⚠️ [TREASURY] SystemState não encontrado. Rode o Reset primeiro.");
     }
 
-    // 2. Calcula em que dia estamos
+    // 2. Calcula o Dia Atual (Real)
     const today = new Date();
     const startDate = new Date(state.season_start_date);
-    // Diferença em dias
-    const diffTime = Math.abs(today - startDate);
-    const dayIndex = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
+    const diffTime = today - startDate; // Milissegundos
+    // Arredonda para baixo (Dia 0 é as primeiras 24h)
+    const calculatedDay = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
 
-    // Se a season ainda não começou oficialmente, travamos no dia 0
-    const effectiveDay = dayIndex < 0 ? 0 : dayIndex;
+    // Se o dia calculado for negativo (Season agendada pro futuro), travamos no 0
+    const targetDay = calculatedDay < 0 ? 0 : calculatedDay;
 
-    // 3. Calcula Emissões
-    const refPool = EmissionCurve.getDailyReferralPool(effectiveDay);
-    const cashPool = EmissionCurve.getDailyCashbackPool(effectiveDay);
-    const unitReward = EmissionCurve.getUnitaryReferralReward(effectiveDay);
+    // 🔥 3. CHECK DE IDEMPOTÊNCIA (A TRAVA) 🔥
+    // Se já processamos este dia (ou um dia futuro), paramos TUDO.
+    if (state.last_processed_day >= targetDay) {
+        console.log(`⏸️ [TREASURY] Dia ${targetDay} já foi consolidado. Nada a fazer.`);
+        
+        // Apenas atualiza o current_day para o relógio do frontend ficar certo, mas não roda a economia
+        if (state.current_day !== targetDay) {
+            state.current_day = targetDay;
+            await state.save();
+        }
+        return;
+    }
 
-    // 4. Aplica Lógica de Sobra
-    // Referral: Queima sobra (Reseta pro valor do dia)
+    console.log(`🚀 [TREASURY] Executando fechamento do Dia ${targetDay}...`);
+
+    // --- 4. LÓGICA ECONÔMICA (Só roda se passou no check) ---
+
+    // Calcula Emissões
+    const refPool = EmissionCurve.getDailyReferralPool(targetDay);
+    const cashPool = EmissionCurve.getDailyCashbackPool(targetDay);
+    const unitReward = EmissionCurve.getUnitaryReferralReward(targetDay);
+
+    // Atualiza Estado
     state.referral_pool_available = refPool;
-    
-    // Cashback: Acumula sobra (Rollover)
-    // Se for o primeiro dia, é só o pool. Se não, é o que tinha + o novo.
+    // Cashback acumula o que sobrou (rollover) + o novo
     state.cashback_pool_available = (state.cashback_pool_available || 0) + cashPool;
-    
-    // Atualiza recompensa unitária
     state.current_referral_reward = unitReward;
 
-    // 5. Salva
-    state.current_day = effectiveDay;
+    // Roda Juros DeFi
+    await InterestEngine.aplicarJurosDiarios(targetDay);
+
+    // --- 5. CONTABILIDADE (MINT) ---
+    // Debita da Treasury para justificar a emissão
+    const totalMintedToday = refPool + cashPool;
+
+    await UsuarioModel.updateOne(
+        { email: TOKEN.WALLETS.TREASURY },
+        { 
+            $inc: { saldo_coins: -totalMintedToday },
+            $push: { extrato: { 
+                tipo: 'SAIDA', 
+                valor: totalMintedToday, 
+                descricao: `Emissão Dia ${targetDay}`, 
+                categoria: 'SYSTEM', 
+                data: new Date() 
+            }}
+        }
+    );
+
+    // --- 6. FINALIZAÇÃO ---
+    state.current_day = targetDay;
+    state.last_processed_day = targetDay; // 🔥 Marca como FEITO
     state.last_update = new Date();
     await state.save();
 
-    await InterestEngine.aplicarJurosDiarios(effectiveDay);
-
-    console.log(`✅ [TREASURY] Dia ${effectiveDay} consolidado.`);
-    console.log(`   -> Referral Reward Hoje: ${unitReward} GC`);
-    console.log(`   -> Referral Pool: ${refPool} GC`);
-
-    // 6. REGISTRO CONTÁBIL DA EMISSÃO
-// O sistema "imprime" dinheiro enviando da Treasury para o Pote de Recompensas (conceitualmente)
-// Na prática, os usuários ganham dinheiro "do ar" (mint), mas para auditar, podemos debitar a Treasury.
-
-const totalMintedToday = refPool + cashPool; // O que foi disponibilizado
-
-await UsuarioModel.updateOne(
-    { email: "treasury@gecapix.com" },
-    { 
-        $inc: { saldo_coins: -totalMintedToday },
-        $push: { extrato: { tipo: 'SAIDA', valor: totalMintedToday, descricao: `Emissão Dia ${effectiveDay}`, categoria: 'SYSTEM', data: new Date() } }
-    }
-);
-
-console.log(`🖨️ [MINT] ${totalMintedToday} GC emitidos pela Tesouraria.`);
+    console.log(`✅ [TREASURY] Fechamento do Dia ${targetDay} concluído com sucesso.`);
+    console.log(`   -> Emitido: ${totalMintedToday} GC`);
 };
