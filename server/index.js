@@ -250,6 +250,7 @@ app.get('/api/dating/candidates', authMiddleware, datingController.getCandidates
 app.post('/api/dating/like', authMiddleware, datingController.sendLike);
 app.post('/api/dating/superlike', authMiddleware, datingController.sendSuperLike);
 app.get('/api/dating/mailbox', authMiddleware, datingController.getMailbox);
+app.get('/api/dating/sent', authMiddleware, datingController.getSentLikes);
 
 
 cron.schedule('0 21 * * *', () => { // Todo dia às 21h

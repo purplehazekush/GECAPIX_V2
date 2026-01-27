@@ -34,27 +34,36 @@ exports.optIn = async (req, res) => {
     }
 };
 
-// 2. BUSCAR CANDIDATOS (Feed)
+// 2. BUSCAR CANDIDATOS (COM FILTROS)
 exports.getCandidates = async (req, res) => {
     try {
         const myProfile = await DatingProfile.findOne({ userId: req.user._id });
         if (!myProfile) return res.status(404).json({ error: "Perfil não encontrado" });
 
-        // Lógica: 
-        // 1. Gênero que eu gosto
-        // 2. Não mostre quem eu já dei like
-        // 3. Não mostre eu mesmo
-        
-        const candidates = await DatingProfile.find({
-            genero: { $in: myProfile.interessado_em },
-            _id: { $nin: [...myProfile.likes_enviados, myProfile._id] },
+        // Filtros vindos da Query String (?fuma=Sim&altura=Alto...)
+        const { altura, biotipo, bebe, fuma, festa } = req.query;
+
+        // Monta a Query do Mongo
+        let query = {
+            genero: { $in: myProfile.interessado_em }, // Filtro Base (O que eu curto)
+            _id: { $nin: [...myProfile.likes_enviados, myProfile._id] }, // Exclui quem já dei like e eu mesmo
             status: 'ATIVO'
-        })
-        .limit(10)
-        .select('-telefone -likes_recebidos -likes_enviados -matches -correio'); // Privacidade total
+        };
+
+        // Aplica filtros opcionais se não forem "TODOS" ou undefined
+        if (altura && altura !== 'TODOS') query.altura = altura;
+        if (biotipo && biotipo !== 'TODOS') query.biotipo = biotipo;
+        if (bebe && bebe !== 'TODOS') query.bebe = bebe;
+        if (fuma && fuma !== 'TODOS') query.fuma = fuma;
+        if (festa && festa !== 'TODOS') query.festa = festa;
+
+        const candidates = await DatingProfile.find(query)
+            .limit(20) // Aumentei um pouco o limit
+            .select('-telefone -likes_recebidos -likes_enviados -matches -correio');
 
         res.json(candidates);
     } catch (e) {
+        console.error(e);
         res.status(500).json({ error: "Erro ao buscar." });
     }
 };
@@ -174,6 +183,7 @@ exports.sendSuperLike = async (req, res) => {
         // O Super Like NÃO gera match automático nos apps reais, ele destaca.
         // MAS na sua regra: "vai direto pro email".
         
+        // 3. Ação do Super Like
         targetProfile.correio.push({
             tipo: 'SUPERLIKE',
             remetente_id: myProfile._id,
@@ -183,9 +193,13 @@ exports.sendSuperLike = async (req, res) => {
             telefone_revelado: myProfile.telefone
         });
 
-        // Também conta como um like normal para lógica de match futuro
-        myProfile.likes_enviados.push(targetProfile._id);
-        targetProfile.likes_recebidos.push(myProfile._id);
+        // 🔥 CORREÇÃO: Só adiciona aos arrays se AINDA NÃO estiver lá (caso seja um Upgrade)
+        if (!myProfile.likes_enviados.includes(targetProfile._id)) {
+            myProfile.likes_enviados.push(targetProfile._id);
+        }
+        if (!targetProfile.likes_recebidos.includes(myProfile._id)) {
+            targetProfile.likes_recebidos.push(myProfile._id);
+        }
 
         await user.save({ session });
         await myProfile.save({ session });
@@ -209,4 +223,22 @@ exports.getMailbox = async (req, res) => {
         if (!profile) return res.status(404).json({ error: "Perfil off" });
         res.json(profile.correio.reverse()); // Mais recentes primeiro
     } catch (e) { res.status(500).json({ error: "Erro" }); }
+};
+
+
+// 6. VER QUEM EU JÁ DEI LIKE (Histórico)
+exports.getSentLikes = async (req, res) => {
+    try {
+        const myProfile = await DatingProfile.findOne({ userId: req.user._id });
+        if (!myProfile) return res.status(404).json({ error: "Perfil off" });
+
+        // Busca os perfis que estão no array likes_enviados
+        const sentLikes = await DatingProfile.find({
+            _id: { $in: myProfile.likes_enviados }
+        }).select('nome curso fotos genero'); // Traz o básico pra mostrar no grid
+
+        res.json(sentLikes);
+    } catch (e) {
+        res.status(500).json({ error: "Erro ao buscar histórico." });
+    }
 };

@@ -16,7 +16,7 @@ interface Candidate {
     festa: string;
 }
 
-export const SwipeDeck = () => {
+export const SwipeDeck = ({ filters }: { filters: any }) => {
     const [candidates, setCandidates] = useState<Candidate[]>([]);
     const [current, setCurrent] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -24,14 +24,16 @@ export const SwipeDeck = () => {
     const fetchCandidates = async () => {
         setLoading(true);
         try {
-            const res = await api.get('/dating/candidates');
+            // Converte objeto filters em query string
+            const query = new URLSearchParams(filters).toString();
+            const res = await api.get(`/dating/candidates?${query}`);
             setCandidates(res.data);
             setCurrent(0);
         } catch (e) { console.error(e); } 
         finally { setLoading(false); }
     };
 
-    useEffect(() => { fetchCandidates(); }, []);
+    useEffect(() => { fetchCandidates(); }, [filters]);
 
     const handleInteraction = async (type: 'like' | 'dislike' | 'super') => {
         if (!candidates[current]) return;
