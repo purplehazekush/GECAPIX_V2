@@ -25,7 +25,7 @@ export default function MarketLab() {
     const [loading, setLoading] = useState(false);
     
     // NOVO COMPONENTE: RawInput (Sem slider, sem frescura)
-    const RawInput = ({ label, value, onChange, step = "any" }: any) => {
+    const RawInput = ({ label, value, onChange }: any) => {
         // Estado local para permitir digitar "0." ou "0," sem o React forçar re-render imediato
         const [localVal, setLocalVal] = useState(value.toString());
 
