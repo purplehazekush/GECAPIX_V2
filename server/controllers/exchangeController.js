@@ -266,33 +266,17 @@ exports.toggleMarket = async (req, res) => {
         res.status(500).json({ error: "Erro ao alternar mercado" });
     }
 };
-
-// =================================================================
-// 🧪  MARKET LAB: SIMULADOR DE MONTE CARLO
-// =================================================================
-
-// Helper: Box-Muller Transform (Normal Distribution)
-const gaussianRandom = (mean, stdev) => {
-    const u = 1 - Math.random();
-    const v = Math.random();
-    const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-    return z * stdev + mean;
-};
-
-const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
-
-const rollAttribute = (config, key) => {
-    const attr = config.ATTRIBUTES[key];
-    const rawValue = gaussianRandom(attr.MEAN, attr.DEV);
-    return clamp(rawValue, attr.MIN, attr.MAX);
-};
+// ... (Mantenha todo o código acima do exports.toggleMarket igual) ...
 
 // ============================================================================
-// 🛠️ FUNÇÕES AUXILIARES (FÍSICA MATEMÁTICA)
+// 🛠️ FUNÇÕES AUXILIARES (FÍSICA MATEMÁTICA - CORE V6)
 // ============================================================================
 
-// Gera um número aleatório com Distribuição Normal (Curva de Sino)
-// Usando Transformada de Box-Muller
+/**
+ * Gera um número aleatório com Distribuição Normal (Curva de Sino)
+ * Usando Transformada de Box-Muller.
+ * Essencial para simular movimentos orgânicos de mercado.
+ */
 function randomNormal(mean, stdDev) {
     const u = 1 - Math.random(); // Converte [0,1) para (0,1]
     const v = Math.random();
@@ -300,12 +284,17 @@ function randomNormal(mean, stdDev) {
     return z * stdDev + mean;
 }
 
-// Mantém o valor dentro dos limites (Clamp/Clip)
+/**
+ * Mantém o valor dentro dos limites (Clamp/Clip)
+ */
 function clamp(val, min, max) {
     return Math.min(Math.max(val, min), max);
 }
 
-// Lógica de Random Walk dos Atributos (A "Alma" do V6)
+/**
+ * Lógica de Random Walk dos Atributos (A "Alma" do V6)
+ * Simula a mudança de regime de mercado ao longo do tempo.
+ */
 function rollAttribute(currentVal, attrConfig) {
     // 1. Dá um passo aleatório baseado no Desvio Padrão
     // Note: Usamos média 0 para o passo, pois queremos somar ao valor atual
@@ -313,11 +302,11 @@ function rollAttribute(currentVal, attrConfig) {
     let newVal = currentVal + step;
 
     // 2. Mean Reversion (Tende a voltar para a Média configurada)
-    // Se estiver muito longe da média, puxa 10% de volta
+    // Se estiver muito longe da média, puxa 10% de volta para evitar extremos irreais
     const distToMean = attrConfig.MEAN - newVal;
     newVal += distToMean * 0.1;
 
-    // 3. Respeita os limites Min/Max
+    // 3. Respeita os limites Min/Max definidos no Frontend
     return clamp(newVal, attrConfig.MIN, attrConfig.MAX);
 }
 
@@ -338,7 +327,6 @@ exports.simulateMarket = async (req, res) => {
         const RECALIBRATION_TICKS = Math.floor((config.RECALIBRATION_MINUTES * 60 * 1000) / config.TRADE_INTERVAL_MS);
         
         // Resolução de Saída: 1 Candle a cada 1 Hora (para o gráfico não ficar pesado)
-        // Se quiser candles de 15m, mude 60*60 para 15*60
         const CANDLE_INTERVAL_TICKS = Math.floor((60 * 60 * 1000) / config.TRADE_INTERVAL_MS); 
 
         // --- CONSTANTES DO MERCADO ---
@@ -350,10 +338,11 @@ exports.simulateMarket = async (req, res) => {
         // --- LOOP DE SIMULAÇÕES PARALELAS ---
         for (let s = 0; s < simulations; s++) {
             // Varia levemente o preço inicial para as simulações não serem idênticas
-            const startPrice = BASE_PRICE * (0.95 + Math.random() * 0.10); // +/- 5%
+            // (Simula variação de +/- 5% no start)
+            const startPrice = BASE_PRICE * (0.95 + Math.random() * 0.10); 
             
             let currentSupply = INITIAL_SUPPLY;
-            let currentPrice = startPrice; // Usa o preço variado
+            let currentPrice = startPrice;
             
             // Estado Inicial dos Atributos (Começa na média configurada)
             let currentBias = config.ATTRIBUTES.BULLISH_BIAS.MEAN;
@@ -373,7 +362,7 @@ exports.simulateMarket = async (req, res) => {
             for (let i = 0; i < TOTAL_TICKS; i++) {
                 
                 // 1. RECALIBRAGEM (Ciclos de Mercado)
-                // A mágica do V6: O mercado muda de humor com o tempo
+                // A cada X minutos, o mercado muda de humor usando a lógica V6
                 if (i % RECALIBRATION_TICKS === 0) {
                     currentBias = rollAttribute(currentBias, config.ATTRIBUTES.BULLISH_BIAS);
                     currentDampener = rollAttribute(currentDampener, config.ATTRIBUTES.VOLATILITY_DAMPENER);
@@ -382,12 +371,12 @@ exports.simulateMarket = async (req, res) => {
 
                 // 2. FÍSICA DE MERCADO
                 targetSupply += currentDrift; // Inflação/Deflação natural
-                const gap = targetSupply - currentSupply; // Pressão de compra/venda
+                const gap = targetSupply - currentSupply; // Pressão de compra/venda (Gap)
                 
                 // A Fórmula de Probabilidade:
                 // Base 50% + Viés do Mercado + (Tamanho do Gap * Força do Elástico)
                 let prob = 0.50 + currentBias + (gap * currentDampener);
-                prob = clamp(prob, 0.05, 0.95); // Trava entre 5% e 95%
+                prob = clamp(prob, 0.05, 0.95); // Trava entre 5% e 95% para evitar absolutos
 
                 // 3. EXECUÇÃO DA ORDEM
                 const isBuy = Math.random() < prob;
@@ -395,7 +384,7 @@ exports.simulateMarket = async (req, res) => {
                 // Tamanho da Mão (Hand Size)
                 let amount = Math.floor(Math.random() * (config.HAND_SIZE.MAX - config.HAND_SIZE.MIN + 1)) + config.HAND_SIZE.MIN;
                 
-                // Se o gap for muito grande, aumenta a mão (panic buy/sell)
+                // Panic Logic: Se o gap for muito grande (>20), o mercado reage com mais volume
                 if (Math.abs(gap) > 20) amount = Math.ceil(amount * 1.5);
 
                 if (isBuy) {
@@ -407,7 +396,7 @@ exports.simulateMarket = async (req, res) => {
                     currentPrice /= Math.pow(MULTIPLIER, amount);
                 }
 
-                // 4. ATUALIZA CANDLE
+                // 4. ATUALIZA CANDLE (OHLC)
                 if (currentPrice > h) h = currentPrice;
                 if (currentPrice < l) l = currentPrice;
                 c = currentPrice;
@@ -430,7 +419,7 @@ exports.simulateMarket = async (req, res) => {
                 }
             }
             
-            // Empurra o resultado dessa simulação
+            // Salva o resultado dessa simulação
             results.push({ 
                 id: s, 
                 candles, 
@@ -447,113 +436,8 @@ exports.simulateMarket = async (req, res) => {
     }
 };
 
-// 📊 SUPER SIMULAÇÃO (MONTE CARLO STATS)
-exports.runMonteCarloStats = async (req, res) => {
-    try {
-        const { config, days = 30, iterations = 10000 } = req.body;
-
-        // Configurações de Tempo
-        const TICKS_PER_DAY = (24 * 60 * 60 * 1000) / config.TRADE_INTERVAL_MS;
-        const TOTAL_TICKS = Math.floor(TICKS_PER_DAY * days);
-        const RECALIBRATION_TICKS = (config.RECALIBRATION_MINUTES * 60 * 1000) / config.TRADE_INTERVAL_MS;
-
-        // Constantes de Mercado
-        const INITIAL_SUPPLY = 1000;
-        const BASE_PRICE = 50;
-        const MULTIPLIER = 1.0003;
-        const INITIAL_PRICE = BASE_PRICE * Math.pow(MULTIPLIER, INITIAL_SUPPLY);
-
-        // Arrays para guardar resultados finais
-        const finalPrices = [];
-        const finalSupplies = [];
-        let totalVolume = 0;
-
-        // --- O LOOP DE 10.000 SIMULAÇÕES ---
-        for (let s = 0; s < iterations; s++) {
-            let currentSupply = INITIAL_SUPPLY;
-            let currentPrice = INITIAL_PRICE;
-            
-            // Estado do Bot (Resetado a cada simulação)
-            let botState = {
-                bullishBias: config.ATTRIBUTES.BULLISH_BIAS.MEAN,
-                dampener: config.ATTRIBUTES.VOLATILITY_DAMPENER.MEAN,
-                driftRate: config.ATTRIBUTES.DRIFT_RATE.MEAN
-            };
-            
-            let marketMemory = { targetSupply: currentSupply };
-
-            // Loop Temporal (Dias)
-            for (let i = 0; i < TOTAL_TICKS; i++) {
-                // 1. Recalibra
-                if (i % RECALIBRATION_TICKS === 0) {
-                    botState.bullishBias = rollAttribute(config, 'BULLISH_BIAS');
-                    botState.dampener = rollAttribute(config, 'VOLATILITY_DAMPENER');
-                    botState.driftRate = rollAttribute(config, 'DRIFT_RATE');
-                }
-
-                // 2. Lógica
-                marketMemory.targetSupply += botState.driftRate;
-                const gap = marketMemory.targetSupply - currentSupply;
-                
-                let prob = 0.50 + botState.bullishBias + (gap * botState.dampener);
-                prob = clamp(prob, 0.05, 0.95);
-
-                const isBuy = Math.random() < prob;
-                
-                let amount = Math.floor(Math.random() * config.HAND_SIZE.MAX) + config.HAND_SIZE.MIN;
-                if (Math.abs(gap) > 15) amount = Math.ceil(amount * 1.5);
-
-                // 3. Impacto (Matemática Pura, sem logs)
-                if (isBuy) {
-                    currentSupply += amount;
-                    // Otimização: Não precisamos calcular o preço a cada tick, só no final
-                    // Mas precisamos atualizar o supply para a lógica do bot funcionar
-                } else {
-                    currentSupply -= amount;
-                    if(currentSupply < 1) currentSupply = 1;
-                }
-                totalVolume += amount;
-            }
-
-            // Calcula preço final apenas no fim da simulação para economizar CPU
-            currentPrice = BASE_PRICE * Math.pow(MULTIPLIER, currentSupply);
-            
-            finalPrices.push(currentPrice);
-            finalSupplies.push(currentSupply);
-        }
-
-        // --- CÁLCULOS ESTATÍSTICOS ---
-        finalPrices.sort((a, b) => a - b); // Ordena para pegar mediana e percentis
-
-        const sum = finalPrices.reduce((a, b) => a + b, 0);
-        const avg = sum / finalPrices.length;
-        const min = finalPrices[0];
-        const max = finalPrices[finalPrices.length - 1];
-        const median = finalPrices[Math.floor(finalPrices.length / 2)];
-        
-        // Percentis (95% das vezes o preço fica acima de X)
-        const p05 = finalPrices[Math.floor(finalPrices.length * 0.05)]; // Pior caso razoável
-        const p95 = finalPrices[Math.floor(finalPrices.length * 0.95)]; // Melhor caso razoável
-
-        // Probabilidade de Alta (Quantas simulações terminaram acima do preço inicial?)
-        const bullishCount = finalPrices.filter(p => p > INITIAL_PRICE).length;
-        const winRate = (bullishCount / iterations) * 100;
-
-        res.json({
-            iterations,
-            avgPrice: avg,
-            medianPrice: median,
-            minPrice: min,
-            maxPrice: max,
-            p05Price: p05, // Suporte Estatístico
-            p95Price: p95, // Resistência Estatística
-            winRate, // Chance de Alta
-            initialPrice: INITIAL_PRICE,
-            avgVolumePerSim: Math.floor(totalVolume / iterations)
-        });
-
-    } catch (e) {
-        console.error(e);
-        res.status(500).json({ error: e.message });
-    }
+// Endpoint extra para estatísticas (Monte Carlo rápido - Placeholder)
+exports.simulateStats = async (req, res) => {
+    // Implementação futura se necessária no JS
+    res.json({ status: "WIP - Use a visualização por enquanto" });
 };
