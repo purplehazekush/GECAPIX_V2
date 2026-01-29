@@ -287,64 +287,117 @@ const rollAttribute = (config, key) => {
     return clamp(rawValue, attr.MIN, attr.MAX);
 };
 
-// 🧪 MARKET LAB: SIMULADOR DE MONTE CARLO (CORRIGIDO)
+// ============================================================================
+// 🛠️ FUNÇÕES AUXILIARES (FÍSICA MATEMÁTICA)
+// ============================================================================
+
+// Gera um número aleatório com Distribuição Normal (Curva de Sino)
+// Usando Transformada de Box-Muller
+function randomNormal(mean, stdDev) {
+    const u = 1 - Math.random(); // Converte [0,1) para (0,1]
+    const v = Math.random();
+    const z = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+    return z * stdDev + mean;
+}
+
+// Mantém o valor dentro dos limites (Clamp/Clip)
+function clamp(val, min, max) {
+    return Math.min(Math.max(val, min), max);
+}
+
+// Lógica de Random Walk dos Atributos (A "Alma" do V6)
+function rollAttribute(currentVal, attrConfig) {
+    // 1. Dá um passo aleatório baseado no Desvio Padrão
+    // Note: Usamos média 0 para o passo, pois queremos somar ao valor atual
+    const step = randomNormal(0, attrConfig.DEV);
+    let newVal = currentVal + step;
+
+    // 2. Mean Reversion (Tende a voltar para a Média configurada)
+    // Se estiver muito longe da média, puxa 10% de volta
+    const distToMean = attrConfig.MEAN - newVal;
+    newVal += distToMean * 0.1;
+
+    // 3. Respeita os limites Min/Max
+    return clamp(newVal, attrConfig.MIN, attrConfig.MAX);
+}
+
+// ============================================================================
+// 🧪 MARKET LAB V6: SIMULADOR COM RANDOM WALK
+// ============================================================================
 exports.simulateMarket = async (req, res) => {
     try {
         const { config, days = 30, simulations = 4 } = req.body;
         const results = [];
         
-        // Configurações do ambiente simulado
+        // --- CONFIGURAÇÃO DO TEMPO ---
+        // Quantos ticks (operações) cabem em 1 dia?
         const TICKS_PER_DAY = (24 * 60 * 60 * 1000) / config.TRADE_INTERVAL_MS;
         const TOTAL_TICKS = Math.floor(TICKS_PER_DAY * days);
-        const RECALIBRATION_TICKS = (config.RECALIBRATION_MINUTES * 60 * 1000) / config.TRADE_INTERVAL_MS;
         
-        // Output Resolution: 1 Candle a cada 1 Hora
-        const CANDLE_INTERVAL_TICKS = (60 * 60 * 1000) / config.TRADE_INTERVAL_MS; 
+        // A cada quantos ticks os atributos mudam?
+        const RECALIBRATION_TICKS = Math.floor((config.RECALIBRATION_MINUTES * 60 * 1000) / config.TRADE_INTERVAL_MS);
+        
+        // Resolução de Saída: 1 Candle a cada 1 Hora (para o gráfico não ficar pesado)
+        // Se quiser candles de 15m, mude 60*60 para 15*60
+        const CANDLE_INTERVAL_TICKS = Math.floor((60 * 60 * 1000) / config.TRADE_INTERVAL_MS); 
 
-        // Mock Inicial
+        // --- CONSTANTES DO MERCADO ---
         const INITIAL_SUPPLY = 1000;
-        const BASE_PRICE = 50;
-        const MULTIPLIER = 1.0003;
-        const NOW = Math.floor(Date.now() / 1000); // Timestamp Base em Segundos
+        const BASE_PRICE = 50; // Preço inicial base
+        const MULTIPLIER = 1.0003; // Impacto no preço por unidade
+        const NOW = Math.floor(Date.now() / 1000); // Timestamp atual em segundos
 
+        // --- LOOP DE SIMULAÇÕES PARALELAS ---
         for (let s = 0; s < simulations; s++) {
+            // Varia levemente o preço inicial para as simulações não serem idênticas
+            const startPrice = BASE_PRICE * (0.95 + Math.random() * 0.10); // +/- 5%
+            
             let currentSupply = INITIAL_SUPPLY;
-            let currentPrice = BASE_PRICE * Math.pow(MULTIPLIER, currentSupply);
+            let currentPrice = startPrice; // Usa o preço variado
             
-            let botState = {
-                bullishBias: config.ATTRIBUTES.BULLISH_BIAS.MEAN,
-                dampener: config.ATTRIBUTES.VOLATILITY_DAMPENER.MEAN,
-                driftRate: config.ATTRIBUTES.DRIFT_RATE.MEAN
-            };
+            // Estado Inicial dos Atributos (Começa na média configurada)
+            let currentBias = config.ATTRIBUTES.BULLISH_BIAS.MEAN;
+            let currentDampener = config.ATTRIBUTES.VOLATILITY_DAMPENER.MEAN;
+            let currentDrift = config.ATTRIBUTES.DRIFT_RATE.MEAN;
             
-            let marketMemory = { targetSupply: currentSupply };
+            // Memória do Mercado (Supply Alvo que sofre Drift)
+            let targetSupply = currentSupply;
+            
             let candles = [];
             
-            // Candle temporário
-            let tempCandle = { o: currentPrice, h: currentPrice, l: currentPrice, c: currentPrice, vol: 0 };
+            // Variáveis do Candle Temporário
+            let o = currentPrice, h = currentPrice, l = currentPrice, c = currentPrice, vol = 0;
+            let currentTimeSec = NOW;
 
+            // --- LOOP DE TICKS (O TEMPO PASSANDO) ---
             for (let i = 0; i < TOTAL_TICKS; i++) {
-                // 1. Recalibra
+                
+                // 1. RECALIBRAGEM (Ciclos de Mercado)
+                // A mágica do V6: O mercado muda de humor com o tempo
                 if (i % RECALIBRATION_TICKS === 0) {
-                    botState.bullishBias = rollAttribute(config, 'BULLISH_BIAS');
-                    botState.dampener = rollAttribute(config, 'VOLATILITY_DAMPENER');
-                    botState.driftRate = rollAttribute(config, 'DRIFT_RATE');
+                    currentBias = rollAttribute(currentBias, config.ATTRIBUTES.BULLISH_BIAS);
+                    currentDampener = rollAttribute(currentDampener, config.ATTRIBUTES.VOLATILITY_DAMPENER);
+                    currentDrift = rollAttribute(currentDrift, config.ATTRIBUTES.DRIFT_RATE);
                 }
 
-                // 2. Lógica Bot
-                marketMemory.targetSupply += botState.driftRate;
-                const gap = marketMemory.targetSupply - currentSupply;
+                // 2. FÍSICA DE MERCADO
+                targetSupply += currentDrift; // Inflação/Deflação natural
+                const gap = targetSupply - currentSupply; // Pressão de compra/venda
                 
-                let prob = 0.50 + botState.bullishBias + (gap * botState.dampener);
-                prob = clamp(prob, 0.05, 0.95);
+                // A Fórmula de Probabilidade:
+                // Base 50% + Viés do Mercado + (Tamanho do Gap * Força do Elástico)
+                let prob = 0.50 + currentBias + (gap * currentDampener);
+                prob = clamp(prob, 0.05, 0.95); // Trava entre 5% e 95%
 
+                // 3. EXECUÇÃO DA ORDEM
                 const isBuy = Math.random() < prob;
                 
-                // Tamanho da Mão
-                let amount = Math.floor(Math.random() * config.HAND_SIZE.MAX) + config.HAND_SIZE.MIN;
-                if (Math.abs(gap) > 15) amount = Math.ceil(amount * 1.5);
+                // Tamanho da Mão (Hand Size)
+                let amount = Math.floor(Math.random() * (config.HAND_SIZE.MAX - config.HAND_SIZE.MIN + 1)) + config.HAND_SIZE.MIN;
+                
+                // Se o gap for muito grande, aumenta a mão (panic buy/sell)
+                if (Math.abs(gap) > 20) amount = Math.ceil(amount * 1.5);
 
-                // 3. Impacto Preço
                 if (isBuy) {
                     currentSupply += amount;
                     currentPrice *= Math.pow(MULTIPLIER, amount);
@@ -354,40 +407,36 @@ exports.simulateMarket = async (req, res) => {
                     currentPrice /= Math.pow(MULTIPLIER, amount);
                 }
 
-                // 4. Update Candle
-                tempCandle.h = Math.max(tempCandle.h, currentPrice);
-                tempCandle.l = Math.min(tempCandle.l, currentPrice);
-                tempCandle.c = currentPrice;
-                tempCandle.vol += amount;
+                // 4. ATUALIZA CANDLE
+                if (currentPrice > h) h = currentPrice;
+                if (currentPrice < l) l = currentPrice;
+                c = currentPrice;
+                vol += amount;
 
-                // 5. Fecha Candle (1 Hora)
-                if (i > 0 && i % CANDLE_INTERVAL_TICKS === 0) {
-                    const timeOffset = (i / TICKS_PER_DAY) * 86400; // Segundos passados
-                    
+                // 5. FECHAMENTO DO CANDLE (Hora em Hora)
+                if ((i + 1) % CANDLE_INTERVAL_TICKS === 0) {
                     candles.push({ 
-                        time: Math.floor(NOW + timeOffset), 
-                        open: tempCandle.o, 
-                        high: tempCandle.h, 
-                        low: tempCandle.l, 
-                        close: tempCandle.c 
+                        time: currentTimeSec, 
+                        open: o, 
+                        high: h, 
+                        low: l, 
+                        close: c,
+                        volume: vol
                     });
                     
-                    tempCandle = { o: currentPrice, h: currentPrice, l: currentPrice, c: currentPrice, vol: 0 };
+                    // Reseta para o próximo candle
+                    o = currentPrice; h = currentPrice; l = currentPrice; c = currentPrice; vol = 0;
+                    currentTimeSec += 3600; // +1 Hora em segundos
                 }
             }
             
-            // Push do último candle (CORREÇÃO AQUI)
-            // Calculamos o tempo final baseado no total de ticks, não no índice cru
-            const finalTimeOffset = (TOTAL_TICKS / TICKS_PER_DAY) * 86400;
-            candles.push({ 
-                time: Math.floor(NOW + finalTimeOffset), // Timestamp correto
-                open: tempCandle.o, 
-                high: tempCandle.h, 
-                low: tempCandle.l, 
-                close: tempCandle.c 
+            // Empurra o resultado dessa simulação
+            results.push({ 
+                id: s, 
+                candles, 
+                finalSupply: currentSupply, 
+                finalPrice: currentPrice 
             });
-            
-            results.push({ id: s, candles, finalSupply: currentSupply, finalPrice: currentPrice });
         }
 
         res.json(results);
@@ -397,7 +446,6 @@ exports.simulateMarket = async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 };
-
 
 // 📊 SUPER SIMULAÇÃO (MONTE CARLO STATS)
 exports.runMonteCarloStats = async (req, res) => {
