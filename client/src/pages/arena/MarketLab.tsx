@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
 import { TradingChart } from '../../components/arena/TradingChart';
 import { Science, PlayArrow, Speed, Tune, TrendingUp } from '@mui/icons-material';
 import { CircularProgress } from '@mui/material';
 
-// Configuração Padrão
+// --- CONFIGURAÇÕES ---
 const DEFAULT_CONFIG = {
     RECALIBRATION_MINUTES: 15,
     TRADE_INTERVAL_MS: 5000,
@@ -16,7 +16,106 @@ const DEFAULT_CONFIG = {
     }
 };
 
-type AttributeKey = keyof typeof DEFAULT_CONFIG.ATTRIBUTES;
+
+// ============================================================================
+// 1. COMPONENTES EXTERNOS (SOLUÇÃO DO PROBLEMA DE FOCO)
+// ============================================================================
+
+// Este componente agora vive fora, então ele não "pisca" quando o React renderiza
+const RawInput = ({ label, value, onChange }: any) => {
+    // Mantemos o texto localmente para você poder digitar "0," sem o React reclamar
+    const [localText, setLocalText] = useState(value.toString());
+
+    // Se o valor mudar lá fora (ex: reset), atualizamos aqui dentro
+    useEffect(() => {
+        setLocalText(value.toString());
+    }, [value]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const txt = e.target.value;
+        setLocalText(txt); // Deixa o usuário digitar O QUE ELE QUISER
+
+        // Tenta converter em tempo real apenas para salvar no config, 
+        // mas NÃO bloqueia a digitação
+        // Troca vírgula por ponto para o JavaScript entender
+        const numberVal = parseFloat(txt.replace(',', '.'));
+        
+        if (!isNaN(numberVal)) {
+            onChange(numberVal);
+        }
+    };
+
+    return (
+        <div className="mb-3">
+            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1 block">
+                {label}
+            </label>
+            <input 
+                type="text" 
+                value={localText}
+                onChange={handleChange}
+                className="w-full bg-black border border-slate-800 rounded px-3 py-2 text-sm text-white font-mono focus:border-purple-500 focus:bg-slate-950 outline-none transition-colors"
+                placeholder="0.00"
+                autoComplete="off"
+            />
+        </div>
+    );
+};
+
+const AttributeGroup = ({ title, attrKey, icon, config, setConfig }: any) => {
+    const attr = config.ATTRIBUTES[attrKey];
+    
+    const update = (field: string, val: number) => {
+        setConfig((prev: any) => ({
+            ...prev,
+            ATTRIBUTES: {
+                ...prev.ATTRIBUTES,
+                [attrKey]: { ...prev.ATTRIBUTES[attrKey], [field]: val }
+            }
+        }));
+    };
+
+    return (
+        <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 hover:border-slate-700 transition-all">
+            <div className="flex items-center gap-2 mb-4 border-b border-white/5 pb-2">
+                {icon}
+                <p className="text-xs font-black text-slate-200 uppercase tracking-widest">{title}</p>
+            </div>
+            
+            <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                    <RawInput 
+                        label="MÉDIA (Mean)" 
+                        value={attr.MEAN} 
+                        onChange={(v:number) => update('MEAN', v)} 
+                    />
+                    <RawInput 
+                        label="DESVIO (Dev)" 
+                        value={attr.DEV} 
+                        onChange={(v:number) => update('DEV', v)} 
+                    />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/5">
+                    <RawInput 
+                        label="MÍNIMO" 
+                        value={attr.MIN} 
+                        onChange={(v:number) => update('MIN', v)} 
+                    />
+                    <RawInput 
+                        label="MÁXIMO" 
+                        value={attr.MAX} 
+                        onChange={(v:number) => update('MAX', v)} 
+                    />
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ============================================================================
+// 2. COMPONENTE PRINCIPAL
+// ============================================================================
 
 export default function MarketLab() {
     const [config, setConfig] = useState(DEFAULT_CONFIG);
@@ -24,93 +123,6 @@ export default function MarketLab() {
     const [results, setResults] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     
-    // NOVO COMPONENTE: RawInput (Sem slider, sem frescura)
-    const RawInput = ({ label, value, onChange }: any) => {
-        // Estado local para permitir digitar "0." ou "0," sem o React forçar re-render imediato
-        const [localVal, setLocalVal] = useState(value.toString());
-
-        const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-            const raw = e.target.value;
-            setLocalVal(raw); // Atualiza visualmente o que você digita
-
-            // Só manda pro estado global se for um número válido
-            const parsed = parseFloat(raw.replace(',', '.')); // Aceita vírgula ou ponto
-            if (!isNaN(parsed)) {
-                onChange(parsed);
-            }
-        };
-
-        return (
-            <div className="mb-3">
-                <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1 block">
-                    {label}
-                </label>
-                
-                <input 
-                    type="text" // Usamos text para aceitar vírgula/ponto livremente enquanto digita
-                    value={localVal}
-                    onChange={handleChange}
-                    onBlur={() => setLocalVal(value.toString())} // Formata bonitinho quando sai do campo
-                    className="w-full bg-black border border-slate-800 rounded px-3 py-2 text-sm text-white font-mono focus:border-purple-500 focus:bg-slate-950 outline-none transition-colors"
-                    placeholder="0.00"
-                />
-            </div>
-        );
-    };
-
-    const AttributeGroup = ({ title, attrKey, icon }: { title: string, attrKey: AttributeKey, icon: any }) => {
-        const attr = config.ATTRIBUTES[attrKey];
-        
-        const update = (field: string, val: number) => {
-            setConfig({
-                ...config,
-                ATTRIBUTES: {
-                    ...config.ATTRIBUTES,
-                    [attrKey]: { ...attr, [field]: val }
-                }
-            });
-        };
-
-        return (
-            <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 hover:border-slate-700 transition-all">
-                <div className="flex items-center gap-2 mb-4 border-b border-white/5 pb-2">
-                    {icon}
-                    <p className="text-xs font-black text-slate-200 uppercase tracking-widest">{title}</p>
-                </div>
-                
-                <div className="space-y-4">
-                    {/* Bloco Comportamental */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <RawInput 
-                            label="MÉDIA (Mean)" 
-                            value={attr.MEAN} 
-                            onChange={(v:number) => update('MEAN', v)} 
-                        />
-                        <RawInput 
-                            label="DESVIO (Dev)" 
-                            value={attr.DEV} 
-                            onChange={(v:number) => update('DEV', v)} 
-                        />
-                    </div>
-
-                    {/* Bloco de Limites */}
-                    <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/5">
-                        <RawInput 
-                            label="MÍNIMO" 
-                            value={attr.MIN} 
-                            onChange={(v:number) => update('MIN', v)} 
-                        />
-                        <RawInput 
-                            label="MÁXIMO" 
-                            value={attr.MAX} 
-                            onChange={(v:number) => update('MAX', v)} 
-                        />
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
     const runSimulation = async () => {
         setLoading(true);
         try {
@@ -161,16 +173,22 @@ export default function MarketLab() {
                     title="Viés Direcional (Bullish Bias)" 
                     attrKey="BULLISH_BIAS" 
                     icon={<TrendingUp className="text-emerald-400" fontSize="small"/>}
+                    config={config}
+                    setConfig={setConfig}
                 />
                 <AttributeGroup 
                     title="Elástico (Dampener)" 
                     attrKey="VOLATILITY_DAMPENER" 
                     icon={<Tune className="text-blue-400" fontSize="small"/>}
+                    config={config}
+                    setConfig={setConfig}
                 />
                 <AttributeGroup 
                     title="Inflação (Drift Rate)" 
                     attrKey="DRIFT_RATE" 
                     icon={<Speed className="text-rose-400" fontSize="small"/>}
+                    config={config}
+                    setConfig={setConfig}
                 />
             </div>
 
