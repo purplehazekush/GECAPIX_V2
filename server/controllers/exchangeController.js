@@ -441,3 +441,88 @@ exports.simulateStats = async (req, res) => {
     // Implementação futura se necessária no JS
     res.json({ status: "WIP - Use a visualização por enquanto" });
 };
+
+
+
+
+
+
+
+
+
+
+
+/**
+ * SIMULADOR FÍSICO V7
+ * Drift, Dampening e Insensitiveness (Chaos Factor)
+ */
+
+function gaussianRandom(mean=0, stdev=1) {
+    const u = 1 - Math.random(); 
+    const v = Math.random();
+    const z = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+    return z * stdev + mean;
+}
+
+exports.simulateMarketV7 = (config) => {
+    // Config espera: { initialPrice, drift, dampening, insensitiveness, candles: 100 }
+    
+    let price = config.initialPrice || 100;
+    const data = [];
+    const TICKS_PER_CANDLE = 50; // Resolução da simulação
+    const BASE_VOL = 10;
+
+    let currentTime = Date.now();
+
+    for (let i = 0; i < config.candles; i++) {
+        let o = price, h = price, l = price, c = price, v = 0;
+
+        for (let t = 0; t < TICKS_PER_CANDLE; t++) {
+            // 1. Física de Tendência e Controle
+            const targetPriceStep = price * (1 + config.drift);
+            const force = (targetPriceStep - price) * config.dampening;
+            
+            // Movimento Natural
+            price += force + gaussianRandom(0, 0.05);
+
+            // 2. Insensitiveness (O Evento de Caos)
+            if (Math.random() < config.insensitiveness) {
+                // Direção do Pavio
+                const fatDir = Math.random() > 0.5 ? 1 : -1;
+                
+                // Tamanho da mão (5x a 20x)
+                const fatSize = BASE_VOL * (5 + Math.random() * 15);
+                
+                // Impacto Logarítmico no Preço
+                const impact = Math.log1p(fatSize) * 0.5 * fatDir;
+                
+                const spikePrice = price * (1 + impact);
+
+                // Registra sombras extremas
+                if (spikePrice > h) h = spikePrice;
+                if (spikePrice < l) l = spikePrice;
+
+                // Rejeição (Mean Reversion imediata causada por HFT/Arbitragem)
+                // Retorna 80% a 95% do movimento
+                const rejection = impact * (0.80 + Math.random() * 0.15);
+                price = spikePrice * (1 - rejection);
+                
+                v += fatSize;
+            } else {
+                v += Math.abs(gaussianRandom(1, 0.5));
+            }
+
+            // Atualiza High/Low normais
+            if (price > h) h = price;
+            if (price < l) l = price;
+        }
+
+        c = price;
+        data.push({
+            time: currentTime + (i * 60000), // 1 min candles
+            open: o, high: h, low: l, close: c, volume: v
+        });
+    }
+
+    return data;
+};

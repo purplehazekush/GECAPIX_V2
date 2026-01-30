@@ -7,7 +7,7 @@ require('dotenv').config({ path: '../.env' });
 const CONFIG = {
     API_URL: 'http://72.62.87.8:3001/api', // Ajuste para localhost se precisar
     SECRET: process.env.BOT_SECRET,
-    TRADE_INTERVAL_MS: 5000, // Opera a cada 5 segundos
+    TRADE_INTERVAL_MS: 3000, // Opera a cada 5 segundos
     
     // A cada 15 minutos, o bot muda de "humor"
     RECALIBRATION_MINUTES: 15, 
@@ -16,7 +16,7 @@ const CONFIG = {
     ATTRIBUTES: {
         // Vantagem natural para compra.
         // MEAN 0.01 = 51% chance de compra (Levemente Bullish).
-        BULLISH_BIAS: { MEAN: 0.01, DEV: 0.005, MIN: -0.01, MAX: 0.04 },
+        BULLISH_BIAS: { MEAN: 0.1, DEV: 0.1, MIN: -0.001, MAX: 0.3 },
 
         // O quão agressivo ele reage se o preço sair da meta.
         // MEAN 0.03 = Reação moderada.
@@ -24,7 +24,7 @@ const CONFIG = {
 
         // Inflação da Meta (Quanto a meta de supply sobe por tick).
         // MEAN 0.001 = Sobe devagar e sempre.
-        DRIFT_RATE: { MEAN: 0.001, DEV: 0.0005, MIN: -0.0005, MAX: 0.003 } 
+        DRIFT_RATE: { MEAN: 0.004, DEV: 0.00001, MIN: 0.001, MAX: 0.008 } 
     },
 
     // Tamanho da mão (Quantos GLUEs por trade)
