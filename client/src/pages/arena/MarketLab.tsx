@@ -16,7 +16,7 @@ const REGIME_PRESETS: Record<number, { name: string, params: PhysicsParams }> = 
 // 1. COMPONENTE DE INPUT DE PRECISÃO (Sem Sliders)
 // ============================================================================
 
-const PrecisionInput = ({ label, value, onChange, icon, step = "0.00001" }: any) => {
+const PrecisionInput = ({ label, value, onChange, icon }: any) => {
     // Mantém o texto local para permitir digitação livre (ex: "0.000...")
     const [localText, setLocalText] = useState(value.toString());
 
