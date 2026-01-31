@@ -151,7 +151,7 @@ export const generateSyntheticBatch = (params: PhysicsParams, candleCount: numbe
         // const currentDampening = params.dampening;
         // 0.05, 0.0005, e-7 ,0.1 - +4%
         const AUX1= 1
-        const AUX2 =0.95
+        const AUX2 =1.05
 
         // Depois (Com suporte a Decaimento/Crescimento):
         // Dica: Use drift_rate e damp_rate entre 0.95 e 1.05 para efeitos graduais
