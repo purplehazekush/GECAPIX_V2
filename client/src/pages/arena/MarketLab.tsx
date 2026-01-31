@@ -10,7 +10,7 @@ const REGIME_PRESETS: Record<number, { name: string, config: PhysicsTrajectory }
     0: { 
         name: 'Laminar Flow (Aceleração Limpa)', 
         config: { 
-            drift: { start: 0.01, end: 0.02 }, 
+            drift: { start: 0.01, end: 0.04 }, 
             noise: { start: 0.5, end: 0.1 }, // O ruído limpa conforme acelera
             damp:  { start: 0.001, end: 0.004 }, // Mola solta (SOBE E PERDE UTILIDADE)
             insensitiveness: 0.0000001
@@ -19,19 +19,19 @@ const REGIME_PRESETS: Record<number, { name: string, config: PhysicsTrajectory }
     1: { 
         name: 'Turbulent Flow (Caos Acelerado)', 
         config: { 
-            drift: { start: 0.0020, end: 0.0200 }, 
-            noise: { start: 0.20, end: 1.50 }, // Ruído explode
-            damp:  { start: 0.10, end: 0.05 }, 
-            insensitiveness: 0.001
+            drift: { start: 0.005, end: 0.0200 }, 
+            noise: { start: 0.10, end: 0.50 }, // Ruído explode
+            damp:  { start: 0.001, end: 0.004 }, 
+            insensitiveness: 0.000015 // AUMENTA O CAOS em relação ao laminar (1500%)
         } 
     },
     2: { 
         name: 'Compressed Spring (Preço Preso)', 
         config: { 
-            drift: { start: 0.0010, end: 0.0060 }, 
-            noise: { start: 0.40, end: 0.10 }, 
-            damp:  { start: 0.05, end: 0.60 }, // Mola fica duríssima (Endurece)
-            insensitiveness: 0.0001
+            drift: { start: 0.003, end: 0.001 }, //DRIFT indo pra zero
+            noise: { start: 0.3, end: 0.01 }, 
+            damp:  { start: 0.05, end: 0.01 }, // Mola fica duríssima (Endurece)
+            insensitiveness: 0.000001 //corrigir?
         } 
     },
     4: { 
