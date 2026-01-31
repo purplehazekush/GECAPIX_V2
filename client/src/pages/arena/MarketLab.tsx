@@ -11,9 +11,9 @@ const REGIME_PRESETS: Record<number, { name: string, config: PhysicsTrajectory }
         name: 'Laminar Flow (Aceleração Limpa)', 
         config: { 
             drift: { start: 0.01, end: 0.02 }, 
-            noise: { start: 0.1, end: 0.01 }, // O ruído limpa conforme acelera
-            damp:  { start: 0.001, end: 0.05 }, // Mola solta
-            insensitiveness: 0.0001
+            noise: { start: 0.5, end: 0.1 }, // O ruído limpa conforme acelera
+            damp:  { start: 0.001, end: 0.004 }, // Mola solta (SOBE E PERDE UTILIDADE)
+            insensitiveness: 0.0000001
         } 
     },
     1: { 
