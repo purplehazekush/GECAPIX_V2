@@ -153,7 +153,7 @@ export const generateSyntheticBatch = (params: PhysicsParams, candleCount: numbe
         // const currentNoise = params.noise;
         const AUX1= 1.04
         const AUX2= 1
-        const AUX3 =1.04
+        const AUX3 =0.99
 
         // Depois (Com suporte a Decaimento/Crescimento Exponencial):
         // Use taxas como 1.02 (cresce 2%) ou 0.98 (cai 2%) por candle.
