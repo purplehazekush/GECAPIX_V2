@@ -151,9 +151,9 @@ export const generateSyntheticBatch = (params: PhysicsParams, candleCount: numbe
         // const currentDrift = params.drift;
         // const currentDampening = params.dampening;
         // const currentNoise = params.noise;
-        const AUX1= 1.04
-        const AUX2= 1
-        const AUX3 =0.99
+        const AUX1= 1.00
+        const AUX2= 1.06 //dampening subindo forte pra diminuir seu impacto.
+        const AUX3 =1.005 // 1.005 ou 0.995
 
         // Depois (Com suporte a Decaimento/Crescimento Exponencial):
         // Use taxas como 1.02 (cresce 2%) ou 0.98 (cai 2%) por candle.
