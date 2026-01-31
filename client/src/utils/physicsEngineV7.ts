@@ -131,6 +131,7 @@ function randomNormal(mean = 0, stdev = 1) {
 // src/utils/physicsEngineV7.ts
 
 // src/utils/physicsEngineV7.ts
+// src/utils/physicsEngineV7.ts
 
 export const generateSyntheticBatch = (params: PhysicsParams, candleCount: number = 200): CandleData[] => {
     let price = 1000; 
@@ -143,36 +144,38 @@ export const generateSyntheticBatch = (params: PhysicsParams, candleCount: numbe
         let o = price, h = price, l = price, c = price, v = 0;
 
         // ========================================================
-        // 🧪 GAMBIARRA: EVOLUÇÃO TEMPORAL NORMALIZADA
+        // 🧪 GAMBIARRA: EVOLUÇÃO TEMPORAL TRÍPLICE (NORMALIZADA)
         // ========================================================
         
         // Antes:
         // const currentDrift = params.drift;
         // const currentDampening = params.dampening;
-        // 0.05, 0.0005, e-7 ,0.1 - +4%
-        const AUX1= 1
-        const AUX2 =1.05
+        // const currentNoise = params.noise;
+        const AUX1= 1.04
+        const AUX2= 1
+        const AUX3 =1.04
 
-        // Depois (Com suporte a Decaimento/Crescimento):
-        // Dica: Use drift_rate e damp_rate entre 0.95 e 1.05 para efeitos graduais
-        const currentDrift = params.drift * Math.pow(AUX1 ?? 1, i);
+        // Depois (Com suporte a Decaimento/Crescimento Exponencial):
+        // Use taxas como 1.02 (cresce 2%) ou 0.98 (cai 2%) por candle.
+        const currentDrift     = params.drift * Math.pow(AUX1 ?? 1, i);
         const currentDampening = params.dampening * Math.pow(AUX2 ?? 1, i);
+        const currentNoise     = params.noise * Math.pow(AUX3 ?? 1, i);
 
         // ========================================================
 
         for (let t = 0; t < TICKS_PER_CANDLE; t++) {
             // --- 1. A FÍSICA DE FLUIDOS (NORMALIZADA POR TICK) ---
             
-            // Dividimos o drift pelo número de ticks para que o drift de '0.03' 
-            // represente 3% ao final do candle, e não 3% a cada microssegundo.
+            // Drift normalizado para que '0.03' signifique 3% ao final do candle total
             const driftPerTick = currentDrift / TICKS_PER_CANDLE;
             const targetPriceStep = price * (1 + driftPerTick);
             
-            // A força agora é aplicada sobre o alvo fracionado
+            // Força da mola (Dampening)
             const force = (targetPriceStep - price) * currentDampening;
             
-            // Movimento Natural (Noise também normalizado pela raiz do tempo/ticks)
-            price += force + randomNormal(0, (params.noise * 0.5));
+            // Movimento Natural + Ruído Evolutivo
+            // Antes era: params.noise. Agora usamos currentNoise.
+            price += force + randomNormal(0, (currentNoise * 0.5));
 
             // --- 2. O FATOR CAOS (Insensitiveness) ---
             if (Math.random() < params.insensitiveness) {
