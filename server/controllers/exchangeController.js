@@ -465,11 +465,11 @@ function gaussianRandom(mean=0, stdev=1) {
 }
 
 exports.simulateMarketV7 = (config) => {
-    // Config espera: { initialPrice, drift, dampening, insensitiveness, candles: 100 }
+    // Config esperado: { initialPrice, drift, dampening, insensitiveness, candles, drift_rate, damp_linear_step }
     
     let price = config.initialPrice || 100;
     const data = [];
-    const TICKS_PER_CANDLE = 50; // Resolução da simulação
+    const TICKS_PER_CANDLE = 50; 
     const BASE_VOL = 10;
 
     let currentTime = Date.now();
@@ -477,49 +477,56 @@ exports.simulateMarketV7 = (config) => {
     for (let i = 0; i < config.candles; i++) {
         let o = price, h = price, l = price, c = price, v = 0;
 
+        // ========================================================
+        // 🧪 GAMBIARRA DE EVOLUÇÃO TEMPORAL (DINÂMICA)
+        // ========================================================
+        
+        // 1. Drift Exponencial: Multiplica o drift base pela taxa elevada à potência do candle atual
+        // Se drift_rate for 1.05, o drift cresce 5% a cada novo candle.
+        const currentDrift = config.drift * Math.pow(config.drift_rate || 1, i);
+
+        // 2. Dampening Linear: Soma um incremento fixo a cada candle
+        // Se damp_linear_step for 0.001, a 'mola' fica mais rígida a cada candle.
+        const currentDampening = config.dampening + (i * (config.damp_linear_step || 0));
+
+        // ========================================================
+
         for (let t = 0; t < TICKS_PER_CANDLE; t++) {
-            // 1. Física de Tendência e Controle
-            const targetPriceStep = price * (1 + config.drift);
-            const force = (targetPriceStep - price) * config.dampening;
+            // --- VERSÃO ORIGINAL (COMENTADA) ---
+            // const targetPriceStep = price * (1 + config.drift);
+            // const force = (targetPriceStep - price) * config.dampening;
+            
+            // --- VERSÃO COM GAMBIARRA ---
+            const targetPriceStep = price * (1 + currentDrift);
+            const force = (targetPriceStep - price) * currentDampening;
             
             // Movimento Natural
             price += force + gaussianRandom(0, 0.05);
 
             // 2. Insensitiveness (O Evento de Caos)
             if (Math.random() < config.insensitiveness) {
-                // Direção do Pavio
                 const fatDir = Math.random() > 0.5 ? 1 : -1;
-                
-                // Tamanho da mão (5x a 20x)
                 const fatSize = BASE_VOL * (5 + Math.random() * 15);
-                
-                // Impacto Logarítmico no Preço
                 const impact = Math.log1p(fatSize) * 0.5 * fatDir;
-                
                 const spikePrice = price * (1 + impact);
 
-                // Registra sombras extremas
                 if (spikePrice > h) h = spikePrice;
                 if (spikePrice < l) l = spikePrice;
 
-                // Rejeição (Mean Reversion imediata causada por HFT/Arbitragem)
-                // Retorna 80% a 95% do movimento
                 const rejection = impact * (0.80 + Math.random() * 0.15);
                 price = spikePrice * (1 - rejection);
-                
                 v += fatSize;
             } else {
                 v += Math.abs(gaussianRandom(1, 0.5));
             }
 
-            // Atualiza High/Low normais
             if (price > h) h = price;
             if (price < l) l = price;
         }
 
         c = price;
         data.push({
-            time: currentTime + (i * 60000), // 1 min candles
+            time: currentTime + (i * 60000),
             open: o, high: h, low: l, close: c, volume: v
         });
     }
