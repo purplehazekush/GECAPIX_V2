@@ -483,7 +483,7 @@ exports.simulateMarketV7 = (config) => {
         
         // 1. Drift Exponencial: Multiplica o drift base pela taxa elevada à potência do candle atual
         // Se drift_rate for 1.05, o drift cresce 5% a cada novo candle.
-        const currentDrift = config.drift * Math.pow(1.20 || 1, i); //CORRIGIR //CORRIGIR 1.10 HARDCODED
+        const currentDrift = config.drift * Math.pow(1.40 || 1, i); //CORRIGIR //CORRIGIR 1.10 HARDCODED
 
         // 2. Dampening Linear: Soma um incremento fixo a cada candle
         // Se damp_linear_step for 0.001, a 'mola' fica mais rígida a cada candle.
