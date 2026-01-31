@@ -10,9 +10,9 @@ const REGIME_PRESETS: Record<number, { name: string, config: PhysicsTrajectory }
     0: { 
         name: 'Laminar Flow (Aceleração Limpa)', 
         config: { 
-            drift: { start: 0.0005, end: 0.0080 }, 
-            noise: { start: 0.50, end: 0.10 }, // O ruído limpa conforme acelera
-            damp:  { start: 0.20, end: 0.05 }, // Mola solta
+            drift: { start: 0.01, end: 0.02 }, 
+            noise: { start: 0.1, end: 0.01 }, // O ruído limpa conforme acelera
+            damp:  { start: 0.001, end: 0.05 }, // Mola solta
             insensitiveness: 0.0001
         } 
     },
@@ -44,6 +44,24 @@ const REGIME_PRESETS: Record<number, { name: string, config: PhysicsTrajectory }
         } 
     },
     6: { 
+        name: 'Solidification (Consolidação)', 
+        config: { 
+            drift: { start: 0.0040, end: 0.0005 }, 
+            noise: { start: 0.50, end: 0.10 }, 
+            damp:  { start: 0.10, end: 0.90 }, // Trava total no final
+            insensitiveness: 0.0001
+        } 
+    },
+    7: { 
+        name: 'Solidification (Consolidação)', 
+        config: { 
+            drift: { start: 0.0040, end: 0.0005 }, 
+            noise: { start: 0.50, end: 0.10 }, 
+            damp:  { start: 0.10, end: 0.90 }, // Trava total no final
+            insensitiveness: 0.0001
+        } 
+    },
+    8: { 
         name: 'Solidification (Consolidação)', 
         config: { 
             drift: { start: 0.0040, end: 0.0005 }, 
