@@ -5,10 +5,10 @@ import { generateSyntheticBatch, type PhysicsParams } from '../../utils/physicsE
 
 // --- PRESETS DE REGIME (Atualizados com valores menores se necessário) ---
 const REGIME_PRESETS: Record<number, { name: string, params: PhysicsParams }> = {
-    0: { name: 'Acumulação (Boring)', params: { drift: 0.0001, dampening: 0.15, insensitiveness: 0.001, noise: 0.2 } },
-    1: { name: 'Tendência Alta', params: { drift: 0.0005, dampening: 0.05, insensitiveness: 0.002, noise: 0.3 } },
-    2: { name: 'Tendência Baixa', params: { drift: -0.0005, dampening: 0.05, insensitiveness: 0.002, noise: 0.3 } },
-    3: { name: 'Stop Hunt (Chop)', params: { drift: 0.0, dampening: 0.001, insensitiveness: 0.025, noise: 0.8 } }, // Dampening bem baixo aqui
+    0: { name: 'BAIXISSIMO RUIDO - SEM DRIFT - BAIXO CAOS - VOLATILIDADE BAIXA - ENTRADA DE OPERACAO -', params: { drift: 0, dampening: 0.004, insensitiveness: 0.000001, noise: 0.01 } },
+    1: { name: 'DRIFT CRESCENDO EXPONENCIAL - PUMP SEM PULLBACK - SEM RUIDO', params: { drift: 0.0005, dampening: 0.02, insensitiveness: 0.0000001, noise: 1 } },
+    2: { name: 'DRIFT CRESCENDO EXPONENCIAL - ALTO RUIDO', params: { drift: 0.0005, dampening: 0.02, insensitiveness: 0.0000001, noise: 5 } },
+    3: { name: 'DRIFT DIMINUINDO EXPONENCIAL', params: { drift: 0.0, dampening: 0.001, insensitiveness: 0.025, noise: 0.8 } }, // Dampening bem baixo aqui
     4: { name: 'Pump Manipulado', params: { drift: 0.0015, dampening: 0.0005, insensitiveness: 0.04, noise: 0.5 } },
 };
 
