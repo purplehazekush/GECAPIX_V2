@@ -152,7 +152,7 @@ export const generateSyntheticBatch = (params: PhysicsParams, candleCount: numbe
         // const currentDampening = params.dampening;
         // const currentNoise = params.noise;
         const AUX1= 1.00
-        const AUX2= 1.06 //dampening subindo forte pra diminuir seu impacto.
+        const AUX2= 1.015 //dampening subindo muito forte pra diminuir seu impacto. (3% é muito forte aparentemente)
         const AUX3 =1.003 // 1.005 ou 0.995
 
         // Depois (Com suporte a Decaimento/Crescimento Exponencial):
