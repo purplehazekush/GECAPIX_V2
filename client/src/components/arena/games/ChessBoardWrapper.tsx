@@ -6,44 +6,62 @@ interface Props {
     fen: string;
     myColor: 'white' | 'black';
     isMyTurn: boolean;
-    onMove: (moveData: { from: string; to: string; promotion: string }) => void;
+    onMove: (moveData: { from: string; to: string; promotion?: string }) => void;
 }
 
 export default function ChessBoardWrapper({ fen, myColor, isMyTurn, onMove }: Props) {
-    // Mantemos uma instância local para a UI responder rápido ao clique
     const [game, setGame] = useState(new Chess(fen));
 
-    // Sempre que o servidor manda um novo FEN, atualizamos o tabuleiro visual
+    // Sincroniza quando o servidor manda um novo estado
     useEffect(() => {
         try {
             const newGame = new Chess(fen);
             setGame(newGame);
         } catch (e) {
-            console.error("FEN inválido recebido:", fen);
+            console.error("FEN inválido:", fen);
         }
     }, [fen]);
 
     const onDrop = (sourceSquare: string, targetSquare: string) => {
-        // 1. Bloqueia se não for minha vez ou se eu tentar mover peça do oponente
-        if (!isMyTurn) return false;
-        if (game.turn() !== myColor.charAt(0)) return false; // 'w' ou 'b'
+        // 1. Logs de Diagnóstico (Abra o F12 para ver)
+        console.log(`♟️ TENTATIVA DE MOVE: ${sourceSquare} -> ${targetSquare}`);
+        console.log(`Minha Cor: ${myColor} | Turno do Tabuleiro: ${game.turn()}`);
+        console.log(`É minha vez no sistema? ${isMyTurn}`);
+
+        // 2. Validações Básicas
+        if (!isMyTurn) {
+            console.warn("🚫 BLOQUEADO: Não é sua vez no sistema.");
+            return false;
+        }
+
+        // game.turn() retorna 'w' ou 'b'. myColor é 'white' ou 'black'.
+        const currentTurnColor = game.turn() === 'w' ? 'white' : 'black';
+        if (currentTurnColor !== myColor) {
+            console.warn(`🚫 BLOQUEADO: Você é ${myColor}, mas é a vez das ${currentTurnColor}.`);
+            return false;
+        }
 
         try {
-            // 2. Tenta mover na instância LOCAL (apenas para ver se é válido pelas regras do xadrez)
+            // 3. Validação Lógica (Simulação)
             const tempGame = new Chess(game.fen());
-            const move = tempGame.move({
+            
+            // Tenta mover. SE for promoção, assume Queen ('q').
+            // A biblioteca chess.js é inteligente: se passarmos promotion: 'q' num movimento normal,
+            // ela geralmente ignora, mas vamos garantir que o movimento seja possível.
+            
+            const moveAttempt = tempGame.move({
                 from: sourceSquare,
                 to: targetSquare,
-                promotion: 'q', // Sempre Queen por enquanto
+                promotion: 'q', 
             });
 
-            // Se for inválido (ex: cavalo andar em linha reta), cancela
-            if (!move) return false;
+            if (!moveAttempt) {
+                console.warn("🚫 BLOQUEADO: Movimento ilegal pelas regras do Xadrez.");
+                return false;
+            }
 
-            // 3. Se for válido, ENVIA PRO SERVIDOR
-            // Nota: Não damos setGame(tempGame) aqui. Esperamos o servidor mandar o novo FEN.
-            // Isso evita desincronia. O tabuleiro vai "piscar" a peça voltando se o servidor rejeitar,
-            // ou vai confirmar o movimento quando o FEN voltar no useEffect acima.
+            // 4. Sucesso! Envia pro Servidor
+            console.log("✅ VÁLIDO! Enviando para o servidor...");
             
             onMove({ 
                 from: sourceSquare, 
@@ -51,13 +69,16 @@ export default function ChessBoardWrapper({ fen, myColor, isMyTurn, onMove }: Pr
                 promotion: 'q' 
             });
 
-            return true; // Permite a peça "soltar" visualmente (otimismo)
+            // Otimismo: Atualiza visualmente na hora (opcional, mas deixa fluido)
+            setGame(tempGame); 
+            
+            return true;
         } catch (e) {
+            console.error("Erro ao processar movimento:", e);
             return false;
         }
     };
 
-    // Fix de tipagem da lib
     const ChessboardAny = Chessboard as any;
 
     return (
@@ -65,9 +86,9 @@ export default function ChessBoardWrapper({ fen, myColor, isMyTurn, onMove }: Pr
             <ChessboardAny 
                 position={game.fen()} 
                 onPieceDrop={onDrop}
-                // Trava o tabuleiro para eu só mexer nas minhas peças
+                // Trava visualmente se não for a vez (Mouse vira 'proibido')
                 arePiecesDraggable={isMyTurn} 
-                boardOrientation={myColor} // Gira o tabuleiro se eu for Preto
+                boardOrientation={myColor} 
                 customDarkSquareStyle={{ backgroundColor: '#334155' }}
                 customLightSquareStyle={{ backgroundColor: '#94a3b8' }}
                 animationDuration={200}

@@ -230,31 +230,26 @@ exports.makeMove = async (io, socket, { roomId, moveData }) => {
     }
 
     // B. XADREZ
-    // B. XADREZ (Server-Authoritative)
     else if (room.gameType === 'xadrez') {
         try {
-            const chess = new Chess(room.boardState); // Carrega FEN atual
+            const chess = new Chess(room.boardState);
             
-            // Tenta mover. O moveData vem como { from: 'e2', to: 'e4', promotion: 'q' }
-            const move = chess.move({
-                from: moveData.from,
-                to: moveData.to,
-                promotion: 'q' // Sempre promove para Rainha no MVP (Simplifica UI)
-            });
+            // Tenta mover usando o objeto completo que veio do front
+            // (que já inclui from, to e promotion se necessário)
+            const move = chess.move(moveData); 
             
             if (!move) {
-                console.warn("Movimento inválido no Xadrez:", moveData);
-                return socket.emit('error', { message: 'Movimento inválido' });
+                console.log("Movimento ilegal rejeitado pelo servidor:", moveData);
+                return socket.emit('error', { message: 'Movimento ilegal' });
             }
             
-            nextState = chess.fen(); // Gera novo FEN
+            nextState = chess.fen();
             
-            // Verifica Fim de Jogo
             if (chess.isCheckmate()) winnerIndex = room.turnIndex;
             else if (chess.isDraw() || chess.isStalemate() || chess.isThreefoldRepetition()) winnerIndex = 'draw';
             
         } catch (e) { 
-            console.error("Erro engine xadrez:", e);
+            console.error("Erro Chess Server:", e);
             return; 
         }
     }
