@@ -1,90 +1,138 @@
-// server/controllers/gameController.js
 const UsuarioModel = require('../models/Usuario');
-const TOKEN = require('../config/tokenomics'); 
+const TOKEN = require('../config/tokenomics');
+const { Chess } = require('chess.js'); // A engine oficial de xadrez
 
-let rooms = {}; 
+let rooms = {};
 
-// --- 1. LISTAR SALAS ---
+// ==========================================
+// 1. UTILITÁRIOS DE JOGO (Lógica Pura)
+// ==========================================
+
+// ... imports ...
+
+const checkWinnerConnect4 = (board) => {
+    // Helper para pegar célula segura (retorna null se sair da borda)
+    const getCell = (r, c) => (r < 0 || r >= 6 || c < 0 || c >= 7) ? null : board[r * 7 + c];
+    
+    // Varre todo o tabuleiro
+    for (let r = 0; r < 6; r++) {
+        for (let c = 0; c < 7; c++) {
+            const p = getCell(r, c);
+            if (!p) continue;
+            
+            // Checa 4 direções: Direita, Baixo, Diagonal Dir-Baixo, Diagonal Esq-Baixo
+            const directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
+            
+            for (let [dr, dc] of directions) {
+                let match = true;
+                // Verifica os próximos 3 na direção
+                for (let k = 1; k < 4; k++) {
+                    if (getCell(r + dr * k, c + dc * k) !== p) { 
+                        match = false; 
+                        break; 
+                    }
+                }
+                if (match) return p; // Retorna 'red' ou 'yellow'
+            }
+        }
+    }
+    return null;
+}
+
+// ... exports.getRooms ...
+
+const checkWinnerVelha = (board) => {
+    const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    for(let i of lines) {
+        const [a,b,c] = i;
+        if(board[a] && board[a]===board[b] && board[a]===board[c]) return board[a];
+    }
+    return null;
+};
+
+const checkWinnerConnect4 = (board) => {
+    // Simplificado para performance: Horizontal, Vertical e Diagonal
+    // (Implementação completa ocuparia muitas linhas, aqui focamos na segurança da transação)
+    // Para produção "bancária", deve-se implementar a varredura completa de matriz 6x7.
+    return null; // TODO: Implementar lógica completa do Connect4 no back
+};
+
+// ==========================================
+// 2. CONTROLLER PRINCIPAL
+// ==========================================
+
 exports.getRooms = (io, socket) => {
     const publicRooms = Object.values(rooms)
-        .filter(r => !r.config.isPrivate && r.players.length < 2)
+        .filter(r => !r.config.isPrivate && r.players.length < 2 && r.status === 'waiting')
         .map(r => ({
             id: r.id,
             gameType: r.gameType,
-            bet: r.pot / (r.players.length + 1 || 1),
-            creator: r.playerData[0]?.nome || 'Anônimo'
+            bet: r.pot, // Valor total do pote atual
+            creator: r.playerData[0]?.nome || 'Host'
         }));
     socket.emit('rooms_list', publicRooms);
 };
 
-// --- 2. CRIAR SALA ---
 exports.createRoom = async (io, socket, { gameType, userEmail, betAmount, isPrivate, password, timeLimit }) => {
     try {
         const user = await UsuarioModel.findOne({ email: userEmail });
         if (!user) return socket.emit('error', { message: 'Usuário não encontrado.' });
+        if (user.saldo_coins < betAmount) return socket.emit('error', { message: 'Saldo insuficiente.' });
 
-        if (verificarLimiteDiario(user)) {
-            return socket.emit('error', { message: `Limite diário de ${TOKEN.GAMES.DAILY_LIMIT} jogos atingido!` });
-        }
-
-        if (user.saldo_coins < betAmount) {
-            return socket.emit('error', { message: 'Saldo insuficiente.' });
-        }
-
-        await UsuarioModel.updateOne(
-            { _id: user._id },
-            { 
-                $inc: { saldo_coins: -betAmount },
-                $push: { extrato: { tipo: 'SAIDA', valor: betAmount, descricao: `Aposta: ${gameType}`, data: new Date() } }
-            }
-        );
+        // Debita a aposta (Custódia)
+        await UsuarioModel.updateOne({ _id: user._id }, { 
+            $inc: { saldo_coins: -betAmount },
+            $push: { extrato: { tipo: 'SAIDA', valor: betAmount, descricao: `Aposta Bloqueada: ${gameType}`, data: new Date() } }
+        });
 
         const roomId = `room_${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
         
+        // Estado Inicial Server-Side
+        let initialBoard = null;
+        if (gameType === 'velha') initialBoard = Array(9).fill(null);
+        if (gameType === 'xadrez') initialBoard = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+        if (gameType === 'connect4') initialBoard = Array(42).fill(null);
+        if (gameType === 'damas') initialBoard = Array(64).fill(null); // Placeholder
+
         rooms[roomId] = {
             id: roomId,
             gameType,
             players: [socket.id],
-            playerData: [{ 
-                email: userEmail, 
-                nome: user.nome, 
-                socketId: socket.id, 
-                avatar: user.avatar_slug || 'default' 
-            }],
+            playerData: [{ email: userEmail, nome: user.nome, socketId: socket.id, avatar: user.avatar_slug }],
             pot: betAmount,
             turnIndex: 0,
-            boardState: null,
+            boardState: initialBoard, // O SERVIDOR É O DONO DISSO
             config: { isPrivate, password, timeLimit: timeLimit || 60 },
-            status: 'waiting'
+            status: 'waiting',
+            lastMoveTime: Date.now()
         };
 
         socket.join(roomId);
         socket.emit('room_created', { roomId, gameType });
-        io.emit('rooms_update'); 
+        io.emit('rooms_update');
 
     } catch (e) {
-        console.error("Erro createRoom:", e);
-        socket.emit('error', { message: 'Erro interno ao criar sala.' });
+        console.error(e);
+        socket.emit('error', { message: 'Erro ao criar sala.' });
     }
 };
 
-// --- 3. ENTRAR EM SALA ---
 exports.joinSpecificRoom = async (io, socket, { roomId, userEmail, password }) => {
     const room = rooms[roomId];
-    if (!room) return socket.emit('error', { message: 'Sala não encontrada ou finalizada.' });
+    if (!room) return socket.emit('error', { message: 'Sala inexistente.' });
 
-    // Reconexão
-    const existingPlayerIndex = room.playerData.findIndex(p => p.email === userEmail);
-    if (existingPlayerIndex !== -1) {
-        room.playerData[existingPlayerIndex].socketId = socket.id;
-        room.players[existingPlayerIndex] = socket.id;
+    // Lógica de Reconexão (Segurança: Verifica Email)
+    const existingIdx = room.playerData.findIndex(p => p.email === userEmail);
+    if (existingIdx !== -1) {
+        room.playerData[existingIdx].socketId = socket.id;
+        room.players[existingIdx] = socket.id;
         socket.join(roomId);
         
+        // Envia estado atual para quem reconectou
         socket.emit('reconnect_success', {
             gameType: room.gameType,
             boardState: room.boardState,
-            turn: room.playerData[room.turnIndex].socketId,
-            isMyTurn: room.turnIndex === existingPlayerIndex,
+            isMyTurn: room.turnIndex === existingIdx,
             opponent: room.playerData.find(p => p.email !== userEmail)?.nome
         });
         return;
@@ -92,140 +140,177 @@ exports.joinSpecificRoom = async (io, socket, { roomId, userEmail, password }) =
 
     // Novo Jogador
     if (room.players.length >= 2) return socket.emit('error', { message: 'Sala cheia.' });
-    if (room.config.isPrivate && room.config.password !== password) {
-        return socket.emit('error', { message: 'Senha incorreta.' });
-    }
+    if (room.config.isPrivate && room.config.password !== password) return socket.emit('error', { message: 'Senha incorreta.' });
 
     const user = await UsuarioModel.findOne({ email: userEmail });
-    if (!user) return socket.emit('error', { message: 'Usuário inválido.' });
+    if (!user || user.saldo_coins < room.pot) return socket.emit('error', { message: 'Saldo insuficiente.' });
 
-    if (verificarLimiteDiario(user)) {
-        return socket.emit('error', { message: 'Seu limite diário acabou.' });
-    }
-
-    const betAmount = room.pot; 
-    if (user.saldo_coins < betAmount) {
-        return socket.emit('error', { message: 'Saldo insuficiente.' });
-    }
-
-    await UsuarioModel.updateOne(
-        { _id: user._id },
-        { 
-            $inc: { saldo_coins: -betAmount },
-            $push: { extrato: { tipo: 'SAIDA', valor: betAmount, descricao: `Aposta: ${room.gameType}`, data: new Date() } }
-        }
-    );
+    // Debita Aposta
+    await UsuarioModel.updateOne({ _id: user._id }, { 
+        $inc: { saldo_coins: -room.pot },
+        $push: { extrato: { tipo: 'SAIDA', valor: room.pot, descricao: `Aposta: ${room.gameType}`, data: new Date() } }
+    });
 
     room.players.push(socket.id);
-    room.playerData.push({ 
-        email: userEmail, 
-        nome: user.nome, 
-        socketId: socket.id, 
-        avatar: user.avatar_slug || 'default' 
-    });
-    room.pot += betAmount;
+    room.playerData.push({ email: userEmail, nome: user.nome, socketId: socket.id, avatar: user.avatar_slug });
+    room.pot += room.pot; // Dobra o pote (aposta casada)
+    room.status = 'playing';
 
     socket.join(roomId);
-    io.to(roomId).emit('player_joined', { players: room.playerData, roomId });
     
-    startGameLogic(io, room);
-    io.emit('rooms_update'); 
+    // Inicia Jogo
+    io.to(roomId).emit('player_joined', { players: room.playerData });
+    io.to(roomId).emit('game_start', { 
+        gameType: room.gameType, 
+        boardState: room.boardState, 
+        turn: room.players[room.turnIndex], // Manda o SocketID de quem começa
+        players: room.playerData
+    });
+    io.emit('rooms_update');
 };
 
-// --- 4. MOVIMENTOS ---
-exports.makeMove = async (io, socket, { roomId, move, newState }) => {
+// ==========================================
+// 3. O CORAÇÃO DA SEGURANÇA (MAKE MOVE)
+// ==========================================
+exports.makeMove = async (io, socket, { roomId, moveData }) => {
     const room = rooms[roomId];
-    if (!room) return;
+    if (!room || room.status !== 'playing') return;
 
-    const currentPlayerSocket = room.playerData[room.turnIndex].socketId;
-    if (socket.id !== currentPlayerSocket) return;
+    // 1. Valida Turno
+    if (room.players[room.turnIndex] !== socket.id) {
+        return socket.emit('error', { message: 'Não é sua vez!' });
+    }
 
-    room.boardState = newState;
-    room.turnIndex = room.turnIndex === 0 ? 1 : 0;
-    const nextPlayerSocket = room.playerData[room.turnIndex].socketId;
+    let nextState = null;
+    let winnerIndex = null; // 0, 1 ou 'draw'
 
-    io.to(roomId).emit('move_made', { move, newState, nextTurn: nextPlayerSocket });
-};
-
-// --- 5. VITÓRIA ---
-exports.handleWinClaim = async (io, socket, { roomId, winnerSymbol, draw }) => {
-    const room = rooms[roomId];
-    if (!room) return;
+    // --- LÓGICA ESPECÍFICA POR JOGO ---
     
-    if (draw) {
-        const apostaOriginal = room.pot / 2;
-        for (let player of room.playerData) {
-            await UsuarioModel.findOneAndUpdate({ email: player.email }, {
-                $inc: { saldo_coins: apostaOriginal, jogos_hoje: 1 },
-                $set: { ultimo_jogo_data: new Date() },
-                $push: { extrato: { tipo: 'ENTRADA', valor: apostaOriginal, descricao: `Reembolso Empate: ${room.gameType}`, data: new Date() } }
+    // A. JOGO DA VELHA
+    if (room.gameType === 'velha') {
+        const idx = moveData.index; // Cliente manda apenas o índice (0-8)
+        if (room.boardState[idx] !== null) return; // Casa ocupada
+
+        const symbol = room.turnIndex === 0 ? 'X' : 'O';
+        const newBoard = [...room.boardState];
+        newBoard[idx] = symbol;
+        
+        nextState = newBoard;
+        
+        const winSymbol = checkWinnerVelha(newBoard);
+        if (winSymbol) winnerIndex = room.turnIndex;
+        else if (newBoard.every(c => c !== null)) winnerIndex = 'draw';
+    }
+
+    // B. XADREZ (Com chess.js no servidor)
+    else if (room.gameType === 'xadrez') {
+        try {
+            const chess = new Chess(room.boardState);
+            const move = chess.move(moveData); // { from: 'e2', to: 'e4' }
+            
+            if (!move) return socket.emit('error', { message: 'Movimento ilegal' });
+            
+            nextState = chess.fen();
+            
+            if (chess.isCheckmate()) winnerIndex = room.turnIndex;
+            else if (chess.isDraw() || chess.isStalemate()) winnerIndex = 'draw';
+            
+        } catch (e) { return; }
+    }
+
+    // C. CONNECT 4 (Server-Authoritative)
+    else if (room.gameType === 'connect4') {
+        const col = moveData.colIndex;
+        if (col === undefined || col < 0 || col > 6) return;
+
+        // 1. Calcula Gravidade (Procura a primeira linha livre de baixo pra cima)
+        let rowToFill = -1;
+        for (let r = 5; r >= 0; r--) {
+            // Indice no array linear: row * 7 + col
+            if (!room.boardState[r * 7 + col]) {
+                rowToFill = r;
+                break;
+            }
+        }
+
+        // Se a coluna estiver cheia, ignora o clique
+        if (rowToFill === -1) return;
+
+        // 2. Aplica Movimento
+        const symbol = room.turnIndex === 0 ? 'red' : 'yellow';
+        const newBoard = [...room.boardState];
+        newBoard[rowToFill * 7 + col] = symbol;
+        
+        nextState = newBoard;
+
+        // 3. Checa Vitória
+        const winSymbol = checkWinnerConnect4(newBoard);
+        if (winSymbol) winnerIndex = room.turnIndex;
+        else if (newBoard.every(c => c !== null)) winnerIndex = 'draw';
+    }
+
+    // --- APLICAÇÃO DO ESTADO ---
+    if (nextState) {
+        room.boardState = nextState;
+        
+        // Se houve vencedor/empate
+        if (winnerIndex !== null) {
+            await processEndGame(io, room, winnerIndex);
+        } else {
+            // Passa a vez
+            room.turnIndex = room.turnIndex === 0 ? 1 : 0;
+            io.to(roomId).emit('move_made', { 
+                newState: nextState, 
+                nextTurn: room.players[room.turnIndex] 
             });
         }
-        io.to(roomId).emit('game_over', { winner: null, prize: 0, draw: true });
-        delete rooms[roomId];
-        io.emit('rooms_update');
-        return;
     }
-    await processGameOver(io, roomId, socket.id);
 };
 
-// --- 🔥 A CORREÇÃO DO CRASH ---
+// Não existe mais 'handleWinClaim' público. O servidor decide.
+exports.handleWinClaim = () => {}; 
+
 exports.handleDisconnect = (io, socket) => {
-    // Apenas logamos por enquanto. No futuro, podemos iniciar um timer de W.O.
-    // O importante é NÃO deixar o servidor crashar por falta dessa função.
-    console.log(`🔌 Socket desconectado: ${socket.id}`);
+    // TODO: Implementar timer de reconexão (se não voltar em 60s, perde por W.O.)
+    console.log(`🔌 Player caiu: ${socket.id}`);
 };
 
-// --- AUXILIARES ---
-function verificarLimiteDiario(user) {
-    const hoje = new Date().setHours(0,0,0,0);
-    const ultimoJogo = user.ultimo_jogo_data ? new Date(user.ultimo_jogo_data).setHours(0,0,0,0) : 0;
-    let jogosHoje = user.jogos_hoje || 0;
-    if (hoje > ultimoJogo) jogosHoje = 0;
-    return jogosHoje >= TOKEN.GAMES.DAILY_LIMIT;
-}
+// ==========================================
+// 4. PAGAMENTO (O COFRE)
+// ==========================================
+async function processEndGame(io, room, result) {
+    const winnerData = result === 'draw' ? null : room.playerData[result];
+    const loserData = result === 'draw' ? null : room.playerData[result === 0 ? 1 : 0];
 
-function startGameLogic(io, room) {
-    if (!room.boardState) { 
-        if (room.gameType === 'velha') room.boardState = Array(9).fill(null);
-        
-        // --- CORREÇÃO AQUI ---
-        // Em vez de 'start', usamos o FEN oficial da posição inicial
-        if (room.gameType === 'xadrez') room.boardState = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-        
-        if (room.gameType === 'connect4') room.boardState = Array(42).fill(null);
-        if (room.gameType === 'damas') {
-            const b = Array(64).fill(null);
-            for(let i=0; i<24; i++) if((Math.floor(i/8)+i%8)%2===0) b[i]='b';
-            for(let i=40; i<64; i++) if((Math.floor(i/8)+i%8)%2===0) b[i]='r';
-            room.boardState = b;
+    // Taxa da Casa (5%)
+    const tax = Math.floor(room.pot * TOKEN.GAMES.TAX_RATE);
+    const prize = room.pot - tax;
+
+    if (result === 'draw') {
+        // Devolve dinheiro (menos taxa ou integral? Vamos devolver integral no empate)
+        const reembolso = room.pot / 2;
+        for (let p of room.playerData) {
+            await UsuarioModel.updateOne({ email: p.email }, { 
+                $inc: { saldo_coins: reembolso },
+                $push: { extrato: { tipo: 'ENTRADA', valor: reembolso, descricao: 'Reembolso: Empate', data: new Date() } }
+            });
         }
-    }
-    // ... resto da função
-}
-
-async function processGameOver(io, roomId, winnerSocketId) {
-    const room = rooms[roomId];
-    if(!room) return;
-
-    const winner = room.playerData.find(p => p.socketId === winnerSocketId);
-    const loser = room.playerData.find(p => p.socketId !== winnerSocketId);
-
-    if (winner) {
-        const premio = Math.floor(room.pot * 0.60); 
-        await UsuarioModel.findOneAndUpdate({ email: winner.email }, { 
-            $inc: { saldo_coins: premio, xp: TOKEN.XP.GAME_WIN, jogos_hoje: 1 },
-            $set: { ultimo_jogo_data: new Date() },
-            $push: { extrato: { tipo: 'ENTRADA', valor: premio, descricao: `Vitória: ${room.gameType}`, data: new Date() } }
+        io.to(room.id).emit('game_over', { winner: null, draw: true });
+    } else {
+        // Paga Vencedor
+        await UsuarioModel.updateOne({ email: winnerData.email }, {
+            $inc: { saldo_coins: prize, xp: TOKEN.XP.GAME_WIN },
+            $push: { extrato: { tipo: 'ENTRADA', valor: prize, descricao: `Vitória: ${room.gameType}`, data: new Date() } }
         });
-        
-        if (loser) await UsuarioModel.findOneAndUpdate({ email: loser.email }, { 
-            $inc: { xp: TOKEN.XP.GAME_LOSS, jogos_hoje: 1 },
-            $set: { ultimo_jogo_data: new Date() } 
+        // XP de Consolação
+        await UsuarioModel.updateOne({ email: loserData.email }, {
+            $inc: { xp: TOKEN.XP.GAME_LOSS }
         });
 
-        io.to(roomId).emit('game_over', { winner: winner.nome, prize: premio });
+        io.to(room.id).emit('game_over', { winner: winnerData.nome, prize, draw: false });
     }
-    delete rooms[roomId];
+
+    room.status = 'finished';
+    delete rooms[room.id];
     io.emit('rooms_update');
 }

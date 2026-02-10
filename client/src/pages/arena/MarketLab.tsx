@@ -1,3 +1,4 @@
+// client/src/pages/arena/MarketLab.tsx
 // src/pages/Lab/MarketLabV9.tsx
 
 import { useState, useEffect, useCallback } from 'react';
@@ -31,43 +32,52 @@ const REGIME_PRESETS: Record<number, { name: string, config: PhysicsTrajectory }
             drift: { start: 0.003, end: 0.001 }, //DRIFT indo pra zero
             noise: { start: 0.3, end: 0.01 }, 
             damp:  { start: 0.05, end: 0.01 }, // Mola fica duríssima (Endurece)
-            insensitiveness: 0.000001 //corrigir?
+            insensitiveness: 0.0000001
+        } 
+    },
+    3: { 
+        name: 'Critical Mass (RUN)', 
+        config: { 
+            drift: { start: 0.01, end: 0.08 }, //
+            noise: { start: 0.01, end: 3 }, //
+            damp:  { start: 0.0001, end: 0.00002 }, 
+            insensitiveness: 0
         } 
     },
     4: { 
         name: 'Vacuum Decay (Morte Térmica)', 
         config: { 
-            drift: { start: 0.0080, end: 0.0001 }, // Para totalmente
-            noise: { start: 0.80, end: 0.05 }, // Para de vibrar
-            damp:  { start: 0.20, end: 0.01 }, 
-            insensitiveness: 0.00
+            drift: { start: 0.0080, end: 0.001 }, // Para totalmente
+            noise: { start: 0.1, end: 0.01 }, // Para de vibrar
+            damp:  { start: 0.0003, end: 0.001 }, 
+            insensitiveness: 0
+        } 
+    },
+    5: { //DEESTABILIZATION (ACONTECE EM FUNDOS E TOPOS, GERA REVERSÕES MALUCAS SINOIDAIS GRANDES!) - MUITO VOLATIL E PERIGOSO PRAALAVANCAR
+        name: 'DEESTABILIZATION (DEESTABILIZATION)', //NAO ALAVANQUE EM TRADES AQUI
+        config: { 
+            drift: { start: 0.05, end: 0.000001 }, 
+            noise: { start: 0.1, end: 0.6 }, 
+            damp:  { start: 0.00005, end: 0.0002 }, //LOUCURA, só o noite importa, MM ESTÁ MORTO
+            insensitiveness: 0.0000001
         } 
     },
     6: { 
-        name: 'Solidification (Consolidação)', 
+        name: 'Solidification (Consolidação)', //REGIME MUITO IMPORTANTE //GOSTOSO DE OPERAR VISUALMENTE
         config: { 
-            drift: { start: 0.0040, end: 0.0005 }, 
-            noise: { start: 0.50, end: 0.10 }, 
-            damp:  { start: 0.10, end: 0.90 }, // Trava total no final
-            insensitiveness: 0.0001
+            drift: { start: 0.03, end: 0.0001 }, 
+            noise: { start: 1, end: 0.01 }, 
+            damp:  { start: 0.0001, end: 0.00004 }, // Trava total no final
+            insensitiveness: 0.000001
         } 
     },
     7: { 
-        name: 'Solidification (Consolidação)', 
+        name: 'Grinding Halt (Grinding Halt)', 
         config: { 
-            drift: { start: 0.0040, end: 0.0005 }, 
-            noise: { start: 0.50, end: 0.10 }, 
-            damp:  { start: 0.10, end: 0.90 }, // Trava total no final
-            insensitiveness: 0.0001
-        } 
-    },
-    8: { 
-        name: 'Solidification (Consolidação)', 
-        config: { 
-            drift: { start: 0.0040, end: 0.0005 }, 
-            noise: { start: 0.50, end: 0.10 }, 
-            damp:  { start: 0.10, end: 0.90 }, // Trava total no final
-            insensitiveness: 0.0001
+            drift: { start: 0.02, end: 0.0001 }, 
+            noise: { start: 0.1, end: 0.7 }, 
+            damp:  { start: 0.0001, end: 0.00004 },
+            insensitiveness: 0.00025
         } 
     },
 };

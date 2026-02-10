@@ -1,25 +1,21 @@
-// client/src/components/arena/games/TicTacToeBoard.tsx
 import { Close, Circle } from '@mui/icons-material';
 
 interface Props {
     board: Array<'X' | 'O' | null>;
     mySymbol: 'X' | 'O';
     isMyTurn: boolean;
-    onMove: (newBoard: any[], winnerSymbol: string | null, isDraw: boolean) => void;
+    // Simplificamos a prop. Agora só passa o DADO do movimento.
+    onMove: (moveData: { index: number }) => void; 
 }
 
 export default function TicTacToeBoard({ board, mySymbol, isMyTurn, onMove }: Props) {
     
     const handleClick = (index: number) => {
         if (!isMyTurn || board[index]) return;
-
-        const newBoard = [...board];
-        newBoard[index] = mySymbol;
-
-        const winner = checkWinner(newBoard);
-        const isDraw = !winner && newBoard.every(cell => cell !== null);
-
-        onMove(newBoard, winner ? mySymbol : null, isDraw);
+        
+        // NÃO calcula novo estado. NÃO checa vitória.
+        // Apenas avisa a intenção.
+        onMove({ index }); 
     };
 
     return (
@@ -43,17 +39,4 @@ export default function TicTacToeBoard({ board, mySymbol, isMyTurn, onMove }: Pr
             ))}
         </div>
     );
-}
-
-function checkWinner(squares: any[]) {
-    const lines = [
-        [0, 1, 2], [3, 4, 5], [6, 7, 8],
-        [0, 3, 6], [1, 4, 7], [2, 5, 8],
-        [0, 4, 8], [2, 4, 6]
-    ];
-    for (let i = 0; i < lines.length; i++) {
-        const [a, b, c] = lines[i];
-        if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) return squares[a];
-    }
-    return null;
 }

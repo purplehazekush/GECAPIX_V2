@@ -1,9 +1,9 @@
-// client/src/components/arena/games/Connect4Board.tsx
 interface Props {
     board: Array<'red' | 'yellow' | null>; // Array 42
     mySymbol: 'red' | 'yellow';
     isMyTurn: boolean;
-    onMove: (newBoard: any[], winnerSymbol: string | null, isDraw: boolean) => void;
+    // MUDANÇA: Agora só envia a coluna clicada
+    onMove: (moveData: { colIndex: number }) => void;
 }
 
 export default function Connect4Board({ board, mySymbol, isMyTurn, onMove }: Props) {
@@ -11,23 +11,10 @@ export default function Connect4Board({ board, mySymbol, isMyTurn, onMove }: Pro
     const handleColumnClick = (colIndex: number) => {
         if (!isMyTurn) return;
 
-        // Gravidade
-        let rowToFill = -1;
-        for (let r = 5; r >= 0; r--) {
-            if (!board[r * 7 + colIndex]) {
-                rowToFill = r;
-                break;
-            }
-        }
-        if (rowToFill === -1) return;
-
-        const newBoard = [...board];
-        newBoard[rowToFill * 7 + colIndex] = mySymbol;
-
-        const winner = checkWinner(newBoard);
-        const isDraw = !winner && newBoard.every(c => c !== null);
-
-        onMove(newBoard, winner, isDraw);
+        // NÃO calcula gravidade.
+        // NÃO verifica vitória.
+        // Apenas avisa: "Quero soltar na coluna X"
+        onMove({ colIndex });
     };
 
     return (
@@ -36,6 +23,7 @@ export default function Connect4Board({ board, mySymbol, isMyTurn, onMove }: Pro
                 {[0,1,2,3,4,5,6].map(col => (
                     <div key={col} className="flex flex-col gap-2 group cursor-pointer" onClick={() => handleColumnClick(col)}>
                         {[0,1,2,3,4,5].map(row => {
+                            // Renderiza baseado no estado que veio do servidor
                             const cellValue = board[row * 7 + col];
                             return (
                                 <div key={row} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-900 shadow-inner flex items-center justify-center relative overflow-hidden">
@@ -44,6 +32,7 @@ export default function Connect4Board({ board, mySymbol, isMyTurn, onMove }: Pro
                                             cellValue === 'red' ? 'bg-red-500 border-4 border-red-600' : 'bg-yellow-400 border-4 border-yellow-500'
                                         }`}></div>
                                     )}
+                                    {/* Preview Fantasma (Opcional, só visual) */}
                                     {!cellValue && isMyTurn && (
                                         <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors pointer-events-none"></div>
                                     )}
@@ -55,21 +44,4 @@ export default function Connect4Board({ board, mySymbol, isMyTurn, onMove }: Pro
             </div>
         </div>
     );
-}
-
-function checkWinner(board: any[]) {
-    const getCell = (r: number, c: number) => (r < 0 || r >= 6 || c < 0 || c >= 7) ? null : board[r * 7 + c];
-    for (let r = 0; r < 6; r++) {
-        for (let c = 0; c < 7; c++) {
-            const p = getCell(r, c);
-            if (!p) continue;
-            const directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
-            for (let [dr, dc] of directions) {
-                let match = true;
-                for (let k = 1; k < 4; k++) if (getCell(r + dr * k, c + dc * k) !== p) { match = false; break; }
-                if (match) return p;
-            }
-        }
-    }
-    return null;
 }

@@ -1,3 +1,4 @@
+// server/scripts/botMaker_NewEra_v1.js
 const axios = require('axios');
 require('dotenv').config({ path: '../.env' });
 

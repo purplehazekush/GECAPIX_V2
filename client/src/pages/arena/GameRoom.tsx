@@ -12,11 +12,15 @@ import ChessBoardWrapper from '../../components/arena/games/ChessBoardWrapper';
 import Connect4Board from '../../components/arena/games/Connect4Board';
 import DamasBoard from '../../components/arena/games/DamasBoard';
 
+import { useLocation } from 'react-router-dom'; // <--- Importe
+
 const SOCKET_URL = window.location.hostname === 'localhost' 
     ? 'http://localhost:3001' 
     : 'http://72.62.87.8:3001';
 
 export default function GameRoom() {
+    const location = useLocation(); // <--- Pegar state
+    const password = location.state?.password || ''; // <--- A senha vem daqui
     const { roomId } = useParams(); // Pega ID da URL
     const { dbUser } = useAuth();
     const navigate = useNavigate();
@@ -45,7 +49,7 @@ export default function GameRoom() {
         newSocket.emit('join_specific_room', {
             roomId: roomId,
             userEmail: dbUser.email,
-            password: '' // TODO: Passar senha via state do navigate se necessário
+            password: password // <--- Enviando a senha certa
         });
 
         // --- LISTENERS ---
@@ -114,15 +118,16 @@ export default function GameRoom() {
         else if (type === 'damas') setMySymbol(isFirst ? 'red' : 'black');
     };
 
-    const handleMove = (newState: any, winnerSymbol: string | null, isDraw: boolean) => {
-        setBoardState(newState);
-        setIsMyTurn(false);
-
-        if (winnerSymbol || isDraw) {
-            socket?.emit('game_win_claim', { roomId, winnerSymbol, draw: isDraw });
-        } else {
-            socket?.emit('make_move', { roomId, move: 'generic', newState });
-        }
+    // Função genérica que os tabuleiros vão chamar
+    const handleMove = (moveData: any) => {
+        // moveData pode ser { index: 0 } pro velha
+        // ou { from: 'e2', to: 'e4' } pro xadrez
+        socket?.emit('make_move', { roomId, moveData });
+        
+        // Otimismo: Podemos atualizar localmente E esperar confirmação, 
+        // ou esperar o servidor mandar o 'move_made'. 
+        // Vamos esperar o servidor para garantir integridade.
+        setIsMyTurn(false); 
     };
 
     const copyRoomId = () => {
