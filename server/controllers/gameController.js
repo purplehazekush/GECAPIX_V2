@@ -172,8 +172,14 @@ exports.makeMove = async (io, socket, { roomId, moveData }) => {
     const room = rooms[roomId];
     if (!room || room.status !== 'playing') return;
 
-    // 1. Valida Turno
-    if (room.players[room.turnIndex] !== socket.id) {
+    // Log para debug
+    console.log(`[MOVE] Sala: ${roomId} | Player: ${socket.id} | Turno Atual Index: ${room.turnIndex}`);
+
+    // 1. Valida Turno (Segurança)
+    // Compara com o socketId salvo no playerData para ser mais preciso
+    const currentPlayer = room.playerData[room.turnIndex];
+    if (currentPlayer.socketId !== socket.id) {
+        console.warn(`[MOVE BLOQUEADO] Tentativa de ${socket.id} fora de vez.`);
         return socket.emit('error', { message: 'Não é sua vez!' });
     }
 
@@ -184,8 +190,8 @@ exports.makeMove = async (io, socket, { roomId, moveData }) => {
     
     // A. JOGO DA VELHA
     if (room.gameType === 'velha') {
-        const idx = moveData.index; // Cliente manda apenas o índice (0-8)
-        if (room.boardState[idx] !== null) return; // Casa ocupada
+        const idx = moveData.index;
+        if (room.boardState[idx] !== null) return;
 
         const symbol = room.turnIndex === 0 ? 'X' : 'O';
         const newBoard = [...room.boardState];
@@ -198,48 +204,40 @@ exports.makeMove = async (io, socket, { roomId, moveData }) => {
         else if (newBoard.every(c => c !== null)) winnerIndex = 'draw';
     }
 
-    // B. XADREZ (Com chess.js no servidor)
+    // B. XADREZ
     else if (room.gameType === 'xadrez') {
         try {
             const chess = new Chess(room.boardState);
-            const move = chess.move(moveData); // { from: 'e2', to: 'e4' }
-            
+            const move = chess.move(moveData);
             if (!move) return socket.emit('error', { message: 'Movimento ilegal' });
-            
             nextState = chess.fen();
-            
             if (chess.isCheckmate()) winnerIndex = room.turnIndex;
             else if (chess.isDraw() || chess.isStalemate()) winnerIndex = 'draw';
-            
         } catch (e) { return; }
     }
 
-    // C. CONNECT 4 (Server-Authoritative)
+    // C. CONNECT 4
     else if (room.gameType === 'connect4') {
         const col = moveData.colIndex;
         if (col === undefined || col < 0 || col > 6) return;
 
-        // 1. Calcula Gravidade (Procura a primeira linha livre de baixo pra cima)
+        // Gravidade
         let rowToFill = -1;
         for (let r = 5; r >= 0; r--) {
-            // Indice no array linear: row * 7 + col
             if (!room.boardState[r * 7 + col]) {
                 rowToFill = r;
                 break;
             }
         }
 
-        // Se a coluna estiver cheia, ignora o clique
         if (rowToFill === -1) return;
 
-        // 2. Aplica Movimento
         const symbol = room.turnIndex === 0 ? 'red' : 'yellow';
         const newBoard = [...room.boardState];
         newBoard[rowToFill * 7 + col] = symbol;
         
         nextState = newBoard;
 
-        // 3. Checa Vitória
         const winSymbol = checkWinnerConnect4(newBoard);
         if (winSymbol) winnerIndex = room.turnIndex;
         else if (newBoard.every(c => c !== null)) winnerIndex = 'draw';
@@ -249,15 +247,20 @@ exports.makeMove = async (io, socket, { roomId, moveData }) => {
     if (nextState) {
         room.boardState = nextState;
         
-        // Se houve vencedor/empate
         if (winnerIndex !== null) {
             await processEndGame(io, room, winnerIndex);
         } else {
-            // Passa a vez
+            // Troca o turno
             room.turnIndex = room.turnIndex === 0 ? 1 : 0;
+            
+            // Pega o socket ATUALIZADO do próximo jogador
+            const nextPlayer = room.playerData[room.turnIndex];
+            
+            console.log(`[MOVE SUCESSO] Próximo Turno: ${nextPlayer.nome} (${nextPlayer.socketId})`);
+
             io.to(roomId).emit('move_made', { 
                 newState: nextState, 
-                nextTurn: room.players[room.turnIndex] 
+                nextTurn: nextPlayer.socketId // Envia o ID correto
             });
         }
     }
