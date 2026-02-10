@@ -34,13 +34,53 @@ export default function GameRoom() {
     const [boardState, setBoardState] = useState<any>(null);
     const [opponentName, setOpponentName] = useState<string>('Esperando...');
 
+    // Lógica Blindada de Símbolos (Declarada antes do useEffect para uso interno)
+    const defineMySymbol = (type: string, players: any[]) => {
+        if (!dbUser || !players) return;
+
+        // Busca pelo E-mail (Identificador único e imutável)
+        const myIndex = players.findIndex((p: any) => p.email === dbUser.email);
+        const me = players[myIndex];
+        
+        console.log("🧐 DEFININDO IDENTIDADE:", { 
+            eu: dbUser.email, 
+            encontrado: !!me, 
+            index: myIndex, 
+            corVindaDoBack: me?.color 
+        });
+
+        if (myIndex === -1 || !me) {
+            console.error("❌ ERRO CRÍTICO: Jogador não encontrado na lista da sala.");
+            return;
+        }
+
+        let symbol = null;
+
+        if (type === 'xadrez') {
+            // Prioridade: Cor vinda do back -> Posição no array (Fallback)
+            symbol = me.color || (myIndex === 0 ? 'white' : 'black');
+        } 
+        else if (type === 'velha') {
+            symbol = myIndex === 0 ? 'X' : 'O';
+        }
+        else if (type === 'connect4') {
+            symbol = myIndex === 0 ? 'red' : 'yellow';
+        }
+        else if (type === 'damas') {
+            symbol = myIndex === 0 ? 'red' : 'black';
+        }
+
+        console.log("✅ Símbolo Definido:", symbol);
+        setMySymbol(symbol);
+    };
+
     useEffect(() => {
         if (!dbUser || !roomId) return; 
 
         const newSocket = io(SOCKET_URL);
         setSocket(newSocket);
 
-        // Tenta entrar na sala (com senha se houver)
+        // Tenta entrar na sala
         newSocket.emit('join_specific_room', {
             roomId: roomId,
             userEmail: dbUser.email,
@@ -59,16 +99,16 @@ export default function GameRoom() {
         });
 
         newSocket.on('game_start', (data: any) => {
-            console.log("🚦 GAME START:", data);
+            console.log("🚦 GAME START - Payload:", data);
             setGameType(data.gameType);
             setBoardState(data.boardState);
             setStatus('playing');
             
-            // 1. Define de quem é a vez pelo E-mail (Infalível)
+            // 1. Define Vez
             const souEuVez = data.nextTurnEmail === dbUser.email;
             setIsMyTurn(souEuVez);
 
-            // 2. Define minha cor/símbolo
+            // 2. Define Identidade
             defineMySymbol(data.gameType, data.players);
             
             toast.success("PARTIDA INICIADA!");
@@ -84,9 +124,24 @@ export default function GameRoom() {
             
             if (data.opponent) setOpponentName(data.opponent);
             
-            // Tenta recuperar cor/símbolo se os players vierem, senão mantém
-            // (Idealmente o backend mandaria players no reconnect também)
-            if (data.players) defineMySymbol(data.gameType, data.players);
+            // Tenta recuperar a cor. Se o backend não mandou players no reconnect (falha nossa anterior),
+            // tentamos inferir, mas o ideal é que players venha aqui também.
+            // Para garantir, vamos pedir um refresh da sala se faltar dados.
+            if (data.players) {
+                defineMySymbol(data.gameType, data.players);
+            } else {
+                // Fallback de emergência para xadrez se não tiver lista de players
+                // Se é minha vez e o turno do xadrez é 'w', eu sou 'white'.
+                // Isso é um hack, mas salva a UX no F5.
+                if (data.gameType === 'xadrez' && data.boardState) {
+                    const fenTurn = data.boardState.split(' ')[1]; // 'w' ou 'b'
+                    if (data.isMyTurn) {
+                        setMySymbol(fenTurn === 'w' ? 'white' : 'black');
+                    } else {
+                        setMySymbol(fenTurn === 'w' ? 'black' : 'white');
+                    }
+                }
+            }
 
             toast("Você voltou para o jogo!", { icon: '🔄' });
         });
@@ -96,7 +151,6 @@ export default function GameRoom() {
             
             setBoardState(data.newState);
 
-            // Verifica vez por E-mail
             if (dbUser && data.nextTurnEmail === dbUser.email) {
                 console.log("🟢 SUA VEZ");
                 setIsMyTurn(true);
@@ -123,37 +177,12 @@ export default function GameRoom() {
         });
 
         return () => { newSocket.disconnect(); };
-    }, [roomId, dbUser]);
+    }, [roomId, dbUser]); // Dependências do Effect
 
-    // Lógica Unificada de Símbolos
-    const defineMySymbol = (type: string, players: any[]) => {
-        const me = players.find((p: any) => p.email === dbUser?.email);
-        const myIndex = players.indexOf(me);
-        
-        if (!me) return;
-
-        if (type === 'xadrez') {
-            // No xadrez, o backend manda explicitamente a propriedade .color
-            setMySymbol(me.color || (myIndex === 0 ? 'white' : 'black'));
-        } 
-        else if (type === 'velha') {
-            setMySymbol(myIndex === 0 ? 'X' : 'O');
-        }
-        else if (type === 'connect4') {
-            setMySymbol(myIndex === 0 ? 'red' : 'yellow');
-        }
-        else if (type === 'damas') {
-            setMySymbol(myIndex === 0 ? 'red' : 'black');
-        }
-    };
-
-    // Função genérica de movimento (Client envia intenção -> Server valida)
+    // Função de Movimento Unificada
     const handleMove = (moveData: any) => {
         if (!isMyTurn) return;
-        
-        // Otimismo visual: Bloqueia imediatamente para não enviar duplo clique
-        setIsMyTurn(false); 
-        
+        setIsMyTurn(false); // Otimismo
         socket?.emit('make_move', { roomId, moveData });
     };
 
