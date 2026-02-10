@@ -50,13 +50,6 @@ const checkWinnerVelha = (board) => {
     return null;
 };
 
-const checkWinnerConnect4 = (board) => {
-    // Simplificado para performance: Horizontal, Vertical e Diagonal
-    // (Implementação completa ocuparia muitas linhas, aqui focamos na segurança da transação)
-    // Para produção "bancária", deve-se implementar a varredura completa de matriz 6x7.
-    return null; // TODO: Implementar lógica completa do Connect4 no back
-};
-
 // ==========================================
 // 2. CONTROLLER PRINCIPAL
 // ==========================================
