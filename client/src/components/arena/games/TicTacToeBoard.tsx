@@ -8,7 +8,7 @@ interface Props {
     onMove: (moveData: { index: number }) => void; 
 }
 
-export default function TicTacToeBoard({ board, mySymbol, isMyTurn, onMove }: Props) {
+export default function TicTacToeBoard({ board, isMyTurn, onMove }: Props) {
     
     const handleClick = (index: number) => {
         if (!isMyTurn || board[index]) return;

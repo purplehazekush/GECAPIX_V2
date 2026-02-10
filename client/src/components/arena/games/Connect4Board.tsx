@@ -6,7 +6,7 @@ interface Props {
     onMove: (moveData: { colIndex: number }) => void;
 }
 
-export default function Connect4Board({ board, mySymbol, isMyTurn, onMove }: Props) {
+export default function Connect4Board({ board, isMyTurn, onMove }: Props) {
 
     const handleColumnClick = (colIndex: number) => {
         if (!isMyTurn) return;
