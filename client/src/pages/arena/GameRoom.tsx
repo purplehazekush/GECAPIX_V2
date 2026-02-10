@@ -78,11 +78,16 @@ export default function GameRoom() {
 
         // Listener especial para reconexão (F5)
         newSocket.on('reconnect_success', (data: any) => {
-            console.log("Reconectado com sucesso!");
+            console.log("🔄 RECONECTADO. Estado:", data);
             setGameType(data.gameType);
             setBoardState(data.boardState);
             setStatus('playing');
-            setIsMyTurn(data.isMyTurn);
+            
+            // Aqui usamos a lógica que o backend mandou na reconexão
+            // O backend deve mandar 'isMyTurn' baseado no socket atual, mas por segurança:
+            // Se o backend mandar o email de quem é a vez, seria melhor, mas vamos manter o isMyTurn por enquanto
+            setIsMyTurn(data.isMyTurn); 
+            
             if (data.opponent) setOpponentName(data.opponent);
             
             setupSymbols(data.gameType, data.isMyTurn);
@@ -90,8 +95,18 @@ export default function GameRoom() {
         });
 
         newSocket.on('move_made', (data: any) => {
+            console.log("📢 JOGADA RECEBIDA DO SERVIDOR:", data); // <--- X-9 para Debug
+            
             setBoardState(data.newState);
-            setIsMyTurn(data.nextTurn === newSocket.id);
+
+            // A MUDANÇA MÁGICA: Compara Email, não Socket ID
+            if (dbUser && data.nextTurnEmail === dbUser.email) {
+                console.log("🟢 É MINHA VEZ!");
+                setIsMyTurn(true);
+            } else {
+                console.log("🔴 VEZ DO OPONENTE");
+                setIsMyTurn(false);
+            }
         });
 
         newSocket.on('game_over', (data: any) => {

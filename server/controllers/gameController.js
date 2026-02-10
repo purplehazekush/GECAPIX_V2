@@ -252,15 +252,14 @@ exports.makeMove = async (io, socket, { roomId, moveData }) => {
         } else {
             // Troca o turno
             room.turnIndex = room.turnIndex === 0 ? 1 : 0;
-            
-            // Pega o socket ATUALIZADO do próximo jogador
             const nextPlayer = room.playerData[room.turnIndex];
             
-            console.log(`[MOVE SUCESSO] Próximo Turno: ${nextPlayer.nome} (${nextPlayer.socketId})`);
+            console.log(`[MOVE SUCESSO] Próximo Turno: ${nextPlayer.email}`);
 
             io.to(roomId).emit('move_made', { 
                 newState: nextState, 
-                nextTurn: nextPlayer.socketId // Envia o ID correto
+                // ADICIONEI ESTA LINHA:
+                nextTurnEmail: nextPlayer.email 
             });
         }
     }
