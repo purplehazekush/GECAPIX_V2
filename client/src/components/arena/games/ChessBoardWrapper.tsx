@@ -1,4 +1,3 @@
-// client/src/components/arena/games/ChessBoardWrapper.tsx
 import { useState, useEffect } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
@@ -7,54 +6,58 @@ interface Props {
     fen: string;
     myColor: 'white' | 'black';
     isMyTurn: boolean;
-    // CORREÇÃO: Assinatura padronizada com os outros jogos (3 argumentos)
-    onMove: (fen: string, winner: string | null, isDraw: boolean) => void;
+    onMove: (moveData: { from: string; to: string; promotion: string }) => void;
 }
 
 export default function ChessBoardWrapper({ fen, myColor, isMyTurn, onMove }: Props) {
+    // Mantemos uma instância local para a UI responder rápido ao clique
     const [game, setGame] = useState(new Chess(fen));
 
+    // Sempre que o servidor manda um novo FEN, atualizamos o tabuleiro visual
     useEffect(() => {
         try {
-            setGame(new Chess(fen));
+            const newGame = new Chess(fen);
+            setGame(newGame);
         } catch (e) {
-            // Proteção contra FEN inválido
+            console.error("FEN inválido recebido:", fen);
         }
     }, [fen]);
 
     const onDrop = (sourceSquare: string, targetSquare: string) => {
+        // 1. Bloqueia se não for minha vez ou se eu tentar mover peça do oponente
         if (!isMyTurn) return false;
+        if (game.turn() !== myColor.charAt(0)) return false; // 'w' ou 'b'
 
         try {
+            // 2. Tenta mover na instância LOCAL (apenas para ver se é válido pelas regras do xadrez)
             const tempGame = new Chess(game.fen());
-            
             const move = tempGame.move({
                 from: sourceSquare,
                 to: targetSquare,
-                promotion: 'q', 
+                promotion: 'q', // Sempre Queen por enquanto
             });
 
+            // Se for inválido (ex: cavalo andar em linha reta), cancela
             if (!move) return false;
 
-            setGame(tempGame);
-
-            const newFen = tempGame.fen();
-            const isOver = tempGame.isGameOver();
+            // 3. Se for válido, ENVIA PRO SERVIDOR
+            // Nota: Não damos setGame(tempGame) aqui. Esperamos o servidor mandar o novo FEN.
+            // Isso evita desincronia. O tabuleiro vai "piscar" a peça voltando se o servidor rejeitar,
+            // ou vai confirmar o movimento quando o FEN voltar no useEffect acima.
             
-            // Lógica de Vitória Simplificada para bater com a interface
-            let winner = null;
-            if (isOver && tempGame.isCheckmate()) {
-                // Se o jogo acabou em checkmate e fui EU que movi, eu ganhei (myColor)
-                winner = myColor; 
-            }
+            onMove({ 
+                from: sourceSquare, 
+                to: targetSquare, 
+                promotion: 'q' 
+            });
 
-            // CORREÇÃO: Envia apenas 3 argumentos
-            onMove(newFen, winner, tempGame.isDraw());
-            return true;
-        } catch (e) { return false; }
+            return true; // Permite a peça "soltar" visualmente (otimismo)
+        } catch (e) {
+            return false;
+        }
     };
 
-    // SOLUÇÃO NUCLEAR PARA O ERRO DE TIPO DA LIB
+    // Fix de tipagem da lib
     const ChessboardAny = Chessboard as any;
 
     return (
@@ -62,9 +65,12 @@ export default function ChessBoardWrapper({ fen, myColor, isMyTurn, onMove }: Pr
             <ChessboardAny 
                 position={game.fen()} 
                 onPieceDrop={onDrop}
-                boardOrientation={myColor}
+                // Trava o tabuleiro para eu só mexer nas minhas peças
+                arePiecesDraggable={isMyTurn} 
+                boardOrientation={myColor} // Gira o tabuleiro se eu for Preto
                 customDarkSquareStyle={{ backgroundColor: '#334155' }}
                 customLightSquareStyle={{ backgroundColor: '#94a3b8' }}
+                animationDuration={200}
             />
         </div>
     );

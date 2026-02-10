@@ -154,14 +154,39 @@ exports.joinSpecificRoom = async (io, socket, { roomId, userEmail, password }) =
 
     socket.join(roomId);
     
-    // Inicia Jogo
+    // --- LÓGICA DE INÍCIO E CORES (XADREZ) ---
+    // 1. Sorteia quem começa (Turno 0)
+    room.turnIndex = Math.random() < 0.5 ? 0 : 1; 
+    
+    // 2. Define Cores (Só importa pro Xadrez, mas mal não faz pros outros)
+    // Quem começa (turnIndex) SEMPRE recebe as peças que jogam primeiro
+    // No Xadrez: Turno 0 = White. O outro = Black.
+    // No Connect4: Turno 0 = Red. O outro = Yellow.
+    
+    const p1 = room.playerData[0];
+    const p2 = room.playerData[1];
+
+    if (room.gameType === 'xadrez') {
+        // Se turnIndex é 0, p1 começa (White). Se é 1, p2 começa (White).
+        p1.color = room.turnIndex === 0 ? 'white' : 'black';
+        p2.color = room.turnIndex === 1 ? 'white' : 'black';
+    } else {
+        // Padrão para outros jogos
+        p1.color = 'p1_color'; 
+        p2.color = 'p2_color';
+    }
+
     io.to(roomId).emit('player_joined', { players: room.playerData });
+    
+    // Envia o evento de início com as cores definidas
     io.to(roomId).emit('game_start', { 
         gameType: room.gameType, 
         boardState: room.boardState, 
-        turn: room.players[room.turnIndex], // Manda o SocketID de quem começa
-        players: room.playerData
+        turn: room.players[room.turnIndex], // SocketID de quem começa
+        players: room.playerData, // Agora contém a propriedade .color
+        nextTurnEmail: room.playerData[room.turnIndex].email // Importante para o Front
     });
+    
     io.emit('rooms_update');
 };
 
@@ -205,15 +230,33 @@ exports.makeMove = async (io, socket, { roomId, moveData }) => {
     }
 
     // B. XADREZ
+    // B. XADREZ (Server-Authoritative)
     else if (room.gameType === 'xadrez') {
         try {
-            const chess = new Chess(room.boardState);
-            const move = chess.move(moveData);
-            if (!move) return socket.emit('error', { message: 'Movimento ilegal' });
-            nextState = chess.fen();
+            const chess = new Chess(room.boardState); // Carrega FEN atual
+            
+            // Tenta mover. O moveData vem como { from: 'e2', to: 'e4', promotion: 'q' }
+            const move = chess.move({
+                from: moveData.from,
+                to: moveData.to,
+                promotion: 'q' // Sempre promove para Rainha no MVP (Simplifica UI)
+            });
+            
+            if (!move) {
+                console.warn("Movimento inválido no Xadrez:", moveData);
+                return socket.emit('error', { message: 'Movimento inválido' });
+            }
+            
+            nextState = chess.fen(); // Gera novo FEN
+            
+            // Verifica Fim de Jogo
             if (chess.isCheckmate()) winnerIndex = room.turnIndex;
-            else if (chess.isDraw() || chess.isStalemate()) winnerIndex = 'draw';
-        } catch (e) { return; }
+            else if (chess.isDraw() || chess.isStalemate() || chess.isThreefoldRepetition()) winnerIndex = 'draw';
+            
+        } catch (e) { 
+            console.error("Erro engine xadrez:", e);
+            return; 
+        }
     }
 
     // C. CONNECT 4
