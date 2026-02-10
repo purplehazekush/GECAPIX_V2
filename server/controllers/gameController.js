@@ -55,15 +55,18 @@ const checkWinnerVelha = (board) => {
 // ==========================================
 
 exports.getRooms = (io, socket) => {
-    const publicRooms = Object.values(rooms)
-        .filter(r => !r.config.isPrivate && r.players.length < 2 && r.status === 'waiting')
+    const availableRooms = Object.values(rooms)
+        // REMOVI O "!r.config.isPrivate"
+        // Agora mostramos privadas, desde que não estejam cheias ou já jogando
+        .filter(r => r.players.length < 2 && r.status === 'waiting')
         .map(r => ({
             id: r.id,
             gameType: r.gameType,
-            bet: r.pot, // Valor total do pote atual
-            creator: r.playerData[0]?.nome || 'Host'
+            bet: r.pot, 
+            creator: r.playerData[0]?.nome || 'Host',
+            isPrivate: r.config.isPrivate // Importante enviar essa flag pro Front desenhar o cadeado
         }));
-    socket.emit('rooms_list', publicRooms);
+    socket.emit('rooms_list', availableRooms);
 };
 
 exports.createRoom = async (io, socket, { gameType, userEmail, betAmount, isPrivate, password, timeLimit }) => {
