@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Chess, type Square } from 'chess.js';
+import { Chess, Square } from 'chess.js';
 
 interface Props {
     fen: string;
@@ -8,7 +8,6 @@ interface Props {
     onMove: (moveData: { from: string; to: string; promotion: string }) => void;
 }
 
-// Mapa de imagens das peças (Wikimedia Commons - SVG Padrão)
 const PIECE_IMAGES: Record<string, string> = {
     'wP': 'https://upload.wikimedia.org/wikipedia/commons/4/45/Chess_plt45.svg',
     'wN': 'https://upload.wikimedia.org/wikipedia/commons/7/70/Chess_nlt45.svg',
@@ -29,7 +28,6 @@ export default function ChessBoardWrapper({ fen, myColor, isMyTurn, onMove }: Pr
     const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
     const [validMoves, setValidMoves] = useState<Square[]>([]);
 
-    // Sincroniza com o servidor
     useEffect(() => {
         try {
             const newGame = new Chess(fen);
@@ -39,135 +37,106 @@ export default function ChessBoardWrapper({ fen, myColor, isMyTurn, onMove }: Pr
         } catch (e) { console.error(e); }
     }, [fen]);
 
-    // Gera o grid do tabuleiro
-    // Se eu sou branco: a8..h8, a7..h7... (Normal)
-    // Se eu sou preto: h1..a1, h2..a2... (Invertido)
     const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
     const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
-
     let boardSquares: Square[] = [];
     for (let r of ranks) {
         for (let f of files) {
             boardSquares.push(`${f}${r}` as Square);
         }
     }
-
-    if (myColor === 'black') {
-        boardSquares.reverse();
-    }
+    if (myColor === 'black') boardSquares.reverse();
 
     const handleSquareClick = (square: Square) => {
-        // 1. Não é minha vez? Ignora cliques.
         if (!isMyTurn) return;
 
-        // 2. Se já tenho uma peça selecionada
         if (selectedSquare) {
-            // A. Clicou na mesma casa -> Deseleciona
             if (selectedSquare === square) {
                 setSelectedSquare(null);
                 setValidMoves([]);
                 return;
             }
-
-            // B. Clicou num movimento válido -> MOVE!
             if (validMoves.includes(square)) {
-                console.log(`✅ Movimento Nativo: ${selectedSquare} -> ${square}`);
-                
-                // Aplica visualmente (Otimismo)
+                // Otimismo
                 const tempGame = new Chess(game.fen());
                 tempGame.move({ from: selectedSquare, to: square, promotion: 'q' });
                 setGame(tempGame);
-                
-                // Limpa e Envia
                 setSelectedSquare(null);
                 setValidMoves([]);
-                
-                onMove({
-                    from: selectedSquare,
-                    to: square,
-                    promotion: 'q'
-                });
+                onMove({ from: selectedSquare, to: square, promotion: 'q' });
                 return;
             }
-
-            // C. Clicou em outra peça MINHA -> Troca a seleção
             const piece = game.get(square);
             if (piece && piece.color === (myColor === 'white' ? 'w' : 'b')) {
                 selectPiece(square);
                 return;
             }
-
-            // D. Clicou no nada ou inválido -> Deseleciona
             setSelectedSquare(null);
             setValidMoves([]);
-        } 
-        // 3. Se não tenho peça selecionada -> Tenta Selecionar
-        else {
+        } else {
             selectPiece(square);
         }
     };
 
     const selectPiece = (square: Square) => {
         const piece = game.get(square);
-        // Só seleciona se tiver peça e for minha cor
         if (piece && piece.color === (myColor === 'white' ? 'w' : 'b')) {
             setSelectedSquare(square);
-            
-            // Calcula movimentos possíveis
             const moves = game.moves({ square, verbose: true });
             setValidMoves(moves.map(m => m.to as Square));
         }
     };
 
     return (
-        <div className="flex flex-col items-center gap-2">
+        <div className="flex flex-col items-center gap-2 select-none">
             {/* Status Panel */}
             <div className="flex justify-between w-full max-w-[350px] text-[10px] font-mono font-bold bg-slate-900 p-2 rounded border border-slate-700">
-                <span className={myColor === 'white' ? 'text-white' : 'text-slate-400'}>BRANCAS</span>
+                <span className={myColor === 'white' ? 'text-white' : 'text-slate-500'}>
+                    ● BRANCAS {myColor === 'white' && '(VOCÊ)'}
+                </span>
                 <span className={isMyTurn ? 'text-green-400 animate-pulse' : 'text-red-500'}>
                     {isMyTurn ? "SUA VEZ" : "AGUARDE..."}
                 </span>
-                <span className={myColor === 'black' ? 'text-white' : 'text-slate-400'}>PRETAS</span>
+                <span className={myColor === 'black' ? 'text-white' : 'text-slate-500'}>
+                    ● PRETAS {myColor === 'black' && '(VOCÊ)'}
+                </span>
             </div>
 
-            {/* O TABULEIRO MANUAL */}
-            <div className="grid grid-cols-8 border-4 border-slate-800 rounded-lg overflow-hidden shadow-2xl w-full max-w-[350px] aspect-square bg-slate-800">
-                {boardSquares.map((square) => {
-                    const piece = game.get(square);
-                    const isSelected = selectedSquare === square;
-                    const isValidMove = validMoves.includes(square);
-                    
-                    // Lógica de cor da casa (Preto/Branco padrão)
-                    // CharCode da coluna + numero da linha. Se soma for par = escura.
-                    const fileIdx = files.indexOf(square[0]);
-                    const rankIdx = ranks.indexOf(square[1]);
-                    const isDark = (fileIdx + rankIdx) % 2 === 1;
+            {/* TABULEIRO FIXO */}
+            <div className="relative w-full max-w-[350px] aspect-square bg-slate-800 border-4 border-slate-800 rounded-lg shadow-2xl overflow-hidden">
+                <div className="grid grid-cols-8 grid-rows-8 w-full h-full">
+                    {boardSquares.map((square) => {
+                        const piece = game.get(square);
+                        const isSelected = selectedSquare === square;
+                        const isValidMove = validMoves.includes(square);
+                        
+                        const fileIdx = files.indexOf(square[0]);
+                        const rankIdx = ranks.indexOf(square[1]);
+                        const isDark = (fileIdx + rankIdx) % 2 === 1;
 
-                    return (
-                        <div
-                            key={square}
-                            onClick={() => handleSquareClick(square)}
-                            className={`
-                                relative flex items-center justify-center w-full h-full cursor-pointer
-                                ${isDark ? 'bg-slate-600' : 'bg-slate-400'}
-                                ${isSelected ? 'ring-inset ring-4 ring-yellow-400' : ''}
-                                ${isValidMove && !piece ? 'after:content-[""] after:w-3 after:h-3 after:bg-green-400/50 after:rounded-full' : ''}
-                                ${isValidMove && piece ? 'ring-inset ring-4 ring-red-500/50' : ''} // Captura
-                            `}
-                        >
-                            {/* Marcação de coordenada (opcional, ajuda no debug) */}
-                            {/* <span className="absolute bottom-0 right-0 text-[8px] opacity-30 text-black">{square}</span> */}
-
-                            {piece && (
-                                <img 
-                                    src={PIECE_IMAGES[`${piece.color}${piece.type.toUpperCase()}`]} 
-                                    alt={`${piece.color}${piece.type}`}
-                                    className="w-[85%] h-[85%] select-none pointer-events-none"
-                                />
-                            )}
-                        </div>
-                    );
-                })}
+                        return (
+                            <div
+                                key={square}
+                                onClick={() => handleSquareClick(square)}
+                                className={`
+                                    relative flex items-center justify-center w-full h-full
+                                    ${isDark ? 'bg-slate-600' : 'bg-slate-400'}
+                                    ${isSelected ? 'ring-inset ring-4 ring-yellow-400' : ''}
+                                    ${isValidMove && !piece ? 'after:content-[""] after:w-3 after:h-3 after:bg-green-400/50 after:rounded-full' : ''}
+                                    ${isValidMove && piece ? 'ring-inset ring-4 ring-red-500/50' : ''}
+                                `}
+                            >
+                                {piece && (
+                                    <img 
+                                        src={PIECE_IMAGES[`${piece.color}${piece.type.toUpperCase()}`]} 
+                                        alt=""
+                                        className="w-[85%] h-[85%] object-contain pointer-events-none"
+                                    />
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );
