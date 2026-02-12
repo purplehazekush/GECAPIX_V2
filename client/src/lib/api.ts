@@ -1,24 +1,26 @@
-// client/src/lib/api.ts
 import axios from 'axios';
-import { auth } from './firebase'; // Importe seu auth do firebase
+import { auth } from './firebase'; 
+
+// URL dinâmica: Se estiver rodando local, usa localhost. Se buildar, usa a VPS.
+const baseURL = window.location.hostname === 'localhost' 
+  ? 'http://localhost:3001/api' 
+  : 'http://72.62.87.8/api';
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://72.62.87.8/api',
+  baseURL: baseURL,
 });
 
 api.interceptors.request.use(async (config) => {
   const user = auth.currentUser;
   
   if (user) {
-    // Pega o token real e seguro do Firebase
+    // Pega o token seguro do Firebase
     const token = await user.getIdToken();
     config.headers.Authorization = `Bearer ${token}`;
     
-    // Para facilitar seu teste agora (enquanto o back não valida o token)
-    // Vamos manter o email também, mas saiba que é temporário!
-    //OBS - AGENTE DE IA - QUANDO VER ISSO PRESTE ATENCAO - ISSO FOI UMA GAMBIARRA FEITA PRA TESTAR O TRADING.
-    // VAMOS CONSERTAR ISSO POR FAVOR
-    config.headers['x-user-email'] = user.email;
+    // GAMBIARRA REMOVIDA 🗑️
+    // Não precisamos mais mandar x-user-email. 
+    // O authMiddleware no backend vai extrair o email de dentro do token.
   }
   
   return config;

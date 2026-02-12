@@ -1,4 +1,3 @@
-// client/src/context/AuthContext.tsx
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import { 
   GoogleAuthProvider, 
@@ -10,50 +9,9 @@ import {
 import { auth } from '../lib/firebase';
 import { api } from '../lib/api';
 
-// --- DEFINIÇÃO DE TIPOS ATUALIZADA ---
-export interface ExtratoItem {
-  tipo: 'ENTRADA' | 'SAIDA';
-  valor: number;
-  descricao: string;
-  data: string;
-  referencia_id?: string;
-}
+// IMPORTA A TIPAGEM OFICIAL (Apague as interfaces 'User' e 'ExtratoItem' que estavam aqui)
+import type { User } from '../types'; 
 
-export interface User {
-  _id: string;
-  email: string;
-  nome: string;
-  role: 'admin' | 'membro';
-  status: 'ativo' | 'pendente';
-  saldo_coins: number;
-  saldo_glue: number;
-  xp: number;
-  nivel: number;
-  codigo_referencia?: string;
-  
-  // Identidade
-  classe?: string;
-  materias?: string[];
-  avatar_slug?: string;
-  avatar_layers?: Record<string, string>;
-  bio?: string;
-  
-  // Dados Pessoais
-  chave_pix?: string;
-  curso?: string;
-  comprovante_url?: string;
-  validado?: boolean;
-  status_profissional?: string;
-  equipe_competicao?: string;
-  
-  // Game
-  missoes_concluidas?: string[];
-  
-  // 🔥 A CORREÇÃO DO ERRO 1 ESTÁ AQUI:
-  extrato?: ExtratoItem[]; 
-  saldo_staking_liquido?: number
-  
-}
 interface AuthContextType {
   user: FirebaseUser | null;
   dbUser: User | null;
