@@ -11,7 +11,7 @@ const { ORACLE_SYSTEM_PROMPT } = require('../utils/oraclePrompts');
 // ⚙️ CONFIGURAÇÃO DO CLAUDE
 // =================================================================================
 const anthropic = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY, 
+    apiKey: process.env.ANTHROPIC_API_KEY,
     defaultHeaders: { 'anthropic-version': '2023-06-01' }
 });
 
@@ -33,7 +33,10 @@ exports.resolverQuestao = async (req, res) => {
         const custoGlue = (TOKEN.COSTS && TOKEN.COSTS.AI_SOLVER_GLUE) || 1;
         let custoCoins = (TOKEN.COSTS && TOKEN.COSTS.AI_SOLVER_COINS) || 50;
 
-        if (user.classe === 'TECNOMANTE') custoCoins = Math.floor(custoCoins * 0.5);
+        if (user.classe === 'TECNOMANTE') {
+            const discount = TOKEN.CLASSES.TECNOMANTE.ORACLE_DISCOUNT
+            custoCoins = Math.floor(custoCoins * discount);
+        }
 
         if ((user.saldo_glue || 0) < custoGlue) return res.status(402).json({ error: "Sem GLUE suficiente." });
         if ((user.saldo_coins || 0) < custoCoins) return res.status(402).json({ error: "Sem Coins suficientes." });
@@ -98,7 +101,7 @@ exports.resolverQuestao = async (req, res) => {
         // =================================================================================
         // 🧩 PARSE DA RESPOSTA (CORRIGIDO)
         // =================================================================================
-        
+
         let resultadoAI;
 
         // 1. Tenta encontrar o uso da ferramenta (Caminho Feliz - Solução 3)
@@ -107,11 +110,11 @@ exports.resolverQuestao = async (req, res) => {
         if (toolUse) {
             console.log("🛠️ Tool Use detectado. JSON estruturado recebido com sucesso.");
             // O SDK já parseou o JSON para nós dentro de 'input'
-            resultadoAI = toolUse.input; 
+            resultadoAI = toolUse.input;
         } else {
             // 2. Fallback (Plano B): Se a IA ignorou a tool e mandou texto
             console.warn("⚠️ Tool Use não encontrado. Tentando parse manual de texto...");
-            
+
             const textBlock = msg.content.find(c => c.type === "text");
             const textContent = textBlock ? textBlock.text : "";
 

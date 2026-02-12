@@ -31,6 +31,7 @@ import ArenaExchange from './pages/arena/Exchange'; //Corretora de GLUE/GECACOIN
 import Dating from './pages/arena/Dating';
 import MarketLab from './pages/arena/MarketLab';
 import GecaCentral from './pages/admin/GecaCentral';
+import GecaStore from './pages/store/GecaStore';
 
 function AppRoutes() {
   const { user, dbUser, loading } = useAuth();
@@ -69,6 +70,8 @@ function AppRoutes() {
         <Route path="memes" element={<ArenaMemes />} />
         <Route path="quests" element={<ArenaQuests />} />
         <Route path="laboratorio" element={<Laboratorio />} />
+
+        <Route path="loja" element={<GecaStore />} />
 
         <Route path="games" element={<GamesLobby />} />
         <Route path="tokenomics" element={<Tokenomics />} />
