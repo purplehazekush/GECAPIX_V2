@@ -30,6 +30,7 @@ import BankPanel from './components/arena/bank/AdminBankPanel';
 import ArenaExchange from './pages/arena/Exchange'; //Corretora de GLUE/GECACOINS
 import Dating from './pages/arena/Dating';
 import MarketLab from './pages/arena/MarketLab';
+import GecaCentral from './pages/admin/GecaCentral';
 
 function AppRoutes() {
   const { user, dbUser, loading } = useAuth();
@@ -88,6 +89,9 @@ function AppRoutes() {
         )}
         {dbUser.role === 'admin' && (
           <Route path="admin/bankpanel" element={<BankPanel />} />
+        )}
+        {dbUser.role === 'admin' && (
+          <Route path="admin/geca-central-panel" element={<GecaCentral />} />
         )}
                   
       </Route>
