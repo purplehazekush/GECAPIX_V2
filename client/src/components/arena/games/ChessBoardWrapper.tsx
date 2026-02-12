@@ -1,5 +1,6 @@
+// client/src/components/arena/games/ChessBoardWrapper.tsx
 import { useState, useEffect } from 'react';
-import { Chess } from 'chess.js';
+import { Chess, type Square } from 'chess.js'; // Importamos o tipo Square
 import { Chessboard } from 'react-chessboard';
 
 interface Props {
@@ -12,16 +13,14 @@ interface Props {
 export default function ChessBoardWrapper({ fen, myColor, isMyTurn, onMove }: Props) {
     const [game, setGame] = useState(new Chess(fen));
     
-    // Estados para o Click-to-Move
-    const [moveFrom, setMoveFrom] = useState<string | null>(null);
-    const [optionSquares, setOptionSquares] = useState({}); // Casas iluminadas
+    // Agora o state sabe que guarda uma 'Square' ou null
+    const [moveFrom, setMoveFrom] = useState<Square | null>(null);
+    const [optionSquares, setOptionSquares] = useState({}); 
 
-    // Sincroniza com o servidor
     useEffect(() => {
         try {
             const newGame = new Chess(fen);
             setGame(newGame);
-            // Limpa seleções ao receber atualização
             setMoveFrom(null);
             setOptionSquares({});
         } catch (e) {
@@ -29,41 +28,50 @@ export default function ChessBoardWrapper({ fen, myColor, isMyTurn, onMove }: Pr
         }
     }, [fen]);
 
-    // Lógica para mostrar onde a peça pode ir (Visual)
-    function getMoveOptions(square: string) {
+    function getMoveOptions(square: Square) {
+        // CORREÇÃO 1: TypeScript agora sabe que 'moves' retorna objetos detalhados
         const moves = game.moves({
-            square,
+            square: square,
             verbose: true,
         });
+        
         if (moves.length === 0) {
             setOptionSquares({});
             return false;
         }
 
         const newSquares: any = {};
+        
+        // CORREÇÃO 2: Tipagem correta dentro do map
         moves.map((move) => {
+            // Pegamos as peças com segurança (verificando se existem)
+            const targetPiece = game.get(move.to); // move.to já é do tipo Square
+            const sourcePiece = game.get(square);
+
+            const isCapture = targetPiece && sourcePiece && targetPiece.color !== sourcePiece.color;
+
             newSquares[move.to] = {
-                background:
-                    game.get(move.to) && game.get(move.to).color !== game.get(square).color
-                        ? 'radial-gradient(circle, rgba(255,0,0,.5) 85%, transparent 85%)' // Captura (Vermelho)
-                        : 'radial-gradient(circle, rgba(97, 218, 251, 0.5) 25%, transparent 25%)', // Movimento (Azul Cyan)
+                background: isCapture
+                        ? 'radial-gradient(circle, rgba(255,0,0,.5) 85%, transparent 85%)' 
+                        : 'radial-gradient(circle, rgba(97, 218, 251, 0.5) 25%, transparent 25%)',
                 borderRadius: '50%',
             };
             return move;
         });
         
-        // Destaca a peça selecionada também
         newSquares[square] = {
-            background: 'rgba(255, 255, 0, 0.4)', // Amarelo
+            background: 'rgba(255, 255, 0, 0.4)', 
         };
         
         setOptionSquares(newSquares);
         return true;
     }
 
-    // O CÉREBRO DO CLIQUE
-    function onSquareClick(square: string) {
-        // 1. Bloqueia se não for minha vez (exceto se for só pra ver tabuleiro, mas melhor bloquear)
+    // O argumento 'square' vem como string da biblioteca visual
+    function onSquareClick(squareString: string) {
+        // CORREÇÃO 3: Casting forçado de string -> Square
+        const square = squareString as Square;
+
         if (!isMyTurn) {
             console.warn("🚫 Espere sua vez!");
             return;
@@ -72,16 +80,14 @@ export default function ChessBoardWrapper({ fen, myColor, isMyTurn, onMove }: Pr
         // 2. Se não tinha peça selecionada -> Tenta Selecionar
         if (!moveFrom) {
             const piece = game.get(square);
-            if (!piece) return; // Clicou no vazio
+            if (!piece) return; 
 
-            // Verifica se a peça é minha
             const pieceColor = piece.color === 'w' ? 'white' : 'black';
             if (pieceColor !== myColor) {
                 console.warn(`⛔ Essa peça é ${pieceColor}, você é ${myColor}`);
                 return;
             }
 
-            // Seleciona e mostra opções
             const hasMoves = getMoveOptions(square);
             if (hasMoves) setMoveFrom(square);
             
@@ -90,14 +96,12 @@ export default function ChessBoardWrapper({ fen, myColor, isMyTurn, onMove }: Pr
 
         // 3. Se JÁ tinha peça selecionada -> Tenta Mover ou Trocar
         
-        // A. Clicou na mesma peça -> Deseleciona
         if (moveFrom === square) {
             setMoveFrom(null);
             setOptionSquares({});
             return;
         }
 
-        // B. Clicou em outra peça MINHA -> Troca a seleção
         const piece = game.get(square);
         if (piece && (piece.color === 'w' ? 'white' : 'black') === myColor) {
             setMoveFrom(square);
@@ -105,16 +109,17 @@ export default function ChessBoardWrapper({ fen, myColor, isMyTurn, onMove }: Pr
             return;
         }
 
-        // C. Tenta Mover (para vazio ou captura inimiga)
+        // C. Tenta Mover
         try {
             const tempGame = new Chess(game.fen());
+            
+            // CORREÇÃO 4: Passando Square tipado corretamente
             const move = tempGame.move({
                 from: moveFrom,
                 to: square,
-                promotion: 'q', // Sempre Queen
+                promotion: 'q', 
             });
 
-            // Se o movimento for inválido, apenas limpa a seleção
             if (!move) {
                 console.warn("Movimento inválido");
                 setMoveFrom(null);
@@ -122,7 +127,6 @@ export default function ChessBoardWrapper({ fen, myColor, isMyTurn, onMove }: Pr
                 return;
             }
 
-            // D. SUCESSO! Envia pro Servidor
             console.log(`✅ Movendo: ${moveFrom} -> ${square}`);
             
             onMove({
@@ -131,7 +135,6 @@ export default function ChessBoardWrapper({ fen, myColor, isMyTurn, onMove }: Pr
                 promotion: 'q',
             });
 
-            // Atualiza visualmente e limpa seleção
             setGame(tempGame);
             setMoveFrom(null);
             setOptionSquares({});
@@ -147,7 +150,6 @@ export default function ChessBoardWrapper({ fen, myColor, isMyTurn, onMove }: Pr
 
     return (
         <div className="flex flex-col items-center gap-2">
-            {/* Debug Panel Simplificado */}
             <div className="text-[10px] font-mono bg-black/50 p-2 rounded text-white w-full max-w-[350px] flex justify-between">
                 <span>Sou: <b className="text-yellow-400">{myColor}</b></span>
                 <span>Vez: <b className={isMyTurn ? "text-green-400" : "text-red-400"}>{isMyTurn ? "MINHA" : "DELE"}</b></span>
@@ -157,16 +159,9 @@ export default function ChessBoardWrapper({ fen, myColor, isMyTurn, onMove }: Pr
                 <ChessboardAny 
                     id="ClickToMoveBoard" 
                     position={game.fen()} 
-                    
-                    // Desativa o Drag and Drop nativo da lib (Evita bugs)
                     arePiecesDraggable={false} 
-                    
-                    // Usa nosso sistema de cliques
                     onSquareClick={onSquareClick}
-                    
-                    // Aplica as cores de seleção/movimento
                     customSquareStyles={optionSquares}
-                    
                     boardOrientation={myColor} 
                     customDarkSquareStyle={{ backgroundColor: '#334155' }}
                     customLightSquareStyle={{ backgroundColor: '#94a3b8' }}
