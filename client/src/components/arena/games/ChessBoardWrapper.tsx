@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Chess, Square } from 'chess.js';
+import { Chess, type Square } from 'chess.js';
 
 interface Props {
     fen: string;
