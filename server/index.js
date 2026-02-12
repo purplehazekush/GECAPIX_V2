@@ -34,6 +34,7 @@ const exchangeController = require('./controllers/exchangeController')
 const authMiddleware = require('./middlewares/authMiddleware'); // <--- SEM CHAVES!
 const datingController = require('./controllers/datingController'); // <--- IMPORT NOVO
 const adminConfigController = require('./controllers/adminConfigController'); // <--- ADICIONE ISSO
+const ConfigService = require('../services/ConfigService');
 
 
 
