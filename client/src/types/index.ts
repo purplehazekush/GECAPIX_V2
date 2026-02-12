@@ -1,4 +1,3 @@
-// client/src/types/index.ts
 export interface Pix {
   _id: string;
   remetente_extraido: string;
@@ -6,7 +5,7 @@ export interface Pix {
   mensagem_texto: string;
   data: string;
   
-  // Campos novos que adicionamos
+  // Campos novos
   tipo?: 'PIX' | 'DINHEIRO';
   vendedor_nome?: string;
   
@@ -14,8 +13,6 @@ export interface Pix {
   item_vendido?: string;
   quantidade?: number;
   vendedor_email?: string;
-
-  
 }
 
 export interface Produto {
@@ -28,18 +25,21 @@ export interface User {
   _id: string;
   nome: string;
   email: string;
-  role: 'admin' | 'membro';
-  status: 'ativo' | 'pendente';
+  // ATUALIZADO: Adicionei 'gm' e 'gestao' para o TS não reclamar
+  role: 'admin' | 'membro' | 'gm' | 'gestao'; 
+  status: 'ativo' | 'pendente' | 'banido';
   
-  // Campos de Gamification (Garantir que todos estão aqui)
+  // Gamification
   saldo_coins: number;
   saldo_glue: number;
   xp: number;
   nivel: number;
   badges: string[];
   
-  // ESTES FALTAVAM:
+  // Dados extras
   sequencia_login: number; 
   codigo_referencia?: string;
   indicado_por?: string;
+  classe?: string;
+  avatar_slug?: string;
 }

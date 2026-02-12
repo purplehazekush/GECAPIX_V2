@@ -33,6 +33,7 @@ const bankController = require('./controllers/bankController');
 const exchangeController = require('./controllers/exchangeController')
 const authMiddleware = require('./middlewares/authMiddleware'); // <--- SEM CHAVES!
 const datingController = require('./controllers/datingController'); // <--- IMPORT NOVO
+const adminConfigController = require('./controllers/adminConfigController'); // <--- ADICIONE ISSO
 
 
 
@@ -118,7 +119,10 @@ app.use(hpp());
 
 // --- BANCO DE DADOS ---
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log("--> 🍃 MongoDB Conectado!"))
+    .then(() => {
+        console.log("--> 🍃 MongoDB Conectado!");
+        ConfigService.init(); // <--- ADICIONE ISSO AQUI (Carrega configs na memória ao iniciar)
+    })
     .catch(err => { console.error("--> ❌ Erro Mongo:", err); process.exit(1); });
 
 console.log("⏳ Aguardando resposta do servidor...");
@@ -175,10 +179,15 @@ app.get('/api/chat/:materia', chatController.getMensagens);
 app.post('/api/chat', chatLimiter, chatController.enviarMensagem);
 
 // 5. ADMINISTRAÇÃO
+// 5. ADMINISTRAÇÃO
 app.get('/api/admin/validacao', adminController.getFilaValidacao);
 app.post('/api/admin/validacao', adminController.moderarUsuario);
 app.post('/api/admin/recursos', adminController.darRecursos);
 app.post('/api/admin/reset', adminController.resetSeason);
+
+// 🔥 NOVAS ROTAS DO PAINEL GECACENTRAL 🔥
+app.get('/api/admin/config', authMiddleware, adminConfigController.getConfig);
+app.put('/api/admin/config', authMiddleware, adminConfigController.updateConfig);
 // ROTA DE DEBUG (Apagar em produção)
 
 app.get('/api/exchange/quote', authMiddleware, exchangeController.getQuote);
@@ -193,6 +202,7 @@ app.get('/api/exchange/stats', authMiddleware, exchangeController.getAdminStats)
 app.get('/api/exchange/admin', exchangeController.getAdminStats);
 app.post('/api/exchange/admin', exchangeController.adminUpdateParams);
 app.post('/api/exchange/admin/toggle', exchangeController.toggleMarket);
+
 
 
 
