@@ -1,7 +1,5 @@
-// client/src/components/arena/games/ChessBoardWrapper.tsx
 import { useState, useEffect } from 'react';
-import { Chess, type Square } from 'chess.js'; // Importamos o tipo Square
-import { Chessboard } from 'react-chessboard';
+import { Chess, type Square } from 'chess.js';
 
 interface Props {
     fen: string;
@@ -10,168 +8,167 @@ interface Props {
     onMove: (moveData: { from: string; to: string; promotion: string }) => void;
 }
 
+// Mapa de imagens das peças (Wikimedia Commons - SVG Padrão)
+const PIECE_IMAGES: Record<string, string> = {
+    'wP': 'https://upload.wikimedia.org/wikipedia/commons/4/45/Chess_plt45.svg',
+    'wN': 'https://upload.wikimedia.org/wikipedia/commons/7/70/Chess_nlt45.svg',
+    'wB': 'https://upload.wikimedia.org/wikipedia/commons/b/b1/Chess_blt45.svg',
+    'wR': 'https://upload.wikimedia.org/wikipedia/commons/7/72/Chess_rlt45.svg',
+    'wQ': 'https://upload.wikimedia.org/wikipedia/commons/1/15/Chess_qlt45.svg',
+    'wK': 'https://upload.wikimedia.org/wikipedia/commons/4/42/Chess_klt45.svg',
+    'bP': 'https://upload.wikimedia.org/wikipedia/commons/c/c7/Chess_pdt45.svg',
+    'bN': 'https://upload.wikimedia.org/wikipedia/commons/e/ef/Chess_ndt45.svg',
+    'bB': 'https://upload.wikimedia.org/wikipedia/commons/9/98/Chess_bdt45.svg',
+    'bR': 'https://upload.wikimedia.org/wikipedia/commons/f/ff/Chess_rdt45.svg',
+    'bQ': 'https://upload.wikimedia.org/wikipedia/commons/4/47/Chess_qdt45.svg',
+    'bK': 'https://upload.wikimedia.org/wikipedia/commons/f/f0/Chess_kdt45.svg',
+};
+
 export default function ChessBoardWrapper({ fen, myColor, isMyTurn, onMove }: Props) {
     const [game, setGame] = useState(new Chess(fen));
-    
-    // Agora o state sabe que guarda uma 'Square' ou null
-    const [moveFrom, setMoveFrom] = useState<Square | null>(null);
-    const [optionSquares, setOptionSquares] = useState({}); 
+    const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+    const [validMoves, setValidMoves] = useState<Square[]>([]);
 
+    // Sincroniza com o servidor
     useEffect(() => {
         try {
             const newGame = new Chess(fen);
             setGame(newGame);
-            setMoveFrom(null);
-            setOptionSquares({});
-        } catch (e) {
-            console.error("FEN Error:", fen);
-        }
+            setSelectedSquare(null);
+            setValidMoves([]);
+        } catch (e) { console.error(e); }
     }, [fen]);
 
-    function getMoveOptions(square: Square) {
-        // CORREÇÃO 1: TypeScript agora sabe que 'moves' retorna objetos detalhados
-        const moves = game.moves({
-            square: square,
-            verbose: true,
-        });
-        
-        if (moves.length === 0) {
-            setOptionSquares({});
-            return false;
+    // Gera o grid do tabuleiro
+    // Se eu sou branco: a8..h8, a7..h7... (Normal)
+    // Se eu sou preto: h1..a1, h2..a2... (Invertido)
+    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+    const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
+
+    let boardSquares: Square[] = [];
+    for (let r of ranks) {
+        for (let f of files) {
+            boardSquares.push(`${f}${r}` as Square);
         }
-
-        const newSquares: any = {};
-        
-        // CORREÇÃO 2: Tipagem correta dentro do map
-        moves.map((move) => {
-            // Pegamos as peças com segurança (verificando se existem)
-            const targetPiece = game.get(move.to); // move.to já é do tipo Square
-            const sourcePiece = game.get(square);
-
-            const isCapture = targetPiece && sourcePiece && targetPiece.color !== sourcePiece.color;
-
-            newSquares[move.to] = {
-                background: isCapture
-                        ? 'radial-gradient(circle, rgba(255,0,0,.5) 85%, transparent 85%)' 
-                        : 'radial-gradient(circle, rgba(97, 218, 251, 0.5) 25%, transparent 25%)',
-                borderRadius: '50%',
-            };
-            return move;
-        });
-        
-        newSquares[square] = {
-            background: 'rgba(255, 255, 0, 0.4)', 
-        };
-        
-        setOptionSquares(newSquares);
-        return true;
     }
 
-    // O argumento 'square' vem como string da biblioteca visual
-    function onSquareClick(squareString: string) {
-        // CORREÇÃO 3: Casting forçado de string -> Square
-        const square = squareString as Square;
+    if (myColor === 'black') {
+        boardSquares.reverse();
+    }
 
-        if (!isMyTurn) {
-            console.warn("🚫 Espere sua vez!");
-            return;
-        }
+    const handleSquareClick = (square: Square) => {
+        // 1. Não é minha vez? Ignora cliques.
+        if (!isMyTurn) return;
 
-        // 2. Se não tinha peça selecionada -> Tenta Selecionar
-        if (!moveFrom) {
+        // 2. Se já tenho uma peça selecionada
+        if (selectedSquare) {
+            // A. Clicou na mesma casa -> Deseleciona
+            if (selectedSquare === square) {
+                setSelectedSquare(null);
+                setValidMoves([]);
+                return;
+            }
+
+            // B. Clicou num movimento válido -> MOVE!
+            if (validMoves.includes(square)) {
+                console.log(`✅ Movimento Nativo: ${selectedSquare} -> ${square}`);
+                
+                // Aplica visualmente (Otimismo)
+                const tempGame = new Chess(game.fen());
+                tempGame.move({ from: selectedSquare, to: square, promotion: 'q' });
+                setGame(tempGame);
+                
+                // Limpa e Envia
+                setSelectedSquare(null);
+                setValidMoves([]);
+                
+                onMove({
+                    from: selectedSquare,
+                    to: square,
+                    promotion: 'q'
+                });
+                return;
+            }
+
+            // C. Clicou em outra peça MINHA -> Troca a seleção
             const piece = game.get(square);
-            if (!piece) return; 
-
-            const pieceColor = piece.color === 'w' ? 'white' : 'black';
-            if (pieceColor !== myColor) {
-                console.warn(`⛔ Essa peça é ${pieceColor}, você é ${myColor}`);
+            if (piece && piece.color === (myColor === 'white' ? 'w' : 'b')) {
+                selectPiece(square);
                 return;
             }
 
-            const hasMoves = getMoveOptions(square);
-            if (hasMoves) setMoveFrom(square);
-            
-            return;
+            // D. Clicou no nada ou inválido -> Deseleciona
+            setSelectedSquare(null);
+            setValidMoves([]);
+        } 
+        // 3. Se não tenho peça selecionada -> Tenta Selecionar
+        else {
+            selectPiece(square);
         }
+    };
 
-        // 3. Se JÁ tinha peça selecionada -> Tenta Mover ou Trocar
-        
-        if (moveFrom === square) {
-            setMoveFrom(null);
-            setOptionSquares({});
-            return;
-        }
-
+    const selectPiece = (square: Square) => {
         const piece = game.get(square);
-        if (piece && (piece.color === 'w' ? 'white' : 'black') === myColor) {
-            setMoveFrom(square);
-            getMoveOptions(square);
-            return;
-        }
-
-        // C. Tenta Mover
-        try {
-            const tempGame = new Chess(game.fen());
+        // Só seleciona se tiver peça e for minha cor
+        if (piece && piece.color === (myColor === 'white' ? 'w' : 'b')) {
+            setSelectedSquare(square);
             
-            // CORREÇÃO 4: Passando Square tipado corretamente
-            const move = tempGame.move({
-                from: moveFrom,
-                to: square,
-                promotion: 'q', 
-            });
-
-            if (!move) {
-                console.warn("Movimento inválido");
-                setMoveFrom(null);
-                setOptionSquares({});
-                return;
-            }
-
-            console.log(`✅ Movendo: ${moveFrom} -> ${square}`);
-            
-            onMove({
-                from: moveFrom,
-                to: square,
-                promotion: 'q',
-            });
-
-            setGame(tempGame);
-            setMoveFrom(null);
-            setOptionSquares({});
-
-        } catch (error) {
-            console.error("Erro no movimento:", error);
-            setMoveFrom(null);
-            setOptionSquares({});
+            // Calcula movimentos possíveis
+            const moves = game.moves({ square, verbose: true });
+            setValidMoves(moves.map(m => m.to as Square));
         }
-    }
-
-    const ChessboardAny = Chessboard as any;
+    };
 
     return (
         <div className="flex flex-col items-center gap-2">
-            <div className="text-[10px] font-mono bg-black/50 p-2 rounded text-white w-full max-w-[350px] flex justify-between">
-                <span>Sou: <b className="text-yellow-400">{myColor}</b></span>
-                <span>Vez: <b className={isMyTurn ? "text-green-400" : "text-red-400"}>{isMyTurn ? "MINHA" : "DELE"}</b></span>
+            {/* Status Panel */}
+            <div className="flex justify-between w-full max-w-[350px] text-[10px] font-mono font-bold bg-slate-900 p-2 rounded border border-slate-700">
+                <span className={myColor === 'white' ? 'text-white' : 'text-slate-400'}>BRANCAS</span>
+                <span className={isMyTurn ? 'text-green-400 animate-pulse' : 'text-red-500'}>
+                    {isMyTurn ? "SUA VEZ" : "AGUARDE..."}
+                </span>
+                <span className={myColor === 'black' ? 'text-white' : 'text-slate-400'}>PRETAS</span>
             </div>
 
-            <div className="w-full max-w-[350px] aspect-square shadow-2xl rounded-lg overflow-hidden border-4 border-slate-700 bg-slate-800">
-                <ChessboardAny 
-                    id="ClickToMoveBoard" 
-                    position={game.fen()} 
-                    arePiecesDraggable={false} 
-                    onSquareClick={onSquareClick}
-                    customSquareStyles={optionSquares}
-                    boardOrientation={myColor} 
-                    customDarkSquareStyle={{ backgroundColor: '#334155' }}
-                    customLightSquareStyle={{ backgroundColor: '#94a3b8' }}
-                    animationDuration={200}
-                />
+            {/* O TABULEIRO MANUAL */}
+            <div className="grid grid-cols-8 border-4 border-slate-800 rounded-lg overflow-hidden shadow-2xl w-full max-w-[350px] aspect-square bg-slate-800">
+                {boardSquares.map((square) => {
+                    const piece = game.get(square);
+                    const isSelected = selectedSquare === square;
+                    const isValidMove = validMoves.includes(square);
+                    
+                    // Lógica de cor da casa (Preto/Branco padrão)
+                    // CharCode da coluna + numero da linha. Se soma for par = escura.
+                    const fileIdx = files.indexOf(square[0]);
+                    const rankIdx = ranks.indexOf(square[1]);
+                    const isDark = (fileIdx + rankIdx) % 2 === 1;
+
+                    return (
+                        <div
+                            key={square}
+                            onClick={() => handleSquareClick(square)}
+                            className={`
+                                relative flex items-center justify-center w-full h-full cursor-pointer
+                                ${isDark ? 'bg-slate-600' : 'bg-slate-400'}
+                                ${isSelected ? 'ring-inset ring-4 ring-yellow-400' : ''}
+                                ${isValidMove && !piece ? 'after:content-[""] after:w-3 after:h-3 after:bg-green-400/50 after:rounded-full' : ''}
+                                ${isValidMove && piece ? 'ring-inset ring-4 ring-red-500/50' : ''} // Captura
+                            `}
+                        >
+                            {/* Marcação de coordenada (opcional, ajuda no debug) */}
+                            {/* <span className="absolute bottom-0 right-0 text-[8px] opacity-30 text-black">{square}</span> */}
+
+                            {piece && (
+                                <img 
+                                    src={PIECE_IMAGES[`${piece.color}${piece.type.toUpperCase()}`]} 
+                                    alt={`${piece.color}${piece.type}`}
+                                    className="w-[85%] h-[85%] select-none pointer-events-none"
+                                />
+                            )}
+                        </div>
+                    );
+                })}
             </div>
-            
-            <p className="text-xs text-slate-500 mt-1">
-                {isMyTurn ? "Toque na peça para selecionar, depois no destino." : "Aguarde o oponente..."}
-            </p>
         </div>
     );
 }
