@@ -7,8 +7,6 @@ import { Toaster } from 'react-hot-toast'; // <--- 1. IMPORT NOVO
 import Login from './components/Login';
 import Layout from './components/Layout';
 import Feed from './pages/Feed';
-import Stats from './pages/Stats';
-import Admin from './pages/Admin';
 
 import ArenaRanking from './pages/arena/Ranking';
 import ArenaLayout from './components/arena/ArenaLayout';
@@ -32,6 +30,7 @@ import Dating from './pages/arena/Dating';
 import MarketLab from './pages/arena/MarketLab';
 import GecaCentral from './pages/admin/GecaCentral';
 import GecaStore from './pages/store/GecaStore';
+import GecaAdmin from './pages/admin/GecaAdmin';
 
 function AppRoutes() {
   const { user, dbUser, loading } = useAuth();
@@ -56,8 +55,8 @@ function AppRoutes() {
       {isMembroGestao && (
         <Route path="/" element={<Layout />}>
           <Route index element={<Feed />} />
-          <Route path="stats" element={<Stats />} />
-          <Route path="admin" element={<Admin />} />
+          <Route path="admin" element={<GecaAdmin />} />
+          
         </Route>
       )}
 
