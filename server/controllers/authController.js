@@ -118,28 +118,47 @@ exports.login = async (req, res) => {
             teveAlteracao = true;
         }
 
-        // 3. LÓGICA DE LOGIN DIÁRIO
-        const hoje = new Date().setHours(0, 0, 0, 0);
-        const ultimo = user.ultimo_login ? new Date(user.ultimo_login).setHours(0, 0, 0, 0) : 0;
+        // 3. LÓGICA DE LOGIN DIÁRIO (Blindada)
+        // Só processa se o usuário for ATIVO (Verificado)
+        if (user.status === 'ativo') {
+            const hoje = new Date();
+            hoje.setHours(0, 0, 0, 0); // Zera hora para comparar dia
+            
+            // Garante que ultimo_login seja um objeto Date válido
+            const ultimo = user.ultimo_login ? new Date(user.ultimo_login) : new Date(0);
+            ultimo.setHours(0, 0, 0, 0);
 
-        if (hoje > ultimo) {
-            const ontem = new Date(); ontem.setDate(ontem.getDate() - 1); ontem.setHours(0, 0, 0, 0);
+            // Se a data de hoje for MAIOR que a data do último login processado
+            if (hoje.getTime() > ultimo.getTime()) {
+                const ontem = new Date(hoje);
+                ontem.setDate(ontem.getDate() - 1);
 
-            // Se logou ontem, aumenta streak. Se não, reseta pra 1.
-            user.sequencia_login = (ultimo === ontem.getTime()) ? (user.sequencia_login || 0) + 1 : 1;
+                // Se logou ontem, mantém streak. Se não, reseta.
+                // Usamos getTime() para comparação segura de timestamps
+                user.sequencia_login = (ultimo.getTime() === ontem.getTime()) ? (user.sequencia_login || 0) + 1 : 1;
 
-            const coinsBonus = TOKEN.COINS.DAILY_LOGIN_BASE + (user.sequencia_login * TOKEN.COINS.DAILY_LOGIN_STEP);
+                const coinsBonus = TOKEN.COINS.DAILY_LOGIN_BASE + (user.sequencia_login * TOKEN.COINS.DAILY_LOGIN_STEP);
 
-            user.saldo_coins += coinsBonus;
-            user.xp += TOKEN.XP.DAILY_LOGIN;
-            user.ultimo_login = new Date();
+                user.saldo_coins += coinsBonus;
+                user.xp += TOKEN.XP.DAILY_LOGIN;
+                
+                // Atualiza o último login IMEDIATAMENTE para travar o F5
+                user.ultimo_login = new Date(); 
 
-            user.extrato.push({
-                tipo: 'ENTRADA', valor: coinsBonus, descricao: `Daily Login (Dia ${user.sequencia_login})`, data: new Date()
-            });
+                user.extrato.push({
+                    tipo: 'ENTRADA', 
+                    valor: coinsBonus, 
+                    descricao: `Daily Login (Dia ${user.sequencia_login})`, 
+                    data: new Date()
+                });
 
-            mensagem_bonus = `+${coinsBonus} Coins! Sequência: ${user.sequencia_login} dias 🔥`;
-            teveAlteracao = true;
+                mensagem_bonus = `+${coinsBonus} Coins! Sequência: ${user.sequencia_login} dias 🔥`;
+                teveAlteracao = true;
+            } else {
+                // Apenas atualiza o timestamp de acesso, sem dar prêmio
+                // Isso evita que 'ultimo_login' fique velho, mas não altera a data base de cálculo do prêmio se não virou o dia
+                // user.ultimo_login = new Date(); // Opcional: atualizar horário de acesso
+            }
         }
 
         // 4. ATUALIZAÇÃO DE NÍVEL

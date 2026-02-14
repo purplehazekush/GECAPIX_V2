@@ -35,7 +35,9 @@ const authMiddleware = require('./middlewares/authMiddleware'); // <--- SEM CHAV
 const datingController = require('./controllers/datingController'); // <--- IMPORT NOVO
 const adminConfigController = require('./controllers/adminConfigController'); // <--- ADICIONE ISSO
 const ConfigService = require('./services/ConfigService');
+
 const checkRole = require('./middlewares/roleMiddleware');
+const requireActive = require('./middlewares/verificationMiddleware');
 
 
 const app = express();
@@ -138,9 +140,9 @@ app.use((req, res, next) => {
     next();
 });
 
-app.get('/api/tokenomics', statsController.getTokenomics);
-app.get('/api/tokenomics/history', statsController.getHistoricalStats); // <--- NOVA ROTA
-app.get('/api/tokenomics/ledger', statsController.getGlobalTransactions);
+app.get('/api/tokenomics', authMiddleware, requireActive, statsController.getTokenomics);
+app.get('/api/tokenomics/history', authMiddleware, requireActive, statsController.getHistoricalStats); // <--- NOVA ROTA
+app.get('/api/tokenomics/ledger', authMiddleware, requireActive, statsController.getGlobalTransactions);
 
 // 1. AUTH
 app.post('/api/auth/login', authLimiter, authController.login);
@@ -159,26 +161,26 @@ app.post('/api/vendas/manual',
 
 
 // 3. ARENA & GAMIFICATION
-app.get('/api/arena/memes', memeController.getMemes);
-app.post('/api/arena/memes', memeController.postarMeme); // Mudou de postMeme para postarMeme
-app.post('/api/arena/memes/invest', memeController.investirMeme); // NOVA ROTA DE INVESTIMENTO
+app.get('/api/arena/memes', authMiddleware, requireActive, memeController.getMemes);
+app.post('/api/arena/memes', authMiddleware, requireActive, memeController.postarMeme); // Mudou de postMeme para postarMeme
+app.post('/api/arena/memes/invest', authMiddleware, requireActive, memeController.investirMeme); // NOVA ROTA DE INVESTIMENTO
 
-app.get('/api/arena/ranking', arenaController.getRanking);
-app.get('/api/arena/perfil/:id', arenaController.getPerfilPublico);
-app.put('/api/arena/perfil', arenaController.updatePerfil);
-app.get('/api/arena/quests', questController.getQuests);
-app.post('/api/arena/quests/claim', questController.claimQuest);
+app.get('/api/arena/ranking', authMiddleware, requireActive, arenaController.getRanking);
+app.get('/api/arena/perfil/:id', authMiddleware, requireActive, arenaController.getPerfilPublico);
+app.put('/api/arena/perfil', authMiddleware, requireActive, arenaController.updatePerfil);
+app.get('/api/arena/quests', authMiddleware, requireActive, questController.getQuests);
+app.post('/api/arena/quests/claim', authMiddleware, requireActive, questController.claimQuest);
 
 
-app.get('/api/arena/spotted', spottedController.getSpotteds);
-app.post('/api/arena/spotted', spottedController.postarSpotted);
-app.post('/api/arena/spotted/comentar', spottedController.comentarSpotted);
+app.get('/api/arena/spotted', authMiddleware, requireActive, spottedController.getSpotteds);
+app.post('/api/arena/spotted', authMiddleware, requireActive, spottedController.postarSpotted);
+app.post('/api/arena/spotted/comentar', authMiddleware, requireActive, spottedController.comentarSpotted);
 
 // 🔥 ROTA FALTANTE ADICIONADA AQUI 🔥
 // Certifique-se que no arenaController existe a função 'transferirCoins' (ou o nome que você deu)
-app.post('/api/arena/transferir', arenaController.transferirCoins);
+app.post('/api/arena/transferir', authMiddleware, requireActive, arenaController.transferirCoins);
 
-app.post('/api/arena/ai/solve', aiController.resolverQuestao);
+app.post('/api/arena/ai/solve', authMiddleware, requireActive, aiController.resolverQuestao);
 
 // 4. CHAT
 app.get('/api/chat/:materia', chatController.getMensagens);
@@ -188,8 +190,12 @@ app.post('/api/chat', chatLimiter, chatController.enviarMensagem);
 // Apenas a elite acessa o painel de validação e reset
 app.get('/api/admin/validacao', authMiddleware, checkRole(['admin', 'gm']), adminController.getFilaValidacao);
 app.post('/api/admin/reset', authMiddleware, checkRole(['admin']), adminController.resetSeason);
-app.post('/api/admin/recursos', adminController.darRecursos);
-app.post('/api/admin/reset', adminController.resetSeason);
+app.post('/api/admin/recursos', authMiddleware, checkRole(['admin']), adminController.darRecursos);
+app.post('/api/admin/reset', authMiddleware, checkRole(['admin']), adminController.resetSeason);
+
+// Dentro de // 5. ADMINISTRAÇÃO
+app.get('/api/admin/users', authMiddleware, checkRole(['admin', 'gm']), adminController.getAllUsers);
+app.put('/api/admin/users', authMiddleware, checkRole(['admin']), adminController.updateUserStatus);
 
 // 🔥 NOVAS ROTAS DO PAINEL GECACENTRAL 🔥
 app.get('/api/admin/config', authMiddleware, checkRole(['admin']), adminConfigController.getConfig);
@@ -201,13 +207,13 @@ app.get('/api/exchange/chart', authMiddleware, checkRole(['admin']), exchangeCon
 
 
 // 2. Aplique ele na rota de trade
-app.post('/api/exchange/trade', authMiddleware, exchangeController.executeTrade);
-app.get('/api/exchange/stats', authMiddleware, exchangeController.getAdminStats);
+app.post('/api/exchange/trade', authMiddleware, requireActive, exchangeController.executeTrade);
+app.get('/api/exchange/stats', authMiddleware, requireActive, exchangeController.getAdminStats);
 
 // As de admin podem continuar aqui
-app.get('/api/exchange/admin', exchangeController.getAdminStats);
-app.post('/api/exchange/admin', exchangeController.adminUpdateParams);
-app.post('/api/exchange/admin/toggle', exchangeController.toggleMarket);
+app.get('/api/exchange/admin', authMiddleware, checkRole(['admin']), exchangeController.getAdminStats);
+app.post('/api/exchange/admin', authMiddleware, checkRole(['admin']), exchangeController.adminUpdateParams);
+app.post('/api/exchange/admin/toggle', authMiddleware, checkRole(['admin']), exchangeController.toggleMarket);
 
 
 
@@ -239,20 +245,20 @@ app.post('/api/produtos',
     productController.createProduto
 );
 
-app.get('/api/stats', statsController.getStats);
+app.get('/api/stats', requireActive, statsController.getStats);
 
 
-app.post('/api/bank/deposit', bankController.depositarLiquido);
-app.post('/api/bank/withdraw', bankController.sacarLiquido);
-app.post('/api/bank/bond/buy', bankController.comprarTitulo);
-app.post('/api/bank/bond/redeem', bankController.resgatarTitulo);
-app.get('/api/bank/bonds', bankController.listarTitulos);
+app.post('/api/bank/deposit', requireActive, bankController.depositarLiquido);
+app.post('/api/bank/withdraw', requireActive, bankController.sacarLiquido);
+app.post('/api/bank/bond/buy', requireActive, bankController.comprarTitulo);
+app.post('/api/bank/bond/redeem', requireActive, bankController.resgatarTitulo);
+app.get('/api/bank/bonds', requireActive, bankController.listarTitulos);
 
 
-app.get('/api/store/p2p', storeController.getOfertasP2P);
-app.post('/api/store/p2p/criar', storeController.criarOfertaP2P);
-app.post('/api/store/p2p/comprar', storeController.comprarOfertaP2P);
-app.post('/api/store/p2p/cancelar', storeController.cancelarOfertaP2P);
+app.get('/api/store/p2p', requireActive, storeController.getOfertasP2P);
+app.post('/api/store/p2p/criar', requireActive, storeController.criarOfertaP2P);
+app.post('/api/store/p2p/comprar', requireActive, storeController.comprarOfertaP2P);
+app.post('/api/store/p2p/cancelar', requireActive, storeController.cancelarOfertaP2P);
 
 app.post('/api/admin/force-close', async (req, res) => { //CORRIGIR - ADD authMiddleware ou delete a rota
     //if (req.user.role !== 'admin') return res.status(403).send();
@@ -261,12 +267,12 @@ app.post('/api/admin/force-close', async (req, res) => { //CORRIGIR - ADD authMi
 });
 
 // 7. GECAMATCH (TINDER)
-app.post('/api/dating/optin', authMiddleware, datingController.optIn);
-app.get('/api/dating/candidates', authMiddleware, datingController.getCandidates);
-app.post('/api/dating/like', authMiddleware, datingController.sendLike);
-app.post('/api/dating/superlike', authMiddleware, datingController.sendSuperLike);
-app.get('/api/dating/mailbox', authMiddleware, datingController.getMailbox);
-app.get('/api/dating/sent', authMiddleware, datingController.getSentLikes);
+app.post('/api/dating/optin', authMiddleware, requireActive, datingController.optIn);
+app.get('/api/dating/candidates', authMiddleware, requireActive, datingController.getCandidates);
+app.post('/api/dating/like', authMiddleware, requireActive, datingController.sendLike);
+app.post('/api/dating/superlike', authMiddleware, requireActive, datingController.sendSuperLike);
+app.get('/api/dating/mailbox', authMiddleware, requireActive, datingController.getMailbox);
+app.get('/api/dating/sent', authMiddleware, requireActive, datingController.getSentLikes);
 
 
 cron.schedule('0 21 * * *', () => { // Todo dia às 21h

@@ -225,3 +225,35 @@ exports.resetSeason = async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 };
+
+// 5. LISTAR TODOS OS USUÁRIOS (Para o Painel de Gestão)
+exports.getAllUsers = async (req, res) => {
+    try {
+        const users = await UsuarioModel.find({})
+            .select('nome email role status saldo_coins xp nivel data_criacao comprovante_url')
+            .sort({ data_criacao: -1 }); // Mais novos primeiro
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ error: "Erro ao listar usuários" });
+    }
+};
+
+// 6. ALTERAR STATUS/ROLE MANUALMENTE (God Mode)
+exports.updateUserStatus = async (req, res) => {
+    try {
+        const { userId, role, status } = req.body;
+        
+        // Proteção: Não deixar rebaixar o próprio admin se for o único
+        // (Lógica simplificada, cuidado ao usar)
+        
+        const updated = await UsuarioModel.findByIdAndUpdate(
+            userId, 
+            { role, status },
+            { new: true }
+        );
+        
+        res.json({ success: true, user: updated });
+    } catch (error) {
+        res.status(500).json({ error: "Erro ao atualizar usuário" });
+    }
+};
