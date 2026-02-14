@@ -4,7 +4,8 @@ import type { Product } from '../../../types/store';
 interface Props {
     products: Product[];
     onSelect: (product: Product) => void;
-    onNewProduct: () => void;
+    // Opcional: Se não for passado, o botão de criar some
+    onNewProduct?: () => void; 
 }
 
 export function POSGrid({ products, onSelect, onNewProduct }: Props) {
@@ -43,13 +44,16 @@ export function POSGrid({ products, onSelect, onNewProduct }: Props) {
                 ))}
             </div>
             
-            <button 
-                onClick={onNewProduct} 
-                className="w-full mt-3 py-3 bg-slate-900 border-2 border-dashed border-slate-800 rounded-xl flex items-center justify-center gap-2 text-slate-500 hover:text-cyan-400 hover:border-cyan-400 transition-all"
-            >
-                <PlusCircle size={16} />
-                <span className="text-xs font-bold uppercase">Cadastrar Novo Produto</span>
-            </button>
+            {/* BLINDAGEM VISUAL: Só renderiza se a função existir (Admin) */}
+            {onNewProduct && (
+                <button 
+                    onClick={onNewProduct} 
+                    className="w-full mt-3 py-3 bg-slate-900 border-2 border-dashed border-slate-800 rounded-xl flex items-center justify-center gap-2 text-slate-500 hover:text-cyan-400 hover:border-cyan-400 transition-all"
+                >
+                    <PlusCircle size={16} />
+                    <span className="text-xs font-bold uppercase">Cadastrar Novo Produto</span>
+                </button>
+            )}
         </div>
     );
 }

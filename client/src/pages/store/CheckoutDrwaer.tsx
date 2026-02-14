@@ -20,10 +20,10 @@ interface Props {
     onSimulateSuccess: () => void;
 }
 
-export function CheckoutDrawer({ 
-    isOpen, onClose, step, cartItems, total, 
-    userCoins, useCoins, setUseCoins, pixTimerStr, 
-    onCheckout, onSimulateSuccess 
+export function CheckoutDrawer({
+    isOpen, onClose, step, cartItems, total,
+    userCoins, useCoins, setUseCoins, pixTimerStr,
+    onCheckout, onSimulateSuccess
 }: Props) {
     if (!isOpen) return null;
 
@@ -33,7 +33,7 @@ export function CheckoutDrawer({
         <>
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 animate-fade-in" onClick={onClose} />
             <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900 border-t border-cyan-500/30 rounded-t-[2rem] max-w-lg mx-auto h-[85vh] flex flex-col animate-slide-up shadow-2xl">
-                
+
                 {/* Handle */}
                 <div className="w-full flex justify-center pt-3 pb-1" onClick={onClose}>
                     <div className="w-12 h-1.5 bg-slate-700 rounded-full" />
@@ -109,7 +109,7 @@ export function CheckoutDrawer({
                             <button className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-3 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-2 border border-slate-700 transition-colors">
                                 <Copy size={16} /> Copiar Código PIX
                             </button>
-                            
+
                             <button onClick={onSimulateSuccess} className="text-[10px] text-slate-600 underline hover:text-slate-400">
                                 (Admin: Simular Confirmação)
                             </button>
@@ -124,7 +124,7 @@ export function CheckoutDrawer({
                             </div>
                             <h3 className="text-2xl font-black text-white italic uppercase mb-2">Pagamento Confirmado!</h3>
                             <p className="text-slate-400 text-sm mb-6 text-center">Apresente seu nome no balcão para retirar.</p>
-                            
+
                             <div className="bg-slate-950 rounded-xl p-4 w-full flex justify-between items-center border border-slate-800">
                                 <span className="text-xs font-bold text-slate-400 uppercase">Cashback</span>
                                 <span className="text-lg font-black text-yellow-400 flex items-center gap-1">
@@ -135,15 +135,16 @@ export function CheckoutDrawer({
                     )}
                 </div>
 
-                {/* Footer */}
+                {/* FOOTER DO DRAWER */}
                 {step === 'CART' && (
-                    <div className="p-6 bg-slate-950 border-t border-slate-800">
+                    // MUDANÇA: Adicionei 'pb-10' ou 'pb-safe' extra e z-index alto
+                    <div className="p-6 bg-slate-900 border-t border-slate-800 pb-24 md:pb-6 relative z-50">
                         <div className="flex justify-between items-end mb-4">
                             <span className="text-slate-400 text-xs font-bold uppercase">Total</span>
                             <span className="text-3xl font-black text-white">{formatBRL(total)}</span>
                         </div>
-                        <button 
-                            onClick={onCheckout} 
+                        <button
+                            onClick={onCheckout}
                             className="w-full bg-emerald-500 hover:bg-emerald-400 text-white py-4 rounded-2xl font-black text-lg uppercase shadow-lg shadow-emerald-900/50 active:scale-95 transition-all flex items-center justify-center gap-2 group"
                         >
                             <span>Pagar com Pix</span>

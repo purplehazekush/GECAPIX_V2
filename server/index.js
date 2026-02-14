@@ -35,7 +35,7 @@ const authMiddleware = require('./middlewares/authMiddleware'); // <--- SEM CHAV
 const datingController = require('./controllers/datingController'); // <--- IMPORT NOVO
 const adminConfigController = require('./controllers/adminConfigController'); // <--- ADICIONE ISSO
 const ConfigService = require('./services/ConfigService');
-
+const checkRole = require('./middlewares/roleMiddleware');
 
 
 const app = express();
@@ -150,7 +150,12 @@ app.get('/api/auth/me', authMiddleware, authController.getMe);
 app.get('/api/pix', pixController.getFeed);
 app.post('/api/pix', pixController.createWebhook);
 app.put('/api/pix/:id', pixController.updatePix);
-app.post('/api/vendas/manual', pixController.createManual);
+// POST: Admin e GM podem vender manualmente (Regra 2)
+app.post('/api/vendas/manual', 
+    authMiddleware, 
+    checkRole(['admin', 'gm']), // <--- TRAVA DE SEGURANÇA
+    pixController.createManual
+);
 
 
 // 3. ARENA & GAMIFICATION
@@ -180,19 +185,19 @@ app.get('/api/chat/:materia', chatController.getMensagens);
 app.post('/api/chat', chatLimiter, chatController.enviarMensagem);
 
 // 5. ADMINISTRAÇÃO
-// 5. ADMINISTRAÇÃO
-app.get('/api/admin/validacao', adminController.getFilaValidacao);
-app.post('/api/admin/validacao', adminController.moderarUsuario);
+// Apenas a elite acessa o painel de validação e reset
+app.get('/api/admin/validacao', authMiddleware, checkRole(['admin', 'gm']), adminController.getFilaValidacao);
+app.post('/api/admin/reset', authMiddleware, checkRole(['admin']), adminController.resetSeason);
 app.post('/api/admin/recursos', adminController.darRecursos);
 app.post('/api/admin/reset', adminController.resetSeason);
 
 // 🔥 NOVAS ROTAS DO PAINEL GECACENTRAL 🔥
-app.get('/api/admin/config', authMiddleware, adminConfigController.getConfig);
-app.put('/api/admin/config', authMiddleware, adminConfigController.updateConfig);
+app.get('/api/admin/config', authMiddleware, checkRole(['admin']), adminConfigController.getConfig);
+app.put('/api/admin/config', authMiddleware, checkRole(['admin']), adminConfigController.updateConfig);
 // ROTA DE DEBUG (Apagar em produção)
 
-app.get('/api/exchange/quote', authMiddleware, exchangeController.getQuote);
-app.get('/api/exchange/chart', authMiddleware, exchangeController.getChartData);
+app.get('/api/exchange/quote', authMiddleware, checkRole(['admin']), exchangeController.getQuote);
+app.get('/api/exchange/chart', authMiddleware, checkRole(['admin']), exchangeController.getChartData);
 
 
 // 2. Aplique ele na rota de trade
@@ -225,9 +230,14 @@ app.put('/api/admin/usuarios', async (req, res) => {
     catch (e) { res.status(500).json({ error: "Erro" }); }
 });
 
-// 6. ROTAS ORGANIZADAS
-app.get('/api/produtos', productController.getProdutos);
-app.post('/api/produtos', productController.createProduto);
+// GET: Público (ou apenas logados, dependendo da estratégia)
+app.get('/api/produtos', authMiddleware, productController.getProdutos);
+// POST: APENAS ADMIN pode criar produtos (Regra 1)
+app.post('/api/produtos', 
+    authMiddleware, 
+    checkRole(['admin']), // <--- TRAVA DE SEGURANÇA
+    productController.createProduto
+);
 
 app.get('/api/stats', statsController.getStats);
 

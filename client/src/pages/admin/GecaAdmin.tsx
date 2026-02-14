@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // Importe para redirecionar
 import { api } from '../../lib/api';
+import { useAuth } from '../../context/AuthContext'; // Importe o Auth
 import toast from 'react-hot-toast';
 import type { Product, LedgerItem } from '../../types/store';
 
@@ -12,6 +14,9 @@ import { ProductModal } from '../../components/admin/store/ProductModal';
 import { FileText } from 'lucide-react';
 
 export default function GecaAdmin() {
+    const { dbUser, loading } = useAuth();
+    const navigate = useNavigate();
+
     const [tab, setTab] = useState<'pos' | 'ledger'>('pos');
     const [isStoreOpen, setStoreOpen] = useState(true);
     const [products, setProducts] = useState<Product[]>([]);
@@ -19,13 +24,31 @@ export default function GecaAdmin() {
     const [isModalOpen, setModalOpen] = useState(false);
     const [ledger, setLedger] = useState<LedgerItem[]>([]);
     
-    // Stats (Poderiam vir da API)
     const [faturamento, setFaturamento] = useState(0);
     const [myCashback, setMyCashback] = useState(0);
 
+    // 🔒 1. SEGURANÇA: Redireciona intrusos
     useEffect(() => {
-        loadProducts();
-    }, []);
+        if (!loading) {
+            // Se não estiver logado
+            if (!dbUser) {
+                navigate('/login'); 
+                return;
+            }
+            
+            // Se logado, mas não é Staff (Admin ou GM)
+            if (!['admin', 'gm'].includes(dbUser.role)) {
+                toast.error("Área restrita à gestão.");
+                navigate('/loja'); // Manda pra área segura
+            }
+        }
+    }, [dbUser, loading, navigate]);
+
+    useEffect(() => {
+        if (dbUser && ['admin', 'gm'].includes(dbUser.role)) {
+            loadProducts();
+        }
+    }, [dbUser]); // Só carrega se tiver permissão
 
     const loadProducts = async () => {
         try {
@@ -50,7 +73,6 @@ export default function GecaAdmin() {
     const handleCheckout = async (method: string) => {
         if (Object.keys(cart).length === 0) return toast.error("Carrinho vazio");
 
-        // Prepara resumo para salvar
         const items = Object.keys(cart).map(id => {
             const p = products.find(prod => prod._id === id);
             return p ? { nome: p.nome, qtd: cart[id], preco: p.preco, xp: p.cashback_xp } : null;
@@ -61,15 +83,13 @@ export default function GecaAdmin() {
         const desc = items.map((i: any) => `${i.qtd}x ${i.nome}`).join(', ');
 
         try {
-            // Chama a API de Venda Manual (reaproveitando o pixController)
             await api.post('/vendas/manual', {
                 item: desc,
                 valor: total,
-                quantidade: 1, // Pacote fechado
-                vendedor_email: 'voce@geca.com' // Idealmente pegar do AuthContext
+                quantidade: 1,
+                vendedor_email: dbUser?.email // Usa o email real do operador logado
             });
 
-            // Atualiza Ledger Local (ou faz refetch)
             setLedger(prev => [{
                 _id: Date.now().toString(),
                 time: new Date().toLocaleTimeString(),
@@ -79,7 +99,6 @@ export default function GecaAdmin() {
                 method: method as any
             }, ...prev]);
 
-            // Atualiza Stats
             setFaturamento(f => f + total);
             setMyCashback(c => c + totalXP);
 
@@ -105,6 +124,11 @@ export default function GecaAdmin() {
             toast.error("Erro ao criar produto.");
         }
     };
+
+    // Render de carregamento enquanto verifica permissão
+    if (loading || !dbUser || !['admin', 'gm'].includes(dbUser.role)) {
+        return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-cyan-500 font-mono animate-pulse">VERIFICANDO CREDENCIAIS...</div>;
+    }
 
     return (
         <div className="min-h-screen bg-slate-950 pb-20 text-white font-sans">
@@ -137,8 +161,10 @@ export default function GecaAdmin() {
                     <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-280px)]">
                         <POSGrid 
                             products={products} 
-                            onSelect={handleAddToCart} 
-                            onNewProduct={() => setModalOpen(true)} 
+                            onSelect={handleAddToCart}
+                            // 🔒 2. SEGURANÇA VISUAL: Só passa a função se for ADMIN
+                            // O componente POSGrid esconde o botão se receber undefined
+                            onNewProduct={dbUser.role === 'admin' ? () => setModalOpen(true) : undefined} 
                         />
                         <POSCart 
                             cart={cart} 
@@ -151,14 +177,22 @@ export default function GecaAdmin() {
 
                 {tab === 'ledger' && (
                     <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg p-4">
-                        <p className="text-slate-400 text-sm">Histórico de transações será implementado com tabela real.</p>
-                        {/* TODO: Componente LedgerTable aqui */}
-                        {ledger.map(l => (
-                            <div key={l._id} className="border-b border-slate-800 p-2 flex justify-between">
-                                <span>{l.time} - {l.desc}</span>
-                                <span className="font-bold text-emerald-400">R$ {l.val.toFixed(2)}</span>
-                            </div>
-                        ))}
+                        <p className="text-slate-400 text-sm mb-4">Últimas transações do turno:</p>
+                        <div className="space-y-2">
+                            {ledger.length === 0 && <p className="text-xs text-slate-600 italic">Nenhuma venda registrada.</p>}
+                            {ledger.map(l => (
+                                <div key={l._id} className="border-b border-slate-800 pb-2 flex justify-between items-center text-xs">
+                                    <div>
+                                        <span className="text-slate-500 mr-2 font-mono">{l.time}</span>
+                                        <span className="text-white font-bold">{l.desc}</span>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="font-black text-emerald-400">R$ {l.val.toFixed(2)}</div>
+                                        <div className="text-[10px] text-slate-500 uppercase">{l.method}</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
             </main>

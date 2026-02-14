@@ -56,7 +56,6 @@ function AppRoutes() {
         <Route path="/" element={<Layout />}>
           <Route index element={<Feed />} />
           <Route path="admin" element={<GecaAdmin />} />
-          
         </Route>
       )}
 
