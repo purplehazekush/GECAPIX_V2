@@ -112,16 +112,27 @@ exports.joinSpecificRoom = async (io, socket, { roomId, userEmail, password }) =
     // RECONEXÃO
     const existingIdx = room.playerData.findIndex(p => p.email === userEmail);
     if (existingIdx !== -1) {
+        // Atualiza socket
         room.playerData[existingIdx].socketId = socket.id;
         room.players[existingIdx] = socket.id;
         socket.join(roomId);
         
+        // 🔥 CORREÇÃO DO F5 (Cálculo de Tempo Real)
+        let currentTimers = [...room.timers];
+        if (room.status === 'playing' && room.lastMoveTime) {
+            const now = Date.now();
+            const timeSpent = (now - room.lastMoveTime) / 1000;
+            // Desconta o tempo que passou desde o último movimento APENAS para visualização
+            // Não salvamos no banco ainda pra não perder a referência do lastMoveTime
+            currentTimers[room.turnIndex] -= timeSpent;
+        }
+
         socket.emit('reconnect_success', {
             gameType: room.gameType,
             boardState: room.boardState,
             isMyTurn: room.turnIndex === existingIdx,
             opponent: room.playerData.find(p => p.email !== userEmail)?.nome,
-            timers: room.timers // Envia timers atuais
+            timers: currentTimers // <--- Manda o tempo corrigido, não o estático!
         });
         return;
     }
