@@ -3,301 +3,309 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
-import { MessageSquare, LogOut } from 'lucide-react';
+import confetti from 'canvas-confetti';
+import { ArrowBack, HourglassEmpty } from '@mui/icons-material'; // Imports limpos
 
-// Componentes
-import ChessBoardWrapper from '../../components/arena/games/ChessBoardWrapper'; // Aquele nosso Grid
+// Componentes dos Jogos
+import TicTacToeBoard from '../../components/arena/games/TicTacToeBoard';
+import ChessBoardWrapper from '../../components/arena/games/ChessBoardWrapper';
+import Connect4Board from '../../components/arena/games/Connect4Board';
+// O Timer novo
 import { GameTimer } from '../../components/arena/GameTimer';
 
 const SOCKET_URL = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'http://72.62.87.8:3001';
 
+// Interface para o resultado do jogo (Correção do Erro TS)
+interface GameResult {
+    winner?: string;
+    prize?: number;
+    reason?: string;
+    draw?: boolean; // <--- Adicionado aqui
+    loser?: number;
+}
+
 export default function GameRoom() {
-    const { id: roomId } = useParams(); // Pega o ID da URL
+    const { roomId } = useParams();
     const { dbUser } = useAuth();
     const navigate = useNavigate();
     
-    // Estados de Conexão
+    // Conexão
     const socketRef = useRef<Socket | null>(null);
-    const [] = useState(false);
+    const [status, setStatus] = useState<'connecting' | 'waiting' | 'playing' | 'finished'>('connecting');
     
-    // Estados do Jogo
-    const [gameType, setGameType] = useState<string>('');
-    const [boardState, setBoardState] = useState<any>(null);
-    const [players, setPlayers] = useState<any[]>([]);
+    // Estado do Jogo
+    const [gameType, setGameType] = useState<string | null>(null);
     const [isMyTurn, setIsMyTurn] = useState(false);
-    const [myColor, setMyColor] = useState<'white' | 'black'>('white'); // Apenas para xadrez
-    const [status, setStatus] = useState<'waiting' | 'playing' | 'finished'>('waiting');
+    const [boardState, setBoardState] = useState<any>(null);
+    const [mySymbol, setMySymbol] = useState<any>(null);
     
-    // Estados de Tempo e Chat
-    const [timers, setTimers] = useState<[number, number]>([600, 600]);
+    // Dados dos Jogadores
+    const [players, setPlayers] = useState<any[]>([]);
     const [myIndex, setMyIndex] = useState<number>(-1); // 0 ou 1
-    const [chatMsg, setChatMsg] = useState('');
-    const [chatHistory, setChatHistory] = useState<any[]>([]);
+    
+    // Timers
+    const [timers, setTimers] = useState<[number, number]>([600, 600]);
 
+    // Resultado Final (Tipado Corretamente)
+    const [resultData, setResultData] = useState<GameResult | null>(null);
+
+    // --- EFEITOS DE VITÓRIA ---
+    const triggerWinEffect = () => {
+        const duration = 3000;
+        const end = Date.now() + duration;
+
+        (function frame() {
+            confetti({
+                particleCount: 5,
+                angle: 60,
+                spread: 55,
+                origin: { x: 0 },
+                colors: ['#22d3ee', '#ec4899', '#fbbf24']
+            });
+            confetti({
+                particleCount: 5,
+                angle: 120,
+                spread: 55,
+                origin: { x: 1 },
+                colors: ['#22d3ee', '#ec4899', '#fbbf24']
+            });
+
+            if (Date.now() < end) {
+                requestAnimationFrame(frame);
+            }
+        }());
+    };
+
+    // --- INICIALIZAÇÃO ---
     useEffect(() => {
-        // 1. Conexão
+        if (!dbUser || !roomId) return;
+
         const socket = io(SOCKET_URL);
         socketRef.current = socket;
 
         socket.on('connect', () => {
-            console.log("Conectado ao servidor de jogos.");
-            // Tenta entrar na sala específica usando o ID da URL
-            socket.emit('join_specific_room', {
-                roomId,
-                userEmail: dbUser?.email,
-                password: '' // Se tiver senha, teria que pedir antes, mas vamos simplificar
-            });
+            console.log("🔌 Socket conectado");
+            socket.emit('join_specific_room', { roomId, userEmail: dbUser.email });
         });
 
-        // 2. Listeners de Jogo
-        socket.on('game_start', (data) => {
+        // --- LISTENERS DE JOGO ---
+
+        socket.on('game_start', (data: any) => {
+            console.log("🚦 START:", data);
             setGameType(data.gameType);
             setBoardState(data.boardState);
             setPlayers(data.players);
             setStatus('playing');
             
-            // Define quem sou eu
-            const idx = data.players.findIndex((p: any) => p.email === dbUser?.email);
-            setMyIndex(idx);
-            
-            // Define cor (Xadrez)
-            if (data.gameType === 'xadrez' && idx !== -1) {
-                setMyColor(data.players[idx].color);
-            }
-
-            // Define turno inicial
-            const isMe = data.players[idx]?.socketId === data.turn; // O back manda o socketId de quem começa
-            setIsMyTurn(isMe); // Mas vamos confiar no nextTurnEmail abaixo que é mais seguro
-
-            // Sincroniza Timer
             if (data.timers) setTimers(data.timers);
-            
-            toast.success("A partida começou!", { icon: '⚔️' });
+
+            // Quem sou eu?
+            const idx = data.players.findIndex((p: any) => p.email === dbUser.email);
+            setMyIndex(idx);
+
+            // Minha Vez?
+            setIsMyTurn(data.nextTurnEmail === dbUser.email);
+
+            // Minha Cor/Símbolo?
+            if (data.gameType === 'xadrez') {
+                const me = data.players[idx];
+                setMySymbol(me?.color || (idx === 0 ? 'white' : 'black'));
+            } else if (data.gameType === 'velha') {
+                setMySymbol(idx === 0 ? 'X' : 'O');
+            } else if (data.gameType === 'connect4') {
+                setMySymbol(idx === 0 ? 'red' : 'yellow');
+            }
+
+            toast.success("PARTIDA INICIADA!", { icon: '⚔️' });
         });
 
-        socket.on('move_made', (data) => {
+        socket.on('move_made', (data: any) => {
             setBoardState(data.newState);
-            setIsMyTurn(data.nextTurnEmail === dbUser?.email);
-            if (data.timers) setTimers(data.timers); // Atualiza relógio do servidor
+            setIsMyTurn(data.nextTurnEmail === dbUser.email);
+            if (data.timers) setTimers(data.timers); // Atualiza relógios
         });
 
-        socket.on('game_over', (data) => {
+        socket.on('reconnect_success', (data: any) => {
+            setGameType(data.gameType);
+            setBoardState(data.boardState);
+            setStatus('playing');
+            setIsMyTurn(data.isMyTurn);
+            if (data.timers) setTimers(data.timers);
+        });
+
+        // --- GAME OVER (Normal) ---
+        socket.on('game_over', (data: any) => {
             setStatus('finished');
-            if (data.draw) {
-                toast("Empate!", { icon: '🤝' });
-            } else if (data.winner === dbUser?.nome) {
-                toast.success(`Vitória! Você ganhou ${data.prize} Coins!`);
+            setResultData(data); // Guarda dados pra exibir na tela
+
+            if (data.winner === dbUser.nome) {
+                triggerWinEffect(); // 🎉
+                toast.success(`VITÓRIA! +${data.prize} Coins`);
+            } else if (data.draw) {
+                toast("Empate.", { icon: '🤝' });
             } else {
-                toast.error("Derrota. Mais sorte na próxima.");
+                toast.error("Derrota.");
             }
         });
 
-        socket.on('game_over_timeout', (data) => {
+        // --- GAME OVER (Tempo Esgotado) ---
+        socket.on('game_over_timeout', (data: any) => {
             setStatus('finished');
-            if (data.loser === myIndex) {
-                toast.error("TEMPO ESGOTADO! Você perdeu.");
+            
+            const souEuPerdedor = data.loser === myIndex;
+            
+            if (souEuPerdedor) {
+                setResultData({ reason: "TEMPO ESGOTADO", winner: "Oponente", draw: false }); 
+                toast.error("SEU TEMPO ACABOU!");
             } else {
-                toast.success("O tempo do oponente acabou! Você venceu.");
+                setResultData({ reason: "TEMPO DO OPONENTE ACABOU", winner: dbUser.nome, draw: false });
+                triggerWinEffect(); // 🎉
+                toast.success("VITÓRIA POR TEMPO!");
             }
         });
 
-        socket.on('game_chat', (msg) => {
-            setChatHistory(prev => [...prev, msg]);
-        });
-
-        socket.on('error', (err) => {
+        socket.on('error', (err: any) => {
             toast.error(err.message);
-            if (err.message === 'Sala inexistente.' || err.message === 'Sala cheia.') {
-                navigate('/arena/games');
-            }
+            if(err.message.includes('Sala')) navigate('/arena/games');
         });
 
         return () => { socket.disconnect(); };
     }, [roomId, dbUser, navigate]);
 
-    // --- AÇÕES ---
 
     const handleMove = (moveData: any) => {
         if (!isMyTurn || status !== 'playing') return;
-        
-        // Otimismo: O tabuleiro local já pode ter atualizado visualmente, 
-        // agora mandamos pro servidor validar.
+        setIsMyTurn(false); // Otimismo UI
         socketRef.current?.emit('make_move', { roomId, moveData });
-        setIsMyTurn(false); // Bloqueia até o servidor confirmar a volta
     };
 
-    const sendChat = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!chatMsg.trim()) return;
-        socketRef.current?.emit('game_chat', { roomId, nome: dbUser?.nome, text: chatMsg });
-        setChatMsg('');
-    };
-
-    // --- RENDERIZADORES DE TABULEIRO ---
-
-    const renderBoard = () => {
-        if (!gameType || !boardState) return <div className="text-white animate-pulse">Carregando tabuleiro...</div>;
-
-        // ♟️ XADREZ
-        if (gameType === 'xadrez') {
-            return (
-                <ChessBoardWrapper 
-                    fen={boardState}
-                    myColor={myColor}
-                    isMyTurn={isMyTurn}
-                    onMove={(move) => handleMove(move)} // Passa objeto completo {from, to, promotion}
-                />
-            );
-        }
-
-        // ⭕ JOGO DA VELHA
-        if (gameType === 'velha') {
-            return (
-                <div className="grid grid-cols-3 gap-2 w-64 h-64 mx-auto">
-                    {boardState.map((cell: string | null, idx: number) => (
-                        <button
-                            key={idx}
-                            onClick={() => handleMove({ index: idx })}
-                            disabled={cell !== null || !isMyTurn}
-                            className={`w-full h-full bg-slate-800 rounded-xl text-4xl font-black flex items-center justify-center transition-all ${
-                                cell === null && isMyTurn ? 'hover:bg-slate-700 cursor-pointer' : ''
-                            } ${cell === 'X' ? 'text-cyan-400' : 'text-pink-500'}`}
-                        >
-                            {cell}
-                        </button>
-                    ))}
-                </div>
-            );
-        }
-
-        // 🔴 LIG 4 (Connect 4)
-        if (gameType === 'connect4') {
-            // Grid 7 colunas x 6 linhas
-            // boardState é array linear de 42 posições
-            const grid = [];
-            for (let r = 0; r < 6; r++) {
-                for (let c = 0; c < 7; c++) {
-                    const idx = r * 7 + c;
-                    const val = boardState[idx]; // 'red' ou 'yellow' ou null
-                    grid.push(
-                        <div 
-                            key={idx} 
-                            onClick={() => handleMove({ colIndex: c })} // Clica na coluna
-                            className="w-10 h-10 bg-slate-900 rounded-full border-4 border-slate-800 flex items-center justify-center cursor-pointer hover:border-slate-600"
-                        >
-                            {val && (
-                                <div className={`w-full h-full rounded-full ${val === 'red' ? 'bg-red-500' : 'bg-yellow-400'} shadow-inner`}></div>
-                            )}
-                        </div>
-                    );
-                }
-            }
-            return (
-                <div className="bg-blue-900 p-4 rounded-xl shadow-2xl border-4 border-blue-800">
-                    <div className="grid grid-cols-7 gap-2">
-                        {grid}
-                    </div>
-                </div>
-            );
-        }
-
-        return <div className="text-red-500">Jogo desconhecido: {gameType}</div>;
-    };
-
-    // --- LAYOUT ---
-
-    // Define qual timer é de quem
-    // Se myIndex for 0 (Player 1), meu tempo é timers[0].
-    // Se myIndex for 1 (Player 2), meu tempo é timers[1].
+    // Helpers de UI
     const opponentIndex = myIndex === 0 ? 1 : 0;
+    const opponentName = players[opponentIndex]?.nome || "Oponente";
 
     return (
-        <div className="min-h-screen bg-slate-950 p-4 flex flex-col items-center">
+        <div className="flex flex-col h-screen bg-slate-950 overflow-hidden relative">
             
-            {/* TOPO: Informações e Sair */}
-            <div className="w-full max-w-lg flex justify-between items-center mb-6">
-                <button onClick={() => navigate('/arena/games')} className="text-slate-500 hover:text-white flex items-center gap-1">
-                    <LogOut size={16} /> Sair
-                </button>
-                <div className="text-xs font-mono text-slate-600 uppercase">Sala: {roomId}</div>
-            </div>
-
-            {/* AREA DO JOGO */}
-            {status === 'waiting' ? (
-                <div className="flex flex-col items-center justify-center h-64 animate-pulse">
-                    <h2 className="text-2xl font-black text-white italic uppercase">Aguardando Oponente...</h2>
-                    <p className="text-slate-500 text-sm mt-2">Compartilhe o código da sala ou espere no lobby.</p>
-                </div>
-            ) : (
-                <div className="w-full max-w-md">
-                    
-                    {/* PLACAR E TIMERS */}
-                    <div className="flex justify-between items-center mb-6">
-                        {/* OPONENTE */}
-                        <div className="flex flex-col items-start">
-                            <div className="flex items-center gap-2 mb-1">
-                                <div className="w-8 h-8 rounded bg-slate-800 flex items-center justify-center text-xs font-bold text-white">
-                                    {players[opponentIndex]?.nome.charAt(0)}
+            {/* OVERLAY DE RESULTADO (Aparece no final) */}
+            {status === 'finished' && (
+                <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 animate-fade-in">
+                    <div className="bg-slate-900 border-2 border-slate-700 p-8 rounded-3xl shadow-2xl text-center max-w-sm w-full">
+                        {resultData?.draw ? (
+                            <>
+                                <div className="text-6xl mb-4">🤝</div>
+                                <h2 className="text-3xl font-black text-slate-300 uppercase mb-2">Empate</h2>
+                                <p className="text-slate-500 text-sm">Ninguém perdeu pontos.</p>
+                            </>
+                        ) : resultData?.winner === dbUser?.nome ? (
+                            <>
+                                <div className="text-6xl mb-4 animate-bounce">🏆</div>
+                                <h2 className="text-4xl font-black text-yellow-400 uppercase mb-2">VITÓRIA!</h2>
+                                <p className="text-slate-400 text-sm mb-4">{resultData?.reason || "Você dominou a partida."}</p>
+                                <div className="bg-slate-800 p-3 rounded-xl inline-flex items-center gap-2 border border-yellow-500/30">
+                                    <span className="text-yellow-400 font-black">+XP</span>
+                                    <span className="text-white font-bold">Ganho Confirmado</span>
                                 </div>
-                                <span className="text-sm text-slate-300 font-bold">{players[opponentIndex]?.nome}</span>
-                            </div>
-                            <GameTimer initialTime={timers[opponentIndex]} isActive={!isMyTurn && status === 'playing'} />
-                        </div>
-
-                        {/* VS */}
-                        <div className="text-center">
-                            <h1 className="text-3xl font-black text-slate-800 italic">VS</h1>
-                        </div>
-
-                        {/* EU */}
-                        <div className="flex flex-col items-end">
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="text-sm text-cyan-400 font-bold">Você</span>
-                                <div className="w-8 h-8 rounded bg-cyan-900 flex items-center justify-center text-xs font-bold text-cyan-200">
-                                    {dbUser?.nome.charAt(0)}
-                                </div>
-                            </div>
-                            <GameTimer initialTime={timers[myIndex]} isActive={isMyTurn && status === 'playing'} />
-                        </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="text-6xl mb-4">💀</div>
+                                <h2 className="text-4xl font-black text-red-500 uppercase mb-2">DERROTA</h2>
+                                <p className="text-slate-400 text-sm mb-4">{resultData?.reason || "Mais sorte na próxima."}</p>
+                            </>
+                        )}
+                        
+                        <button 
+                            onClick={() => navigate('/arena/games')}
+                            className="mt-8 w-full bg-white text-slate-900 font-black py-3 rounded-xl hover:bg-slate-200 transition-colors uppercase tracking-widest"
+                        >
+                            Voltar ao Lobby
+                        </button>
                     </div>
-
-                    {/* STATUS BAR */}
-                    <div className={`mb-4 text-center py-2 rounded-lg font-black uppercase text-sm tracking-widest transition-colors ${
-                        status === 'finished' ? 'bg-slate-800 text-slate-400' :
-                        isMyTurn ? 'bg-emerald-500 text-slate-900 animate-pulse' : 'bg-slate-900 text-slate-500'
-                    }`}>
-                        {status === 'finished' ? 'Fim de Jogo' : (isMyTurn ? 'SUA VEZ' : 'AGUARDE...')}
-                    </div>
-
-                    {/* TABULEIRO */}
-                    <div className="flex justify-center mb-8">
-                        {renderBoard()}
-                    </div>
-
-                    {/* CHAT RÁPIDO (Opcional) */}
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
-                        <div className="h-24 overflow-y-auto mb-2 text-xs space-y-1 custom-scrollbar">
-                            {chatHistory.map((msg, i) => (
-                                <div key={i}>
-                                    <span className="font-bold text-slate-400">{msg.nome}:</span> <span className="text-slate-300">{msg.text}</span>
-                                </div>
-                            ))}
-                        </div>
-                        <form onSubmit={sendChat} className="flex gap-2">
-                            <input 
-                                value={chatMsg}
-                                onChange={e => setChatMsg(e.target.value)}
-                                placeholder="Enviar mensagem..." 
-                                className="flex-1 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-white outline-none focus:border-cyan-500"
-                            />
-                            <button type="submit" className="bg-slate-800 hover:bg-slate-700 text-white p-1 rounded">
-                                <MessageSquare size={14} />
-                            </button>
-                        </form>
-                    </div>
-
                 </div>
             )}
+
+            {/* HEADER SIMPLES */}
+            <div className="p-4 flex items-center justify-between bg-slate-900 border-b border-slate-800">
+                <button onClick={() => navigate('/arena/games')} className="text-slate-400 hover:text-white">
+                    <ArrowBack />
+                </button>
+                <span className="text-xs font-mono text-slate-500 uppercase tracking-widest">
+                    Sala: {roomId?.substring(0,6)}
+                </span>
+                <div className="w-6"></div>
+            </div>
+
+            {/* ÁREA DE JOGO */}
+            <div className="flex-1 flex flex-col items-center justify-center p-4">
+                
+                {status === 'waiting' && (
+                    <div className="text-center animate-pulse">
+                        <HourglassEmpty className="text-cyan-500 text-6xl mb-4 mx-auto" />
+                        <h2 className="text-xl font-bold text-white">Aguardando Rival...</h2>
+                        <p className="text-slate-500 text-xs mt-2">O jogo começará automaticamente.</p>
+                    </div>
+                )}
+
+                {status === 'playing' && (
+                    <div className="w-full max-w-md flex flex-col h-full justify-between">
+                        
+                        {/* 1. HUD DO OPONENTE (Topo) */}
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center font-bold text-slate-400 border border-slate-700">
+                                    {opponentName.charAt(0)}
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-slate-300">{opponentName}</p>
+                                    <p className="text-[10px] text-slate-500 uppercase">Rival</p>
+                                </div>
+                            </div>
+                            {/* Timer do Oponente */}
+                            <GameTimer 
+                                serverTime={timers[opponentIndex]} 
+                                isActive={!isMyTurn} 
+                            />
+                        </div>
+
+                        {/* 2. TABULEIRO (Centro) */}
+                        <div className="flex-1 flex items-center justify-center my-4">
+                            <div className={`transition-all duration-500 ${!isMyTurn ? 'opacity-90 grayscale-[0.3] scale-95' : 'scale-100 shadow-2xl'}`}>
+                                {gameType === 'velha' && boardState && (
+                                    <TicTacToeBoard board={boardState} mySymbol={mySymbol} isMyTurn={isMyTurn} onMove={handleMove} />
+                                )}
+                                {gameType === 'xadrez' && boardState && (
+                                    <ChessBoardWrapper fen={boardState} myColor={mySymbol} isMyTurn={isMyTurn} onMove={handleMove} />
+                                )}
+                                {gameType === 'connect4' && boardState && (
+                                    <Connect4Board board={boardState} mySymbol={mySymbol} isMyTurn={isMyTurn} onMove={handleMove} />
+                                )}
+                            </div>
+                        </div>
+
+                        {/* 3. MEU HUD (Baixo) */}
+                        <div className="flex justify-between items-end mt-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-xl bg-cyan-900 flex items-center justify-center font-bold text-cyan-200 border border-cyan-700 shadow-lg shadow-cyan-900/50">
+                                    {dbUser?.nome.charAt(0)}
+                                </div>
+                                <div>
+                                    <p className="text-base font-black text-white">Você</p>
+                                    <p className={`text-[10px] uppercase font-bold ${isMyTurn ? 'text-emerald-400 animate-pulse' : 'text-slate-500'}`}>
+                                        {isMyTurn ? 'SUA VEZ DE JOGAR' : 'AGUARDE...'}
+                                    </p>
+                                </div>
+                            </div>
+                            {/* Meu Timer */}
+                            <GameTimer 
+                                serverTime={timers[myIndex]} 
+                                isActive={isMyTurn} 
+                                label="Seu Tempo"
+                            />
+                        </div>
+
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
