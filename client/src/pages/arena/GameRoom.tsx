@@ -28,26 +28,36 @@ export default function GameRoom() {
     const { roomId } = useParams();
     const { dbUser } = useAuth();
     const navigate = useNavigate();
-    
+
     // Conexão
     const socketRef = useRef<Socket | null>(null);
     const [status, setStatus] = useState<'connecting' | 'waiting' | 'playing' | 'finished'>('connecting');
-    
+
     // Estado do Jogo
     const [gameType, setGameType] = useState<string | null>(null);
     const [isMyTurn, setIsMyTurn] = useState(false);
     const [boardState, setBoardState] = useState<any>(null);
     const [mySymbol, setMySymbol] = useState<any>(null);
-    
+
     // Dados dos Jogadores
     const [players, setPlayers] = useState<any[]>([]);
     const [myIndex, setMyIndex] = useState<number>(-1); // 0 ou 1
-    
+
     // Timers
     const [timers, setTimers] = useState<[number, number]>([600, 600]);
 
     // Resultado Final (Tipado Corretamente)
     const [resultData, setResultData] = useState<GameResult | null>(null);
+
+    // Função disparada quando o relógio local bate 0
+    const handleTimeoutClaim = () => {
+        // Só reivindica se for a vez do cara e o relógio dele zerou.
+        // Se for MINHA vez e MEU relógio zerou, eu perdi (o servidor vai saber, mas posso avisar)
+        // Se for vez do OPONENTE e o relógio DELE zerou, eu aviso o servidor pra encerrar.
+
+        console.log("⌛ CHECK DE TEMPO ACIONADO");
+        socketRef.current?.emit('claim_timeout', { roomId });
+    };
 
     // --- EFEITOS DE VITÓRIA ---
     const triggerWinEffect = () => {
@@ -96,7 +106,7 @@ export default function GameRoom() {
             setBoardState(data.boardState);
             setPlayers(data.players);
             setStatus('playing');
-            
+
             if (data.timers) setTimers(data.timers);
 
             // Quem sou eu?
@@ -151,11 +161,11 @@ export default function GameRoom() {
         // --- GAME OVER (Tempo Esgotado) ---
         socket.on('game_over_timeout', (data: any) => {
             setStatus('finished');
-            
+
             const souEuPerdedor = data.loser === myIndex;
-            
+
             if (souEuPerdedor) {
-                setResultData({ reason: "TEMPO ESGOTADO", winner: "Oponente", draw: false }); 
+                setResultData({ reason: "TEMPO ESGOTADO", winner: "Oponente", draw: false });
                 toast.error("SEU TEMPO ACABOU!");
             } else {
                 setResultData({ reason: "TEMPO DO OPONENTE ACABOU", winner: dbUser.nome, draw: false });
@@ -166,7 +176,7 @@ export default function GameRoom() {
 
         socket.on('error', (err: any) => {
             toast.error(err.message);
-            if(err.message.includes('Sala')) navigate('/arena/games');
+            if (err.message.includes('Sala')) navigate('/arena/games');
         });
 
         return () => { socket.disconnect(); };
@@ -185,7 +195,7 @@ export default function GameRoom() {
 
     return (
         <div className="flex flex-col h-screen bg-slate-950 overflow-hidden relative">
-            
+
             {/* OVERLAY DE RESULTADO (Aparece no final) */}
             {status === 'finished' && (
                 <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 animate-fade-in">
@@ -213,8 +223,8 @@ export default function GameRoom() {
                                 <p className="text-slate-400 text-sm mb-4">{resultData?.reason || "Mais sorte na próxima."}</p>
                             </>
                         )}
-                        
-                        <button 
+
+                        <button
                             onClick={() => navigate('/arena/games')}
                             className="mt-8 w-full bg-white text-slate-900 font-black py-3 rounded-xl hover:bg-slate-200 transition-colors uppercase tracking-widest"
                         >
@@ -230,14 +240,14 @@ export default function GameRoom() {
                     <ArrowBack />
                 </button>
                 <span className="text-xs font-mono text-slate-500 uppercase tracking-widest">
-                    Sala: {roomId?.substring(0,6)}
+                    Sala: {roomId?.substring(0, 6)}
                 </span>
                 <div className="w-6"></div>
             </div>
 
             {/* ÁREA DE JOGO */}
             <div className="flex-1 flex flex-col items-center justify-center p-4">
-                
+
                 {status === 'waiting' && (
                     <div className="text-center animate-pulse">
                         <HourglassEmpty className="text-cyan-500 text-6xl mb-4 mx-auto" />
@@ -248,7 +258,7 @@ export default function GameRoom() {
 
                 {status === 'playing' && (
                     <div className="w-full max-w-md flex flex-col h-full justify-between">
-                        
+
                         {/* 1. HUD DO OPONENTE (Topo) */}
                         <div className="flex justify-between items-start mb-4">
                             <div className="flex items-center gap-3">
@@ -261,9 +271,11 @@ export default function GameRoom() {
                                 </div>
                             </div>
                             {/* Timer do Oponente */}
-                            <GameTimer 
-                                serverTime={timers[opponentIndex]} 
-                                isActive={!isMyTurn} 
+                            <GameTimer
+                                serverTime={timers[opponentIndex] || 600}
+                                isActive={!isMyTurn && status === 'playing'}
+                                label={opponentName}
+                                onExpire={handleTimeoutClaim} // <--- SE O TEMPO DELE ACABAR, EU REIVINDICO VITÓRIA
                             />
                         </div>
 
@@ -296,10 +308,11 @@ export default function GameRoom() {
                                 </div>
                             </div>
                             {/* Meu Timer */}
-                            <GameTimer 
-                                serverTime={timers[myIndex]} 
-                                isActive={isMyTurn} 
+                            <GameTimer
+                                serverTime={timers[myIndex] || 600}
+                                isActive={isMyTurn && status === 'playing'}
                                 label="Seu Tempo"
+                            // onExpire={handleTimeoutClaim} // Opcional: Avisar que eu perdi, mas o back pega.
                             />
                         </div>
 

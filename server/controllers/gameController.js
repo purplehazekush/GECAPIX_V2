@@ -319,3 +319,37 @@ async function processEndGame(io, room, result) {
     delete rooms[room.id];
     io.emit('rooms_update');
 }
+
+// Adicione isso junto com os outros exports
+
+exports.claimTimeout = async (io, socket, { roomId }) => {
+    const room = rooms[roomId];
+    if (!room || room.status !== 'playing') return;
+
+    // 1. Recalcula o tempo oficial
+    const now = Date.now();
+    const lastTime = room.lastMoveTime || now;
+    const timeSpent = (now - lastTime) / 1000;
+
+    // Atualiza o timer do jogador da vez no servidor
+    room.timers[room.turnIndex] -= timeSpent;
+    room.lastMoveTime = now;
+
+    // 2. Verifica se realmente acabou (Margem de erro de 2s para latência)
+    if (room.timers[room.turnIndex] <= 2) {
+        room.timers[room.turnIndex] = 0;
+        
+        const loserIndex = room.turnIndex;
+        const winnerIndex = loserIndex === 0 ? 1 : 0; // O outro ganha
+
+        console.log(`⏰ Timeout Reivindicado na sala ${roomId}. Vencedor: P${winnerIndex}`);
+        
+        await processEndGame(io, room, winnerIndex);
+        
+        // Avisa a todos
+        io.to(roomId).emit('game_over_timeout', { loser: loserIndex });
+    } else {
+        // Se o cliente mentiu ou está com lag, mandamos o tempo real de volta pra ele corrigir
+        socket.emit('sync_timer', { timers: room.timers });
+    }
+};

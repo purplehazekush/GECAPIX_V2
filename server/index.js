@@ -301,6 +301,8 @@ io.on('connection', (socket) => {
     socket.on('make_move', (data) => gameController.makeMove(io, socket, data));
     socket.on('game_win_claim', (data) => gameController.handleWinClaim(io, socket, data));
 
+    socket.on('claim_timeout', (data) => gameController.claimTimeout(io, socket, data));
+
     // Chat do Jogo
     socket.on('game_chat', (data) => {
         io.to(data.roomId).emit('game_chat', data);
