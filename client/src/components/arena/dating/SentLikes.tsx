@@ -1,14 +1,19 @@
-// client/src/components/arena/dating/SentLikes.tsx
 import { useState, useEffect } from 'react';
-import { Star, LocalFireDepartment } from '@mui/icons-material';
+import { Star, LocalFireDepartment, Person } from '@mui/icons-material';
 import { api } from '../../../lib/api';
 import toast from 'react-hot-toast';
-import { ProfileModal } from './ProfileModal'; // <--- Import Novo
+import { useAuth } from '../../../context/AuthContext';
+import { ProfileModal } from './ProfileModal';
+import { SuperLikeModal } from './SuperLikeModal'; // Reutilizamos o mesmo modal
 
 export const SentLikes = () => {
+    const { dbUser, reloadUser } = useAuth();
     const [likes, setLikes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedProfile, setSelectedProfile] = useState<any>(null); // Para o Modal
+    
+    // Estados de Controle
+    const [selectedProfile, setSelectedProfile] = useState<any>(null); // Ver perfil completo
+    const [upgradeTarget, setUpgradeTarget] = useState<any>(null); // Quem vai receber o Super Like
 
     useEffect(() => {
         api.get('/dating/sent')
@@ -17,23 +22,40 @@ export const SentLikes = () => {
             .finally(() => setLoading(false));
     }, []);
 
-    const handleUpgrade = async (e: any, id: string, nome: string) => {
-        e.stopPropagation(); // Não abre o modal
-        if(!confirm(`⚠️ ATENÇÃO: GASTAR 1 GLUE + 500 COINS?\n\nIsso enviará seu telefone DIRETAMENTE para a caixa de entrada de ${nome}, furando a fila de matches.`)) return;
+    // 1. Abre o Modal de Investimento
+    const requestUpgrade = (e: any, profile: any) => {
+        e.stopPropagation();
+        setUpgradeTarget(profile);
+    };
+
+    // 2. Confirma o envio (Callback do Modal)
+    const handleConfirmUpgrade = async (amount: number) => {
+        if (!upgradeTarget) return;
         
-        const toastId = toast.loading("Enviando Super Like...");
+        const toastId = toast.loading("Investindo...");
         try {
-            await api.post('/dating/superlike', { targetProfileId: id });
-            toast.success(`Super Like enviado!`, { id: toastId });
-            // Atualiza localmente para desabilitar botão
-            setLikes(prev => prev.map(p => p._id === id ? { ...p, isSuper: true } : p));
+            await api.post('/dating/superlike', { targetProfileId: upgradeTarget._id, amount });
+            
+            toast.success(`Super Like Enviado!`, { id: toastId });
+            
+            // Atualiza UI Localmente (Marca como Super)
+            setLikes(prev => prev.map(p => p._id === upgradeTarget._id ? { ...p, isSuper: true } : p));
+            
+            reloadUser(); // Atualiza saldo global
+            setUpgradeTarget(null); // Fecha modal
         } catch (e: any) {
-            toast.error(e.response?.data?.error || "Erro no envio", { id: toastId });
+            toast.error(e.response?.data?.error || "Erro", { id: toastId });
         }
     };
 
     if (loading) return <div className="p-10 text-center text-xs text-slate-500 animate-pulse">Carregando histórico...</div>;
-    if (likes.length === 0) return <div className="p-10 text-center text-xs text-slate-500">Você ainda não curtiu ninguém.</div>;
+    
+    if (likes.length === 0) return (
+        <div className="flex flex-col items-center justify-center h-64 text-slate-500">
+            <Person sx={{fontSize: 40}} className="mb-2 opacity-50"/>
+            <p className="text-xs">Você ainda não curtiu ninguém.</p>
+        </div>
+    );
 
     return (
         <>
@@ -42,35 +64,54 @@ export const SentLikes = () => {
                     <div 
                         key={profile._id} 
                         onClick={() => setSelectedProfile(profile)}
-                        className={`rounded-xl overflow-hidden border group relative cursor-pointer transition-all ${profile.isSuper ? 'bg-slate-900 border-yellow-500/30' : 'bg-slate-900 border-slate-800'}`}
+                        className={`rounded-2xl overflow-hidden border cursor-pointer transition-all hover:scale-[1.02] active:scale-95 relative ${
+                            profile.isSuper ? 'bg-slate-900 border-yellow-500/40 shadow-[0_0_15px_rgba(234,179,8,0.1)]' : 'bg-slate-900 border-slate-800'
+                        }`}
                     >
-                        <div className="h-32 bg-slate-950 relative">
-                            {profile.fotos[0] && <img src={profile.fotos[0]} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />}
-                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-900 to-transparent p-2 pt-8">
-                                <p className="text-white font-bold text-sm truncate">{profile.nome.split(' ')[0]}</p>
-                                <p className="text-[9px] text-slate-400 truncate">{profile.curso}</p>
+                        {/* Foto */}
+                        <div className="h-36 bg-slate-950 relative">
+                            {profile.fotos[0] && <img src={profile.fotos[0]} className="w-full h-full object-cover" />}
+                            
+                            {/* Overlay Info */}
+                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-900 via-slate-900/80 to-transparent p-3 pt-8">
+                                <p className="text-white font-black text-sm truncate flex items-center gap-1">
+                                    {profile.nome.split(' ')[0]}
+                                </p>
+                                <p className="text-[10px] text-slate-400 truncate uppercase font-bold">{profile.curso}</p>
                             </div>
                         </div>
                         
-                        {/* Botão de Ação ou Status */}
+                        {/* Rodapé: Ação ou Status */}
                         {profile.isSuper ? (
-                            <div className="w-full py-2 bg-yellow-500/10 text-yellow-500 font-bold text-[10px] flex items-center justify-center gap-1 border-t border-yellow-500/20">
-                                <LocalFireDepartment sx={{fontSize: 12}} /> SUPER LIKE ENVIADO
+                            <div className="w-full py-2 bg-yellow-500/10 text-yellow-500 font-bold text-[9px] flex items-center justify-center gap-1 border-t border-yellow-500/20 uppercase tracking-wide">
+                                <LocalFireDepartment sx={{fontSize: 12}} /> Super Like
                             </div>
                         ) : (
                             <button 
-                                onClick={(e) => handleUpgrade(e, profile._id, profile.nome)}
-                                className="w-full py-2 bg-slate-800 hover:bg-yellow-500/10 text-slate-500 hover:text-yellow-500 font-bold text-[10px] flex items-center justify-center gap-1 transition-colors border-t border-slate-800"
+                                onClick={(e) => requestUpgrade(e, profile)}
+                                className="w-full py-2 bg-slate-800 hover:bg-yellow-500/20 text-slate-500 hover:text-yellow-400 font-bold text-[9px] flex items-center justify-center gap-1 transition-colors border-t border-slate-800 uppercase tracking-wide group"
                             >
-                                <Star sx={{fontSize: 12}} /> UPGRADE SUPER
+                                <Star sx={{fontSize: 12}} className="group-hover:animate-spin-slow"/> Upgrade Super
                             </button>
                         )}
                     </div>
                 ))}
             </div>
 
-            {/* Modal */}
+            {/* Modal de Perfil Completo */}
             {selectedProfile && <ProfileModal profile={selectedProfile} onClose={() => setSelectedProfile(null)} />}
+            
+            {/* Modal de Upgrade (Super Like) */}
+            {upgradeTarget && (
+                <SuperLikeModal 
+                    targetName={upgradeTarget.nome}
+                    // 🔴 ANTES: userBalance={user?.saldo_coins || 0}
+                    // 🟢 DEPOIS:
+                    userBalance={dbUser?.saldo_coins || 0}
+                    onClose={() => setUpgradeTarget(null)}
+                    onConfirm={handleConfirmUpgrade}
+                />
+            )}
         </>
     );
 };

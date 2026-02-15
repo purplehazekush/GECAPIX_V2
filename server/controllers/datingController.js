@@ -160,73 +160,97 @@ exports.sendLike = async (req, res) => {
     }
 };
 
-// 4. SUPER LIKE (Correção do Histórico)
+// 4. SUPER LIKE (Doação + Burn)
 exports.sendSuperLike = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
-        const { targetProfileId } = req.body;
-        // ... (carregamento dos models igual ao anterior) ...
+        const { targetProfileId, amount } = req.body; // <--- Agora recebe amount
+        
+        // Validação de Input
+        const coinsAmount = Math.floor(Number(amount));
+        const MIN = TOKEN.DATING.SUPERLIKE_MIN_COINS;
+        const MAX = TOKEN.DATING.SUPERLIKE_MAX_COINS;
+
+        if (isNaN(coinsAmount) || coinsAmount < MIN || coinsAmount > MAX) {
+            throw new Error(`O valor deve ser entre ${MIN} e ${MAX} coins.`);
+        }
+
+        // Carrega dados
         const user = await UsuarioModel.findById(req.user._id).session(session);
         const myProfile = await DatingProfile.findOne({ userId: user._id }).session(session);
         const targetProfile = await DatingProfile.findById(targetProfileId).session(session);
 
-        // ... (verificações de saldo iguais ao anterior) ...
-        const COST_COINS = TOKEN.DATING.SUPERLIKE_COST_COINS;
+        if (!targetProfile) throw new Error("Usuário não encontrado.");
+
+        // Verifica Saldo (Coins + 1 Glue)
         const COST_GLUE = TOKEN.DATING.SUPERLIKE_COST_GLUE;
 
-        if (user.saldo_coins < COST_COINS || user.saldo_glue < COST_GLUE) {
-            throw new Error("Saldo insuficiente (Requer Coins + Glue).");
-        }
+        if (user.saldo_glue < COST_GLUE) throw new Error("Você precisa de 1 Glue para enviar Super Like.");
+        if (user.saldo_coins < coinsAmount) throw new Error("Saldo de Coins insuficiente.");
 
-        // 2. Distribuição Econômica
-        const recipientShare = Math.floor(COST_COINS * TOKEN.DATING.SUPERLIKE_DISTRIBUTION.RECIPIENT);
-        const burnShare = Math.floor(COST_COINS * TOKEN.DATING.SUPERLIKE_DISTRIBUTION.BURN);
-        const feesShare = COST_COINS - recipientShare - burnShare;
+        // --- LÓGICA ECONÔMICA ---
+        // Regra: Metade queima, metade vai pro crush.
+        const recipientShare = Math.floor(coinsAmount / 2);
+        const burnShare = coinsAmount - recipientShare; // Garante que a soma bate caso seja ímpar
 
-        // Credita o Crush (Incentivo financeiro para ser desejado!)
+        // 1. Debita o Remetente
+        user.saldo_coins -= coinsAmount;
+        user.saldo_glue -= COST_GLUE;
+        
+        user.extrato.push({ 
+            tipo: 'SAIDA', 
+            valor: coinsAmount, 
+            descricao: `Super Like para ${targetProfile.nome.split(' ')[0]}`, 
+            categoria: 'GAME',
+            data: new Date()
+        });
+
+        // 2. Credita o Crush
         await UsuarioModel.updateOne(
             { _id: targetProfile.userId }, 
-            { $inc: { saldo_coins: recipientShare }, 
-              $push: { extrato: { tipo: 'ENTRADA', valor: recipientShare, descricao: 'Recebeu Super Like', categoria: 'GAME' } } 
+            { 
+                $inc: { saldo_coins: recipientShare }, 
+                $push: { extrato: { tipo: 'ENTRADA', valor: recipientShare, descricao: 'Presente: Super Like Recebido', categoria: 'GAME' } } 
             }, 
             { session }
         );
 
-        // Burn & Fees
+        // 3. Queima (Burn)
         await UsuarioModel.updateOne({ email: TOKEN.WALLETS.BURN }, { $inc: { saldo_coins: burnShare } }, { session });
-        await UsuarioModel.updateOne({ email: TOKEN.WALLETS.FEES }, { $inc: { saldo_coins: feesShare } }, { session });
-
-        // Update System State (opcional, mas bom pra stats)
+        
+        // Atualiza Stats Globais
         const SystemState = require('../models/SystemState');
-        await SystemState.updateOne({ season_id: 2 }, { $inc: { total_burned: burnShare } }, { session });
+        await SystemState.updateOne({ season_id: 1 }, { $inc: { total_burned: burnShare } }, { session });
 
-        // 2. Ação do Super Like
+        // --- LÓGICA SOCIAL ---
+        
+        // Registra nas listas (para evitar repetição e permitir match futuro)
+        if (!myProfile.likes_enviados.includes(targetProfile._id.toString())) {
+            myProfile.likes_enviados.push(targetProfile._id);
+        }
+        if (!targetProfile.likes_recebidos.includes(myProfile._id.toString())) {
+            targetProfile.likes_recebidos.push(myProfile._id);
+        }
+
+        // Envia Correio
         targetProfile.correio.push({
             tipo: 'SUPERLIKE',
             remetente_id: myProfile._id,
             remetente_nome: myProfile.nome,
             remetente_foto: myProfile.fotos[0],
-            mensagem: `🔥 SUPER LIKE! ${myProfile.nome} investiu pesado em você. Telefone: ${myProfile.telefone}`,
-            telefone_revelado: myProfile.telefone
+            // Mensagem dinâmica com o valor do presente
+            mensagem: `🔥 SUPER LIKE! ${myProfile.nome} investiu ${recipientShare} Coins em você! Telefone: ${myProfile.telefone}`,
+            telefone_revelado: myProfile.telefone,
+            data: new Date()
         });
-
-        // 🔥 CORREÇÃO: ADICIONAR AO HISTÓRICO DO REMETENTE
-        // Isso garante que apareça na aba "Likes Enviados" com opção de upgrade desabilitada (pois já é super)
-        if (!myProfile.likes_enviados.includes(targetProfile._id.toString())) {
-            myProfile.likes_enviados.push(targetProfile._id);
-        }
-        // Adiciona aos recebidos do alvo para possibilitar o Match futuro se ele der like de volta
-        if (!targetProfile.likes_recebidos.includes(myProfile._id.toString())) {
-            targetProfile.likes_recebidos.push(myProfile._id);
-        }
 
         await user.save({ session });
         await myProfile.save({ session });
         await targetProfile.save({ session });
         
         await session.commitTransaction();
-        res.json({ success: true, message: "Super Like enviado!" });
+        res.json({ success: true, message: `Enviado! ${recipientShare} Coins doados.` });
 
     } catch (e) {
         await session.abortTransaction();

@@ -107,8 +107,12 @@ module.exports = {
     get DATING() {
         return {
             LIKE_COST: getVal('DATING_LIKE_COST') || 10,
-            SUPERLIKE_COST_COINS: getVal('DATING_SUPERLIKE_COST') || 100,
-            MATCH_BONUS: getVal('MATCH_BONUS') || 500
+            MATCH_BONUS: getVal('MATCH_BONUS') || 500,
+            
+            // 🔥 NOVAS REGRAS DO SUPER LIKE
+            SUPERLIKE_COST_GLUE: 1,       // Taxa fixa de "gás"
+            SUPERLIKE_MIN_COINS: 100,     // Mínimo para ser relevante
+            SUPERLIKE_MAX_COINS: 10000    // Teto para evitar lavagem de dinheiro absurda
         };
     },
     
