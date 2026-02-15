@@ -3,6 +3,7 @@ import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import confetti from 'canvas-confetti';
 import toast from 'react-hot-toast';
+import { School } from 'lucide-react';
 
 // Componentes Dumb
 import { StoreHeader } from './StoreHeader';
@@ -10,7 +11,8 @@ import { HeroBanner } from './HeroBanner';
 import { CategoryFilters } from './CategoryFilter';
 import { ProductCard } from './ProductCard';
 import { MiniCart } from './MiniCart';
-import { CheckoutDrawer } from './CheckoutDrwaer';
+import { CheckoutDrawer } from './CheckoutDrawer';
+import VerificationModal from '../../components/auth/VerificationModal';
 
 interface Product {
     _id: string;
@@ -29,6 +31,7 @@ export default function GecaStore() {
     const [filter, setFilter] = useState('TODOS');
     const [isDrawerOpen, setDrawerOpen] = useState(false);
     const [useCoins, setUseCoins] = useState(false);
+    const [showValidationModal, setShowValidationModal] = useState(false);
     
     // Estados do Checkout
     const [checkoutStep, setCheckoutStep] = useState<'CART' | 'PIX' | 'SUCCESS'>('CART');
@@ -75,7 +78,7 @@ export default function GecaStore() {
     const handleCheckout = () => {
         if (itemCount === 0) return;
         setCheckoutStep('PIX');
-        // TODO: Chamar API Pix Real
+        // TODO: Aqui entra a integração com Mercado Pago futuramente
     };
 
     const handleSimulatePayment = () => {
@@ -101,11 +104,34 @@ export default function GecaStore() {
         <div className="min-h-screen bg-slate-950 pb-32 text-white font-sans">
             <StoreHeader coins={dbUser?.saldo_coins || 0} glue={dbUser?.saldo_glue || 0} />
             
+            {/* 🔥 BANNER DE VALIDAÇÃO (Só para Pendentes) */}
+            {dbUser?.status === 'pendente' && (
+                <div 
+                    onClick={() => setShowValidationModal(true)}
+                    className="mx-4 mt-4 bg-gradient-to-r from-indigo-900 to-slate-900 p-3 rounded-xl border border-indigo-500/30 flex items-center justify-between cursor-pointer relative overflow-hidden group shadow-lg shadow-indigo-900/20"
+                >
+                    <div className="absolute inset-0 bg-indigo-500/10 group-hover:bg-indigo-500/20 transition-colors"></div>
+                    <div className="flex items-center gap-3 relative z-10">
+                        <div className="bg-indigo-500/20 p-2 rounded-full text-indigo-300">
+                            <School size={18} />
+                        </div>
+                        <div>
+                            <p className="text-xs font-bold text-white uppercase">Valide seu Email UFMG</p>
+                            <p className="text-[10px] text-indigo-300">Ganhe 100 Coins e acesso à Arena</p>
+                        </div>
+                    </div>
+                    <div className="relative z-10">
+                        <span className="bg-indigo-600 text-white text-[9px] font-black px-3 py-1.5 rounded shadow hover:bg-indigo-500 transition-colors">VALIDAR</span>
+                    </div>
+                </div>
+            )}
+
             <HeroBanner />
             
             <CategoryFilters current={filter} onSelect={setFilter} />
             
-            <div className="px-4 grid grid-cols-2 gap-4">
+            {/* Grid com padding extra no final para o scroll não cortar */}
+            <div className="px-4 grid grid-cols-2 gap-4 pb-20">
                 {filteredProducts.map(p => (
                     <ProductCard 
                         key={p._id} 
@@ -116,11 +142,14 @@ export default function GecaStore() {
                 ))}
             </div>
 
-            <MiniCart 
-                count={itemCount} 
-                total={subtotal} 
-                onClick={() => setDrawerOpen(true)} 
-            />
+            {/* CORREÇÃO DO BOTÃO: 'bottom-24' para flutuar acima da Navbar */}
+            <div className="fixed bottom-24 left-4 right-4 z-40">
+                <MiniCart 
+                    count={itemCount} 
+                    total={subtotal} 
+                    onClick={() => setDrawerOpen(true)} 
+                />
+            </div>
 
             <CheckoutDrawer 
                 isOpen={isDrawerOpen} 
@@ -134,6 +163,12 @@ export default function GecaStore() {
                 pixTimerStr={formatTimer(pixTimer)}
                 onCheckout={handleCheckout}
                 onSimulateSuccess={handleSimulatePayment}
+            />
+
+            {/* MODAL DE VALIDAÇÃO */}
+            <VerificationModal 
+                isOpen={showValidationModal} 
+                onClose={() => setShowValidationModal(false)} 
             />
         </div>
     );
