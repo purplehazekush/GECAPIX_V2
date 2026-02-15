@@ -37,7 +37,7 @@ const SystemStateSchema = new mongoose.Schema({
     // Bonding Curve
     glue_price_base: { type: Number, default: 200 }, 
     glue_price_multiplier: { type: Number, default: 1.05 }, // Ajustado para o valor correto do reset
-    glue_supply_circulating: { type: Number, default: 10 },
+    glue_supply_circulating: { type: Number, default: 0 },
     
     market_is_open: { type: Boolean, default: true },
 
