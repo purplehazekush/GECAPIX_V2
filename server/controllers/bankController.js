@@ -10,10 +10,14 @@ const InterestEngine = require('../engine/InterestEngine'); // Importe o engine
 exports.depositarLiquido = async (req, res) => {
     try {
         const { email, valor } = req.body;
-        const amount = parseInt(valor);
-        if (amount <= 0) return res.status(400).json({ error: "Valor inválido" });
+        // Força inteiro e valor absoluto para evitar negativos
+        const amount = Math.floor(Math.abs(Number(valor))); 
+
+        if (!amount || amount <= 0) return res.status(400).json({ error: "Valor inválido" });
 
         const user = await UsuarioModel.findOne({ email });
+        
+        // Verificação estrita
         if (user.saldo_coins < amount) return res.status(400).json({ error: "Saldo insuficiente" });
 
         await UsuarioModel.updateOne({ email }, {
@@ -28,18 +32,33 @@ exports.depositarLiquido = async (req, res) => {
 exports.sacarLiquido = async (req, res) => {
     try {
         const { email, valor } = req.body;
-        const amount = parseInt(valor);
+        // Força inteiro e valor absoluto
+        const amount = Math.floor(Math.abs(Number(valor))); 
+        
+        // 1. Trava de Sanidade: Ninguém saca zero ou NaN
+        if (!amount || amount <= 0 || isNaN(amount)) {
+            return res.status(400).json({ error: "Valor inválido" });
+        }
+
         const user = await UsuarioModel.findOne({ email });
         
-        if (user.saldo_staking_liquido < amount) return res.status(400).json({ error: "Saldo em staking insuficiente" });
+        // 2. Trava de Saldo (A mais importante)
+        // Se o valor pedido for MAIOR que o saldo, bloqueia.
+        if (amount > user.saldo_staking_liquido) {
+            return res.status(400).json({ error: "Saldo em staking insuficiente" });
+        }
 
+        // 3. Execução
         await UsuarioModel.updateOne({ email }, {
             $inc: { saldo_coins: amount, saldo_staking_liquido: -amount },
             $push: { extrato: { tipo: 'ENTRADA', valor: amount, descricao: 'Resgate: Renda Fixa', categoria: 'BANK', data: new Date() } }
         });
 
         res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: "Erro no saque" }); }
+    } catch (e) { 
+        console.error(e);
+        res.status(500).json({ error: "Erro no saque" }); 
+    }
 };
 
 // --- 2. STAKING LOCKED (TÍTULOS) ---
