@@ -101,7 +101,7 @@ export default function GecaStore() {
         : products.filter(p => p.categoria === filter);
 
     return (
-        <div className="min-h-screen bg-slate-950 pb-32 text-white font-sans">
+        <div className="min-h-screen bg-slate-950 pb-40 text-white font-sans">
             <StoreHeader coins={dbUser?.saldo_coins || 0} glue={dbUser?.saldo_glue || 0} />
             
             {/* 🔥 BANNER DE VALIDAÇÃO (Só para Pendentes) */}
@@ -131,7 +131,7 @@ export default function GecaStore() {
             <CategoryFilters current={filter} onSelect={setFilter} />
             
             {/* Grid com padding extra no final para o scroll não cortar */}
-            <div className="px-4 grid grid-cols-2 gap-4 pb-20">
+            <div className="px-4 grid grid-cols-2 gap-4">
                 {filteredProducts.map(p => (
                     <ProductCard 
                         key={p._id} 
@@ -142,8 +142,8 @@ export default function GecaStore() {
                 ))}
             </div>
 
-            {/* CORREÇÃO DO BOTÃO: 'bottom-24' para flutuar acima da Navbar */}
-            <div className="fixed bottom-24 left-4 right-4 z-40">
+            {/* CORREÇÃO DO BOTÃO: 'bottom-28' e z-[100] */}
+            <div className="fixed bottom-28 left-4 right-4 z-[100]">
                 <MiniCart 
                     count={itemCount} 
                     total={subtotal} 
