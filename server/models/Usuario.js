@@ -86,6 +86,11 @@ const UsuarioSchema = new mongoose.Schema({
         default: 'NOVATO' // Todo mundo começa aqui até escolher
     },
     subclasse: { type: String, default: 'Calouro' },
+
+    // --- CAMPOS DE VALIDAÇÃO AUTOMÁTICA (NOVO) ---
+    email_institucional: { type: String, lowercase: true, trim: true }, // O email @ufmg.br
+    token_validacao: { type: String, select: false }, // O código enviado (escondido por padrão)
+    token_expiracao: { type: Date, select: false },   // Validade do código
 });
 
 // Hook para gerar código de convite (Mantido igual)

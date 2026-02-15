@@ -1,4 +1,3 @@
-// server/models/Meme.js
 const mongoose = require('mongoose');
 
 const MemeSchema = new mongoose.Schema({
@@ -9,21 +8,21 @@ const MemeSchema = new mongoose.Schema({
     imagem_url: { type: String, required: true },
     legenda: String,
     
-    // --- DADOS FINANCEIROS (Dual Ledger) ---
-    total_up: { type: Number, default: 0 },   // Volume apostado na ALTA (Melhor Meme)
-    total_down: { type: Number, default: 0 }, // Volume apostado na BAIXA (Pior Meme)
-    total_geral: { type: Number, default: 0 }, // Soma dos dois
+    // --- DADOS FINANCEIROS ---
+    total_up: { type: Number, default: 0 },
+    total_down: { type: Number, default: 0 }, 
+    total_geral: { type: Number, default: 0 },
     
-    // Livro de Ofertas
     investidores: [{
         user_email: String,
         valor: Number,
-        lado: { type: String, enum: ['UP', 'DOWN'], required: true }, // Lado da aposta
+        lado: { type: String, enum: ['UP', 'DOWN'], required: true },
         data: { type: Date, default: Date.now }
     }],
     
-    // Resultados
-    resultado: { type: String, enum: ['MELHOR', 'PIOR', 'NEUTRO', null], default: null },
+    // 🔥 CORREÇÃO AQUI: Adicionei 'AMBOS' no enum
+    resultado: { type: String, enum: ['MELHOR', 'PIOR', 'AMBOS', 'NEUTRO', null], default: null },
+    
     status: { type: String, default: 'ativo', enum: ['ativo', 'fechado'] },
     data_postagem: { type: Date, default: Date.now }
 });
