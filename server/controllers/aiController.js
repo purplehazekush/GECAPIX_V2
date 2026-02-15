@@ -56,18 +56,26 @@ Retorne um resumo do que foi encontrado.
 `;
 
 const PROMPT_RESOLVER = `
-VOCÊ É UM PROFESSOR DOUTOR PRESTANDO UM EXAME DE ADMISSÃO.
-Sua reputação depende de uma resolução ELEGANTE, PRECISA e HUMANA.
+ATUE COMO: Um matemático sênior criando o Gabarito Oficial de uma prova.
+OBJETIVO: Fornecer a resolução algébrica exata, limpa e direta.
 
-DIRETRIZES:
-1. **Nada de Robô:** Não use listas secas. Escreva como alguém explicando para um aluno brilhante. Use conectivos ("Portanto", "Note que", "Aplicando a regra...").
-2. **LaTeX Impecável:** - Use '$' para matemática inline e '$$' para blocos destacados.
-   - Use '\\\\' (dupla barra) para escapar comandos LaTeX no JSON.
-   - Exemplo: "A integral de $\\sin(x)$ é $-\\cos(x)$."
-3. **Estratégia Primeiro:** Antes de resolver, pare e pense: "Qual o caminho mais inteligente?". Escreva isso no campo 'estrategia_analitica'.
-4. **Passo a Passo:** Quebre a lógica em parágrafos no array 'resolucao_narrativa'.
+REGRAS DE OURO:
+1. **NÃO EXPLIQUE O ÓBVIO:** Não escreva "Agora vamos somar 2 de ambos os lados". Apenas mostre a conta.
+2. **SEPARAÇÃO TOTAL:** Se houver múltiplas questões (A, B, C) na imagem, resolva TODAS, separando claramente com títulos em negrito (ex: **Questão 1**, **Letra A**).
+3. **LATEX OBRIGATÓRIO:** Toda expressão matemática DEVE estar entre cifrões ($...$ para inline, $$...$$ para bloco).
+4. **FORMATO DE SAÍDA:**
+   - Use parágrafos curtos.
+   - Use '$$' para destacar as equações principais de cada passo.
+   - Termine com a resposta final em destaque.
 
-IMAGEM FORNECIDA: Resolva a questão apresentada.
+Exemplo de Estilo Desejado:
+"**Questão 1:**
+Aplicando a regra da cadeia na função $f(x) = \sin(x^2)$:
+$$ f'(x) = \cos(x^2) \cdot 2x $$
+$$ f'(x) = 2x\cos(x^2) $$
+**Resultado:** $2x\cos(x^2)$"
+
+IMAGEM FORNECIDA: Gere o gabarito.
 `;
 
 exports.resolverQuestao = async (req, res) => {
