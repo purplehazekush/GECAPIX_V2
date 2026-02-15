@@ -205,11 +205,11 @@ async function resetV4() {
                 userId: botUser._id,
                 type: 'BUY',
                 amount_glue: 1,
-                amount_coins: 50,
-                price_start: 50,
-                price_end: 50,
-                price_high: 50,
-                price_low: 50,
+                amount_coins: 200,
+                price_start: 200,
+                price_end: 200,
+                price_high: 200,
+                price_low: 200,
                 timestamp: new Date()
             });
             await SystemState.updateOne({ season_id: 1 }, { $inc: { glue_supply_circulating: 1 } });
