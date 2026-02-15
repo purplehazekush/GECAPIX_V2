@@ -10,14 +10,12 @@ const CONFIG = {
     TICK_RATE: 5000,   // 5 segundos entre trades
     PRICE_CAP: 100000, // Teto onde o bias vira neutro
     BASE_HAND: 1,      // Mão mínima
-    MAX_HAND: 3       // Mão máxima (segurança)
+    MAX_HAND: 5        // Aumentei um pouco a mão máxima para dar liquidez
 };
 
 // ============================================================================
 // 🎭 REGIMES DE MERCADO (V31 QUANTUM DYNAMICS)
 // ============================================================================
-// Portado do Python Factory V31
-// Duration: range em segundos (aproximei os ticks do python para tempo real)
 const REGIMES = {
     0: { name: '🌊 LAMINAR',   duration: [120, 300], drift: [0.02, 0.07], curve: 'convex',  noise: 0.01 },
     1: { name: '🌪️ TURBULENT', duration: [60, 180],  drift: [0.01, 0.05], curve: 'convex',  noise: 0.05 },
@@ -30,14 +28,14 @@ const REGIMES = {
 };
 
 // ============================================================================
-// 🧠 ESTADO DO BOT (MEMÓRIA QUÂNTICA)
+// 🧠 ESTADO DO BOT
 // ============================================================================
 let state = {
     currentRegimeId: 0,
     startTime: Date.now(),
     durationMs: 0,
-    startParams: {}, // Parâmetros sorteados para o início do regime
-    endParams: {},   // Parâmetros alvo para o fim do regime
+    startParams: {},
+    endParams: {},
     wins: 0,
     errors: 0
 };
@@ -46,15 +44,13 @@ let state = {
 // 🧮 MATEMÁTICA AUXILIAR
 // ============================================================================
 
-// Interpolação (Linear, Convexa, Côncava)
 function interpolate(start, end, progress, type) {
     let t = progress;
-    if (type === 'convex') t = progress * progress; // Acelera no fim
-    else if (type === 'concave') t = 1 - (1 - progress) * (1 - progress); // Rápido no começo
+    if (type === 'convex') t = progress * progress;
+    else if (type === 'concave') t = 1 - (1 - progress) * (1 - progress);
     return start + (end - start) * t;
 }
 
-// Ruído Gaussiano (Box-Muller Transform)
 function gaussian(mean = 0, stdev = 1) {
     const u = 1 - Math.random(); 
     const v = Math.random();
@@ -64,45 +60,35 @@ function gaussian(mean = 0, stdev = 1) {
 
 /**
  * 🔥 BULLISH BIAS CONTROL
- * Calcula a probabilidade de COMPRA baseada no preço atual.
- * Regra: 60% no fundo, decai quadraticamente até 50% no teto (100k).
+ * Probabilidade de compra decresce conforme chega no teto de 100k
  */
 function getBullishProbability(currentPrice) {
-    // Se passou do teto, vira neutro (ou até Bearish leve se quiser)
-    if (currentPrice >= CONFIG.PRICE_CAP) return 0.50;
+    if (currentPrice >= CONFIG.PRICE_CAP) return 0.50; // Neutro no topo
 
-    // Normaliza preço entre 0 e 1
     const x = currentPrice / CONFIG.PRICE_CAP;
     
-    // Curva Quadrática: y = base + range * (1 - x)^2
-    // base = 0.50 (50%)
-    // range = 0.10 (os 10% extras pra chegar em 60%)
-    // (1 - x)^2 garante que cai rápido no começo e suaviza no final
+    // Curva Quadrática Suave
+    // Começa em 60% (0.5 + 0.1) e cai para 50%
     const bonus = 0.10 * Math.pow(1 - x, 2);
     
     return 0.50 + bonus;
 }
 
-// Sorteia novo regime e calibra parâmetros com "Jitter" (variação natural)
 function pickNewRegime() {
     const current = state.currentRegimeId;
     let next = current;
-    // Evita repetir o mesmo regime, para garantir transição de fase
     while (next === current) {
         next = Math.floor(Math.random() * 8);
     }
     
     const regime = REGIMES[next];
-    
-    // Sorteia duração dentro do range do regime
     const durationSec = Math.floor(Math.random() * (regime.duration[1] - regime.duration[0]) + regime.duration[0]);
     
     state.currentRegimeId = next;
     state.startTime = Date.now();
     state.durationMs = durationSec * 1000;
     
-    // Aplica "Jitter" (Ruído) nos parâmetros base para que nenhum ciclo seja idêntico
-    const jitter = () => 1 + (Math.random() * 0.4 - 0.2); // +/- 20%
+    const jitter = () => 1 + (Math.random() * 0.4 - 0.2); 
 
     state.startParams = {
         drift: regime.drift[0] * jitter(),
@@ -110,11 +96,10 @@ function pickNewRegime() {
     };
     state.endParams = {
         drift: regime.drift[1] * jitter(),
-        noise: regime.noise // Noise geralmente mantemos estável ou linear
+        noise: regime.noise
     };
 
-    console.log(`\n🎲 MUDANÇA DE FASE: Entrando em [${regime.name}]`);
-    console.log(`⏱️ Duração: ${durationSec}s | Drift Base: ${state.startParams.drift.toFixed(4)} -> ${state.endParams.drift.toFixed(4)}`);
+    console.log(`\n🎲 MUDANÇA DE FASE: [${regime.name}] por ${durationSec}s`);
 }
 
 // ============================================================================
@@ -122,71 +107,62 @@ function pickNewRegime() {
 // ============================================================================
 async function quantumTick() {
     try {
-        // 1. Obter Preço Atual (Com Fallback de Segurança)
-        let currentPrice = 200.00;
+        // 1. Obter Preço Atual (Endpoint Ticker)
+        let currentPrice = 50.00;
+        
         try {
-            const res = await axios.get(`${CONFIG.API_URL}/exchange/quote`, { 
+            // 🔥 CORREÇÃO: Usa a rota /ticker agora
+            const res = await axios.get(`${CONFIG.API_URL}/exchange/ticker`, { 
                 headers: { 'x-bot-secret': CONFIG.SECRET },
                 timeout: 3000
             });
-            if (res.data.price) currentPrice = Number(res.data.price);
+            
+            if (res.data.price) {
+                currentPrice = Number(res.data.price);
+            }
         } catch (e) {
-            console.warn("⚠️ API Price Error (Using fallback):", e.message);
+            console.warn("⚠️ API Ticker Error:", e.message);
+            // Fallback não crítico, o bot tenta operar no escuro por um tick
         }
 
-        // 2. Verifica Tempo do Regime (Progressão Temporal)
+        // 2. Lógica Temporal
         const now = Date.now();
         const elapsed = now - state.startTime;
         const progress = Math.min(elapsed / state.durationMs, 1.0);
 
         if (elapsed >= state.durationMs) {
             pickNewRegime();
-            return; // Pula um tick para recalibrar
+            return;
         }
 
         const regime = REGIMES[state.currentRegimeId];
 
-        // 3. Define a Direção (A Alma do Bot)
-        // Probabilidade Global (Macro) vs Volatilidade do Regime (Micro)
-        
+        // 3. Física de Mercado
         const bullProb = getBullishProbability(currentPrice);
         const isBullishTick = Math.random() < bullProb;
         
-        // Direção Base: 1 (Compra) ou -1 (Venda)
         let direction = isBullishTick ? 1 : -1;
 
-        // 🔥 Lógica da Trap: Inverte a direção no meio do caminho
-        if (regime.mode === 'trap') {
-            if (progress > 0.6) direction *= -1; // Aos 60% do tempo, a armadilha dispara
-        }
+        // Trap Mode
+        if (regime.mode === 'trap' && progress > 0.6) direction *= -1;
 
-        // 4. Calcula Força (Física)
-        // Drift Interpolado (Intenção Direcional)
         const currentDrift = interpolate(state.startParams.drift, state.endParams.drift, progress, regime.curve);
-        
-        // Ruído Térmico (Volatilidade Aleatória)
         const noiseVal = gaussian(0, state.startParams.noise);
-
-        // Força Resultante = (Drift * Direção) + Ruído
-        // Se a força for positiva, compra. Se negativa, vende.
-        // O Drift dá o "empurrão" na direção escolhida, o ruído bagunça tudo.
         const force = (currentDrift * direction) + noiseVal;
 
-        // 5. Decisão de Trade
+        // 4. Decisão
         const action = force > 0 ? 'buy' : 'sell';
         
-        // Tamanho da Mão: Proporcional à força
-        // Quanto maior a força (convicção ou volatilidade), maior o lote.
-        let amount = Math.ceil(Math.abs(force) * 50); // Multiplicador de sensibilidade
+        let amount = Math.ceil(Math.abs(force) * 50); 
         amount = Math.max(amount, CONFIG.BASE_HAND);
         amount = Math.min(amount, CONFIG.MAX_HAND);
 
-        // 6. Execução
+        // 5. Execução
         const logProb = (bullProb * 100).toFixed(1);
         const logProg = (progress * 100).toFixed(0);
         const icon = action === 'buy' ? '🟩' : '🟥';
 
-        console.log(`[${regime.name}] ${logProg}% | $${currentPrice.toFixed(2)} | BullChance: ${logProb}% | Força: ${force.toFixed(4)} | ${icon} ${amount}`);
+        console.log(`[${regime.name}] ${logProg}% | $${currentPrice.toFixed(2)} | Prob: ${logProb}% | F: ${force.toFixed(3)} | ${icon} ${amount}`);
         
         await axios.post(`${CONFIG.API_URL}/exchange/trade`, {
             action: action,
@@ -198,7 +174,7 @@ async function quantumTick() {
     } catch (error) {
         state.errors++;
         if (error.response?.status === 403) {
-            console.error("⛔ ACESSO NEGADO: Verifique BOT_SECRET e usuário 'market_maker'.");
+            console.error("⛔ ACESSO NEGADO: Verifique se o BOT é Admin.");
         } else {
             console.error("❌ Erro Tick:", error.message);
         }
@@ -206,11 +182,10 @@ async function quantumTick() {
 }
 
 // ============================================================================
-// 🔥 IGNIÇÃO
+// 🔥 START
 // ============================================================================
 console.log("🤖 MARKET MAKER V31 - QUANTUM DYNAMICS ONLINE");
 console.log(`🎯 Alvo: ${CONFIG.API_URL}`);
-console.log(`🎲 Price Cap: ${CONFIG.PRICE_CAP}`);
 
-pickNewRegime(); // Start
+pickNewRegime();
 setInterval(quantumTick, CONFIG.TICK_RATE);
