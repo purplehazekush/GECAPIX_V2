@@ -6,14 +6,13 @@ const { GoogleGenerativeAI, SchemaType } = require("@google/generative-ai");
 const axios = require('axios');
 
 // =================================================================================
-// ⚙️ CONFIGURAÇÃO DA ERA GEMINI 3 (2026)
+// ⚙️ CONFIGURAÇÃO DA ERA GEMINI (HÍBRIDO)
 // =================================================================================
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // ⚡ O VELOCISTA (Triagem e OCR)
-// Custo: $0.50 / 1M tokens (Baratíssimo)
 const modelFlash = genAI.getGenerativeModel({ 
-    model: "gemini-3-flash-preview", 
+    model: "gemini-2.0-flash", // Flash 2.0 é excelente e free tier
     generationConfig: {
         responseMimeType: "application/json",
         temperature: 0.1
@@ -21,9 +20,10 @@ const modelFlash = genAI.getGenerativeModel({
 });
 
 // 🧠 O GÊNIO (Resolução Complexa)
-// Custo: $2.00 / 1M tokens (Preço agressivo, melhor que Claude Opus)
+// OBS: Usando 2.0 Flash temporariamente para testes sem cartão. 
+// Quando ativar o billing, mude para "gemini-3-pro-preview"
 const modelPro = genAI.getGenerativeModel({ 
-    model: "gemini-2.0-flash",  //model: "gemini-3-pro-preview", 
+    model: "gemini-2.0-flash", 
     generationConfig: {
         responseMimeType: "application/json",
         temperature: 0.2
@@ -32,7 +32,6 @@ const modelPro = genAI.getGenerativeModel({
 
 // --- SCHEMAS ---
 
-// Schema de Segmentação (O Flash usa para quebrar a imagem)
 const segmentationSchema = {
     type: SchemaType.OBJECT,
     properties: {
@@ -55,7 +54,6 @@ const segmentationSchema = {
     required: ["questoes"]
 };
 
-// Schema de Resolução Individual (O Pro usa para resolver UMA questão)
 const resolutionSchema = {
     type: SchemaType.OBJECT,
     properties: {
@@ -88,7 +86,7 @@ Use LaTeX para matemática. Seja didático.
 
 exports.resolverQuestao = async (req, res) => {
     try {
-        const { email, imagem_url, materia } = req.body; // TODO: Receber 'max_glue' do front no futuro
+        const { email, imagem_url, materia } = req.body; 
 
         if (!email || !imagem_url) return res.status(400).json({ error: "Dados incompletos." });
         
@@ -100,7 +98,6 @@ exports.resolverQuestao = async (req, res) => {
         let custoCoinsUnitario = (TOKEN.COSTS?.AI_SOLVER_COINS) || 50;
         if (user.classe === 'TECNOMANTE') custoCoinsUnitario = Math.floor(custoCoinsUnitario * TOKEN.CLASSES.TECNOMANTE.ORACLE_DISCOUNT);
 
-        // Checagem Inicial (Precisa ter pelo menos pra 1 questão)
         if ((user.saldo_glue || 0) < custoGlueUnitario) return res.status(402).json({ error: "Sem GLUE suficiente." });
 
         // 1. Download da Imagem
@@ -117,12 +114,15 @@ exports.resolverQuestao = async (req, res) => {
         const imagemPart = { inlineData: { data: imageBase64, mimeType: imageMime } };
 
         // =====================================================================
-        // 🚦 FASE 1: SEGMENTAÇÃO (GEMINI 3 FLASH)
+        // 🚦 FASE 1: SEGMENTAÇÃO (GEMINI FLASH)
         // =====================================================================
-        console.log("⚡ [ORÁCULO] Segmentando imagem com Gemini 3 Flash...");
+        console.log("⚡ [ORÁCULO] Segmentando imagem...");
         
         const chatSeg = modelFlash.startChat({
-            generationConfig: { responseSchema: segmentationSchema }
+            generationConfig: { 
+                responseSchema: segmentationSchema,
+                responseMimeType: "application/json"
+            }
         });
 
         const resSeg = await chatSeg.sendMessage([PROMPT_SEGMENTACAO, imagemPart]);
@@ -135,28 +135,28 @@ exports.resolverQuestao = async (req, res) => {
             return res.status(400).json({ error: "Não identifiquei nenhuma questão legível." });
         }
 
-        // --- LÓGICA DE COBRANÇA DINÂMICA ---
-        // Por enquanto, vamos limitar a 1 resolução por envio para não quebrar a banca do usuário sem aviso
-        // Futuro: Usar o 'max_glue' enviado pelo front para decidir quantas resolver
-        const questoesParaResolver = [listaQuestoes[0]]; // Pega só a primeira ou a principal
+        // --- LIMITAÇÃO TEMPORÁRIA ---
+        // Pega apenas a primeira questão para evitar consumo excessivo no teste
+        const questoesParaResolver = [listaQuestoes[0]]; 
         const custoTotalGlue = custoGlueUnitario * questoesParaResolver.length;
         const custoTotalCoins = custoCoinsUnitario * questoesParaResolver.length;
 
         // =====================================================================
-        // ⚔️ FASE 2: RESOLUÇÃO PARALELA (GEMINI 3 PRO)
+        // ⚔️ FASE 2: RESOLUÇÃO (GEMINI PRO/FLASH)
         // =====================================================================
-        console.log(`🧠 [ORÁCULO] Resolvendo ${questoesParaResolver.length} questões em paralelo...`);
+        console.log(`🧠 [ORÁCULO] Resolvendo ${questoesParaResolver.length} questões...`);
 
         const promises = questoesParaResolver.map(async (q) => {
-            // Seleciona modelo baseado na dificuldade (Router Pattern)
-            // Se for HARD, vai de PRO. Se for EASY, o próprio FLASH resolve (economiza muito)
             const modeloResolver = q.dificuldade === 'HARD' ? modelPro : modelFlash;
-            const nomeModelo = q.dificuldade === 'HARD' ? "Gemini 3 Pro" : "Gemini 3 Flash";
+            const nomeModelo = q.dificuldade === 'HARD' ? "Gemini Pro" : "Gemini Flash";
 
             console.log(`   -> Questão ${q.id} (${q.dificuldade}): Enviando para ${nomeModelo}`);
 
             const chatRes = modeloResolver.startChat({
-                generationConfig: { responseSchema: resolutionSchema }
+                generationConfig: { 
+                    responseSchema: resolutionSchema,
+                    responseMimeType: "application/json" // 🔥 CORREÇÃO AQUI
+                }
             });
 
             const promptFinal = `
@@ -170,7 +170,6 @@ exports.resolverQuestao = async (req, res) => {
             const resFinal = await chatRes.sendMessage([promptFinal, imagemPart]);
             const jsonFinal = JSON.parse(resFinal.response.text());
             
-            // Injeta metadados da triagem no resultado
             return {
                 ...jsonFinal,
                 topico: q.topico,
@@ -178,9 +177,8 @@ exports.resolverQuestao = async (req, res) => {
             };
         });
 
-        // Aguarda todas as IAs terminarem (Promise.all)
         const resultados = await Promise.all(promises);
-        const resultadoFinal = resultados[0]; // Pegamos o primeiro para retornar ao front (que espera 1 objeto)
+        const resultadoFinal = resultados[0]; 
 
         // =====================================================================
         // 💾 SALVA E PAGA
@@ -217,10 +215,6 @@ exports.resolverQuestao = async (req, res) => {
 
     } catch (error) {
         console.error("❌ ERRO ORÁCULO:", error);
-        // Tratamento de erro específico do Gemini
-        if (error.message?.includes('404')) {
-            console.error("⚠️ Modelo não encontrado. Verifique se sua API Key tem acesso ao Gemini 3 Preview.");
-        }
-        res.status(500).json({ error: "A Superinteligência está calibrando seus sensores. Tente novamente." });
+        res.status(500).json({ error: "A Superinteligência está calibrando seus sensores." });
     }
 };
