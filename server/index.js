@@ -169,8 +169,8 @@ app.post('/api/arena/memes', authMiddleware, requireActive, memeController.posta
 app.post('/api/arena/memes/invest', authMiddleware, requireActive, memeController.investirMeme); // NOVA ROTA DE INVESTIMENTO
 
 app.get('/api/arena/ranking', authMiddleware, requireActive, arenaController.getRanking);
-app.get('/api/arena/perfil/:id', authMiddleware, requireActive, arenaController.getPerfilPublico);
-app.put('/api/arena/perfil', authMiddleware, requireActive, arenaController.updatePerfil);
+app.get('/api/arena/perfil/:id', authMiddleware, arenaController.getPerfilPublico);
+app.put('/api/arena/perfil', authMiddleware, arenaController.updatePerfil);
 app.get('/api/arena/quests', authMiddleware, requireActive, questController.getQuests);
 app.post('/api/arena/quests/claim', authMiddleware, requireActive, questController.claimQuest);
 
