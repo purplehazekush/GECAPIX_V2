@@ -1,93 +1,114 @@
-// server/engine/InterestEngine.js
 const UsuarioModel = require('../models/Usuario');
 const LockedBondModel = require('../models/LockedBond');
 const SystemState = require('../models/SystemState');
-const EmissionCurve = require('./EmissionCurve');
 const TOKEN = require('../config/tokenomics');
 
-exports.aplicarJurosDiarios = async (currentDay) => {
-    console.log(`💸 [DEFI] Iniciando cálculo de rendimentos (Dia ${currentDay})...`);
+class InterestEngine {
 
-    try {
-        // 1. CALCULAR O POTE DE RECOMPENSAS (REWARD POOL)
-        // Baseado na curva de emissão do dia
-        const dailyEmission = EmissionCurve.getDailyCashbackPool(currentDay);
-        const rewardPool = dailyEmission * TOKEN.BANK.STAKING_ALLOCATION;
+    /**
+     * Calcula a APR (Taxa Diária) personalizada para um usuário
+     * Baseada no Nível e Classe.
+     */
+    static calculateUserLiquidAPR(user) {
+        // 1. Configurações Base
+        const BASE_APR = 0.005; // 0.5% ao dia base
+        const CAP_APR = TOKEN.BANK.MAX_DAILY_YIELD_LIQUID || 0.015; // Teto de 1.5% ao dia
+        
+        // 2. Bônus por Nível (0.05% a mais por nível)
+        // Nível 1 = +0.05%, Nível 10 = +0.5%
+        const LEVEL_BONUS = (user.nivel || 1) * 0.0005; 
 
-        console.log(`   -> Emissão Hoje: ${dailyEmission} GC | Pote Staking: ${Math.floor(rewardPool)} GC`);
-
-        // 2. CALCULAR O TVL (TOTAL VALUE LOCKED)
-        // Agregação para somar tudo que está investido no banco
-        const aggLiquido = await UsuarioModel.aggregate([{ $group: { _id: null, total: { $sum: "$saldo_staking_liquido" } } }]);
-        const totalLiquido = aggLiquido[0]?.total || 0;
-
-        const aggLocked = await LockedBondModel.aggregate([
-            { $match: { status: 'ATIVO' } },
-            { $group: { _id: null, total: { $sum: "$valor_atual" } } }
-        ]);
-        const totalLocked = aggLocked[0]?.total || 0;
-
-        // 3. CALCULAR SHARES (PESO PONDERADO)
-        // Locked vale 3x mais (config) na divisão do bolo
-        const lockedWeight = TOKEN.BANK.LOCKED_WEIGHT;
-        const totalShares = totalLiquido + (totalLocked * lockedWeight);
-
-        if (totalShares === 0) {
-            console.log("   -> Nenhum staker. Pote acumulado para amanhã.");
-            return;
+        // 3. Bônus de Classe (Especulador ganha +10% sobre o total)
+        let multiplier = 1;
+        if (user.classe === 'ESPECULADOR') {
+            multiplier = TOKEN.CLASSES.ESPECULADOR.STAKING_YIELD_MULT || 1.1;
         }
 
-        // 4. CALCULAR O YIELD BASE (Dividend Per Share)
-        let baseYield = rewardPool / totalShares;
+        // 4. Cálculo Final
+        let finalRate = (BASE_APR + LEVEL_BONUS) * multiplier;
 
-        // 5. APLICAR CAP (CIRCUIT BREAKER)
-        // O rendimento líquido é 1x o baseYield. Verificamos se estoura o teto.
-        const maxLiq = TOKEN.BANK.MAX_DAILY_YIELD_LIQUID;
-
-        if (baseYield > maxLiq) {
-            console.log(`   -> Teto atingido! (Calculado: ${(baseYield * 100).toFixed(2)}% > Max: ${(maxLiq * 100).toFixed(2)}%)`);
-            baseYield = maxLiq;
-            // O que sobra, fica no SystemState (não é distribuído), servindo de reserva
-        }
-
-        // Taxas Finais
-        const aprLiquido = baseYield;
-        const aprLocked = baseYield * lockedWeight;
-
-        // Trava final de segurança pro Locked também
-        const finalAprLocked = Math.min(aprLocked, TOKEN.BANK.MAX_DAILY_YIELD_LOCKED);
-
-        console.log(`   -> APR FINAL: Líquido ${(aprLiquido * 100).toFixed(4)}% | Locked ${(finalAprLocked * 100).toFixed(4)}%`);
-
-        // 6. APLICAR RENDIMENTOS (UPDATE MASSIVO)
-
-        // A. Líquido (Com bônus de classe Especulador aplicado sobre a taxa dinâmica)
-        const speculatorMult = TOKEN.CLASSES.ESPECULADOR.STAKING_YIELD_MULT;
-
-        // Normais (Não Especuladores)
-        await UsuarioModel.updateMany(
-            { saldo_staking_liquido: { $gt: 0 }, classe: { $ne: 'ESPECULADOR' } },
-            { $mul: { saldo_staking_liquido: (1 + aprLiquido) } }
-        );
-
-        // Especuladores (Ganha Bônus)
-        // 🔥 CORREÇÃO AQUI: Substituir 'baseRate' por (1 + (aprLiquido * speculatorMult))
-        const aprEspeculador = aprLiquido * speculatorMult;
-
-        await UsuarioModel.updateMany(
-            { saldo_staking_liquido: { $gt: 0 }, status: 'ativo', classe: 'ESPECULADOR' }, // 🔥 CORREÇÃO: classe É 'ESPECULADOR'
-            { $mul: { saldo_staking_liquido: (1 + aprEspeculador) } }
-        );
-
-        // 7. SALVAR INDICADORES NO BANCO CENTRAL (Para o Front ver)
-        await SystemState.updateOne({ season_id: 1 }, {
-            last_apr_liquid: aprLiquido,
-            last_apr_locked: finalAprLocked,
-            total_staked_liquid: totalLiquido,
-            total_staked_locked: totalLocked
-        });
-
-    } catch (e) {
-        console.error("❌ Erro crítico no motor DeFi:", e);
+        // 5. Trava de Segurança (Cap)
+        return Math.min(finalRate, CAP_APR);
     }
-};
+
+    /**
+     * Roda o processamento em lote de todos os juros
+     * Chamado pelo DailyTreasury.js
+     */
+    static async aplicarJurosDiarios(day) {
+        console.log(`💸 [INTEREST] Calculando juros do dia ${day}...`);
+        
+        const bulkOpsUsers = [];
+        const bulkOpsBonds = [];
+        let totalYieldPaid = 0;
+
+        // --- 1. STAKING LÍQUIDO (CDB) ---
+        // Busca quem tem dinheiro parado
+        const savers = await UsuarioModel.find({ saldo_staking_liquido: { $gt: 0 } });
+
+        for (let user of savers) {
+            const rate = this.calculateUserLiquidAPR(user);
+            const yieldAmount = Math.floor(user.saldo_staking_liquido * rate);
+
+            if (yieldAmount > 0) {
+                totalYieldPaid += yieldAmount;
+                
+                // Prepara update em lote (Performance)
+                bulkOpsUsers.push({
+                    updateOne: {
+                        filter: { _id: user._id },
+                        update: { 
+                            $inc: { saldo_staking_liquido: yieldAmount }, // Juros Compostos (Cai no principal)
+                            // Opcional: Se quiser juros simples caindo na conta corrente:
+                            // $inc: { saldo_coins: yieldAmount } 
+                        }
+                    }
+                });
+            }
+        }
+
+        // --- 2. STAKING TRAVADO (BONDS) ---
+        // Busca títulos ativos
+        const bonds = await LockedBondModel.find({ status: 'ATIVO' });
+
+        for (let bond of bonds) {
+            // A taxa já foi fixada na compra (contrato inteligente imutável)
+            const rate = bond.apr_contratada;
+            const yieldAmount = Math.floor(bond.valor_atual * rate);
+
+            if (yieldAmount > 0) {
+                totalYieldPaid += yieldAmount;
+                
+                bulkOpsBonds.push({
+                    updateOne: {
+                        filter: { _id: bond._id },
+                        update: { $inc: { valor_atual: yieldAmount } }
+                    }
+                });
+            }
+        }
+
+        // --- 3. EXECUÇÃO NO BANCO ---
+        if (bulkOpsUsers.length > 0) {
+            await UsuarioModel.bulkWrite(bulkOpsUsers);
+            console.log(`   -> Juros Líquidos pagos a ${bulkOpsUsers.length} usuários.`);
+        }
+
+        if (bulkOpsBonds.length > 0) {
+            await LockedBondModel.bulkWrite(bulkOpsBonds);
+            console.log(`   -> Juros de Títulos atualizados em ${bulkOpsBonds.length} contratos.`);
+        }
+
+        // --- 4. REGISTRO CONTÁBIL ---
+        // Registra quanto o sistema "imprimiu" ou tirou do fundo de garantia
+        if (totalYieldPaid > 0) {
+            await SystemState.updateOne({ season_id: 1 }, {
+                $inc: { total_fees_collected: -totalYieldPaid } // Deduz do lucro do sistema (Fees)
+            });
+        }
+
+        console.log(`💰 [INTEREST] Total distribuído: ${totalYieldPaid} GC`);
+    }
+}
+
+module.exports = InterestEngine;

@@ -251,11 +251,12 @@ app.post('/api/produtos',
 app.get('/api/stats', requireActive, statsController.getStats);
 
 
-app.post('/api/bank/deposit', requireActive, bankController.depositarLiquido);
-app.post('/api/bank/withdraw', requireActive, bankController.sacarLiquido);
-app.post('/api/bank/bond/buy', requireActive, bankController.comprarTitulo);
-app.post('/api/bank/bond/redeem', requireActive, bankController.resgatarTitulo);
-app.get('/api/bank/bonds', requireActive, bankController.listarTitulos);
+app.post('/api/bank/deposit', authMiddleware, requireActive, bankController.depositarLiquido);
+app.post('/api/bank/withdraw', authMiddleware, requireActive, bankController.sacarLiquido);
+app.post('/api/bank/bond/buy', authMiddleware, requireActive, bankController.comprarTitulo);
+app.post('/api/bank/bond/redeem', authMiddleware, requireActive, bankController.resgatarTitulo);
+app.get('/api/bank/bonds', authMiddleware, requireActive, bankController.listarTitulos);
+app.get('/api/bank/dashboard', authMiddleware, requireActive, bankController.getDashboard);
 
 
 app.get('/api/store/p2p', requireActive, storeController.getOfertasP2P);

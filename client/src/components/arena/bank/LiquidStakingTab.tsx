@@ -16,8 +16,14 @@ export const LiquidStakingTab = ({ user, status, onUpdateUser }: LiquidStakingTa
     // Cálculo visual do ganho em tempo real
     const getProjecaoHoje = () => {
         if (!status || !user?.saldo_staking_liquido) return 0;
-        const taxa = status.last_apr_liquid || 0;
-        const ganhoTotal = user.saldo_staking_liquido * taxa;
+        
+        // 🔥 CÁLCULO DINÂMICO DE APR (XP BOOSTER)
+        const baseApr = status.last_apr_liquid || 0;
+        const userLevel = user.nivel || 1;
+        const multiplier = 1 + (userLevel * 0.05); // +5% por nível
+        const finalApr = baseApr * multiplier;
+
+        const ganhoTotal = user.saldo_staking_liquido * finalApr;
         const percentualDia = Math.min(new Date().getHours() / 24, 1);
         return Math.floor(ganhoTotal * percentualDia);
     };
@@ -43,6 +49,8 @@ export const LiquidStakingTab = ({ user, status, onUpdateUser }: LiquidStakingTa
         } catch (e: any) { toast.error(e.response?.data?.error || "Erro", { id: toastId }); }
     };
 
+    const taxaPersonalizada = status?.user_rate_liquid || 0;
+
     return (
         <div className="space-y-4 animate-slide-up">
             <div className="bg-gradient-to-br from-emerald-900 via-slate-900 to-slate-900 p-6 rounded-3xl border border-emerald-500/30 text-center relative overflow-hidden shadow-2xl">
@@ -50,7 +58,15 @@ export const LiquidStakingTab = ({ user, status, onUpdateUser }: LiquidStakingTa
                 
                 <h3 className="text-xl font-black text-white italic uppercase relative z-10 mb-1">CDB Gecapix</h3>
                 <p className="text-xs text-emerald-300 mb-6 relative z-10">
-                    Rendimento: <span className="font-black bg-emerald-500/20 px-1 rounded">{(status?.last_apr_liquid * 100).toFixed(3)}% ao dia</span>
+                    Rendimento: <span className="font-black bg-emerald-500/20 px-1 rounded">
+                        {(taxaPersonalizada * 100).toFixed(3)}% ao dia
+                    </span>
+                    {/* Badge de Bônus se tiver nivel alto */}
+                    {user.nivel > 1 && (
+                        <span className="ml-2 text-[9px] text-yellow-400 font-bold uppercase">
+                            (Boost Nível {user.nivel})
+                        </span>
+                    )}
                 </p>
 
                 <div className="grid grid-cols-2 gap-4 mb-6 relative z-10">

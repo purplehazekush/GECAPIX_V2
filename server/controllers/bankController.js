@@ -3,6 +3,7 @@ const UsuarioModel = require('../models/Usuario');
 const LockedBondModel = require('../models/LockedBond');
 const SystemState = require('../models/SystemState');
 const TOKEN = require('../config/tokenomics');
+const InterestEngine = require('../engine/InterestEngine'); // Importe o engine
 
 // --- 1. STAKING LÍQUIDO ---
 
@@ -153,5 +154,40 @@ exports.resgatarTitulo = async (req, res) => {
     } catch (e) { 
         console.error(e);
         res.status(500).json({ error: "Erro no resgate" }); 
+    }
+};
+
+// NOVO ENDPOINT: Dashboard Bancário Completo
+exports.getDashboard = async (req, res) => {
+    try {
+        const { email } = req.query;
+        if (!email) return res.status(400).json({ error: "Email necessário" });
+
+        const user = await UsuarioModel.findOne({ email });
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        // 1. Calcula a taxa personalizada ATUAL
+        const currentAPR = InterestEngine.calculateUserLiquidAPR(user);
+
+        // 2. Busca Títulos
+        const bonds = await LockedBondModel.find({ owner_id: user._id, status: 'ATIVO' });
+
+        // 3. Busca Dados Globais (Opcional, para mostrar TVL do banco)
+        const state = await SystemState.findOne({ season_id: 1 });
+
+        res.json({
+            user_balance: user.saldo_coins,
+            user_invested_liquid: user.saldo_staking_liquido,
+            user_rate_liquid: currentAPR, // <--- O Front usa isso pra mostrar "% a.d."
+            user_bonds: bonds,
+            
+            // Dados para simulação de novos títulos
+            market_rate_locked: TOKEN.BANK.LOCKED_APR_DAILY_BASE,
+            lock_period: TOKEN.BANK.LOCKED_PERIOD_DAYS
+        });
+
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: "Erro ao carregar banco" });
     }
 };

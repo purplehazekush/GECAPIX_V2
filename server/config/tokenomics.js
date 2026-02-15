@@ -77,8 +77,8 @@ module.exports = {
 
     get GAMES() {
         return {
-            DAILY_LIMIT: 30, // Quantas partidas por dia
-            MIN_BET: 10,
+            DAILY_LIMIT: 5, // Quantas partidas por dia
+            MIN_BET: 100,
             TAX_RATE: getVal('TAX_RATE') || 0.05
         };
     },

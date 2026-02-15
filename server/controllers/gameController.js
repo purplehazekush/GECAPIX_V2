@@ -5,7 +5,7 @@ const { Chess } = require('chess.js');
 let rooms = {};
 
 // ==========================================
-// 1. UTILITÁRIOS (Sem Damas)
+// 1. UTILITÁRIOS & REGRAS
 // ==========================================
 
 const checkWinnerConnect4 = (board) => {
@@ -36,6 +36,26 @@ const checkWinnerVelha = (board) => {
     return null;
 };
 
+// 🔥 NOVO: Verificador de Limite Diário
+const checkDailyLimit = async (user) => {
+    const hoje = new Date();
+    hoje.setHours(0,0,0,0);
+
+    const ultimoJogo = user.ultimo_jogo_data ? new Date(user.ultimo_jogo_data) : new Date(0);
+    ultimoJogo.setHours(0,0,0,0);
+
+    // Se o último jogo não foi hoje, reseta o contador
+    if (ultimoJogo.getTime() < hoje.getTime()) {
+        user.jogos_hoje = 0;
+    }
+
+    if (user.jogos_hoje >= TOKEN.GAMES.DAILY_LIMIT) {
+        return false; // Bloqueia
+    }
+    
+    return true; // Libera
+};
+
 // ==========================================
 // 2. CONTROLLER PRINCIPAL
 // ==========================================
@@ -57,14 +77,20 @@ exports.createRoom = async (io, socket, { gameType, userEmail, betAmount, isPriv
     try {
         const user = await UsuarioModel.findOne({ email: userEmail });
         if (!user) return socket.emit('error', { message: 'Usuário não encontrado.' });
-        if (user.saldo_coins < betAmount) return socket.emit('error', { message: 'Saldo insuficiente.' });
+        
+        // Check de Limite
+        if (!(await checkDailyLimit(user))) {
+            return socket.emit('error', { message: 'Limite diário de partidas atingido (5/5).' });
+        }
 
-        // 🛑 REMOVIDO DAMAS DA LÓGICA
+        if (user.saldo_coins < betAmount) return socket.emit('error', { message: 'Saldo insuficiente.' });
         if (gameType === 'damas') return socket.emit('error', { message: 'Jogo desativado temporariamente.' });
 
+        // Debita e Incrementa Contador
         await UsuarioModel.updateOne({ _id: user._id }, { 
-            $inc: { saldo_coins: -betAmount },
-            $push: { extrato: { tipo: 'SAIDA', valor: betAmount, descricao: `Aposta Bloqueada: ${gameType}`, data: new Date() } }
+            $inc: { saldo_coins: -betAmount, jogos_hoje: 1 },
+            $set: { ultimo_jogo_data: new Date() }, // Marca que jogou hoje
+            $push: { extrato: { tipo: 'SAIDA', valor: betAmount, descricao: `Aposta: ${gameType}`, categoria: 'GAME', data: new Date() } }
         });
 
         const roomId = `room_${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
@@ -74,8 +100,6 @@ exports.createRoom = async (io, socket, { gameType, userEmail, betAmount, isPriv
         if (gameType === 'xadrez') initialBoard = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
         if (gameType === 'connect4') initialBoard = Array(42).fill(null);
 
-        // ⏱️ CONFIGURAÇÃO DE TEMPO (Padrão 600s = 10 min se não vier nada)
-        // O front manda 'timeLimit' em SEGUNDOS (ex: 60, 180, 300)
         const timeLimitSeconds = timeLimit || 600;
 
         rooms[roomId] = {
@@ -88,11 +112,9 @@ exports.createRoom = async (io, socket, { gameType, userEmail, betAmount, isPriv
             boardState: initialBoard,
             config: { isPrivate, password },
             status: 'waiting',
-            
-            // 🔥 SISTEMA DE TIMER
             initialTime: timeLimitSeconds,
-            timers: [timeLimitSeconds, timeLimitSeconds], // [Tempo P1, Tempo P2]
-            lastMoveTime: null // Será iniciado quando o jogo começar
+            timers: [timeLimitSeconds, timeLimitSeconds],
+            lastMoveTime: null 
         };
 
         socket.join(roomId);
@@ -109,21 +131,17 @@ exports.joinSpecificRoom = async (io, socket, { roomId, userEmail, password }) =
     const room = rooms[roomId];
     if (!room) return socket.emit('error', { message: 'Sala inexistente.' });
 
-    // RECONEXÃO
+    // RECONEXÃO (Não conta como novo jogo)
     const existingIdx = room.playerData.findIndex(p => p.email === userEmail);
     if (existingIdx !== -1) {
-        // Atualiza socket
         room.playerData[existingIdx].socketId = socket.id;
         room.players[existingIdx] = socket.id;
         socket.join(roomId);
         
-        // 🔥 CORREÇÃO DO F5 (Cálculo de Tempo Real)
         let currentTimers = [...room.timers];
         if (room.status === 'playing' && room.lastMoveTime) {
             const now = Date.now();
             const timeSpent = (now - room.lastMoveTime) / 1000;
-            // Desconta o tempo que passou desde o último movimento APENAS para visualização
-            // Não salvamos no banco ainda pra não perder a referência do lastMoveTime
             currentTimers[room.turnIndex] -= timeSpent;
         }
 
@@ -132,7 +150,7 @@ exports.joinSpecificRoom = async (io, socket, { roomId, userEmail, password }) =
             boardState: room.boardState,
             isMyTurn: room.turnIndex === existingIdx,
             opponent: room.playerData.find(p => p.email !== userEmail)?.nome,
-            timers: currentTimers // <--- Manda o tempo corrigido, não o estático!
+            timers: currentTimers
         });
         return;
     }
@@ -142,11 +160,20 @@ exports.joinSpecificRoom = async (io, socket, { roomId, userEmail, password }) =
     if (room.config.isPrivate && room.config.password !== password) return socket.emit('error', { message: 'Senha incorreta.' });
 
     const user = await UsuarioModel.findOne({ email: userEmail });
-    if (!user || user.saldo_coins < room.pot) return socket.emit('error', { message: 'Saldo insuficiente.' });
+    if (!user) return socket.emit('error', { message: 'Usuário não encontrado.' });
 
+    // Check de Limite
+    if (!(await checkDailyLimit(user))) {
+        return socket.emit('error', { message: 'Limite diário de partidas atingido (5/5).' });
+    }
+
+    if (user.saldo_coins < room.pot) return socket.emit('error', { message: 'Saldo insuficiente.' });
+
+    // Debita e Incrementa Contador
     await UsuarioModel.updateOne({ _id: user._id }, { 
-        $inc: { saldo_coins: -room.pot },
-        $push: { extrato: { tipo: 'SAIDA', valor: room.pot, descricao: `Aposta: ${room.gameType}`, data: new Date() } }
+        $inc: { saldo_coins: -room.pot, jogos_hoje: 1 },
+        $set: { ultimo_jogo_data: new Date() },
+        $push: { extrato: { tipo: 'SAIDA', valor: room.pot, descricao: `Aposta: ${room.gameType}`, categoria: 'GAME', data: new Date() } }
     });
 
     room.players.push(socket.id);
@@ -172,7 +199,6 @@ exports.joinSpecificRoom = async (io, socket, { roomId, userEmail, password }) =
 
     io.to(roomId).emit('player_joined', { players: room.playerData });
     
-    // 🔥 INICIA O RELÓGIO DO SERVIDOR
     room.lastMoveTime = Date.now();
 
     io.to(roomId).emit('game_start', { 
@@ -181,15 +207,16 @@ exports.joinSpecificRoom = async (io, socket, { roomId, userEmail, password }) =
         turn: room.players[room.turnIndex],
         players: room.playerData,
         nextTurnEmail: room.playerData[room.turnIndex].email,
-        timers: room.timers // Envia [600, 600]
+        timers: room.timers
     });
     
     io.emit('rooms_update');
 };
 
 // ==========================================
-// 3. MOVE & TIMERS
+// 3. MOVIMENTO E FIM DE JOGO
 // ==========================================
+
 exports.makeMove = async (io, socket, { roomId, moveData }) => {
     const room = rooms[roomId];
     if (!room || room.status !== 'playing') return;
@@ -199,35 +226,21 @@ exports.makeMove = async (io, socket, { roomId, moveData }) => {
         return socket.emit('error', { message: 'Não é sua vez!' });
     }
 
-    // ⏳ 1. CÁLCULO DE TEMPO
     const now = Date.now();
-    // Se for o primeiro movimento, pode não ter lastMoveTime setado corretamente, então fallback
     const lastTime = room.lastMoveTime || now;
-    
-    // Tempo gasto em segundos (float)
     const timeSpent = (now - lastTime) / 1000;
     
-    // Desconta do jogador atual
     room.timers[room.turnIndex] -= timeSpent;
-    room.lastMoveTime = now; // Reseta marco
+    room.lastMoveTime = now;
 
-    // 💀 CHECK DE TIMEOUT (Perdeu por tempo?)
     if (room.timers[room.turnIndex] <= 0) {
         room.timers[room.turnIndex] = 0;
-        
-        // Quem jogava (turnIndex) perdeu. O outro (turnIndex ^ 1) venceu.
         const winnerIndex = room.turnIndex === 0 ? 1 : 0;
-        
-        console.log(`⏱️ Timeout na sala ${roomId}. Vencedor: Player ${winnerIndex}`);
-        
         await processEndGame(io, room, winnerIndex);
-        
-        // Avisa especificamente que foi por tempo
         io.to(roomId).emit('game_over_timeout', { loser: room.turnIndex });
         return;
     }
 
-    // --- 2. LÓGICA DE JOGO ---
     let nextState = null;
     let winnerIndex = null;
 
@@ -256,7 +269,6 @@ exports.makeMove = async (io, socket, { roomId, moveData }) => {
 
     else if (room.gameType === 'connect4') {
         const col = moveData.colIndex;
-        // Validações básicas Connect4...
         let rowToFill = -1;
         for (let r = 5; r >= 0; r--) {
             if (!room.boardState[r * 7 + col]) { rowToFill = r; break; }
@@ -273,56 +285,90 @@ exports.makeMove = async (io, socket, { roomId, moveData }) => {
         else if (newBoard.every(c => c !== null)) winnerIndex = 'draw';
     }
 
-    // --- 3. APLICAÇÃO ---
     if (nextState) {
         room.boardState = nextState;
         
         if (winnerIndex !== null) {
             await processEndGame(io, room, winnerIndex);
         } else {
-            // Troca turno
             room.turnIndex = room.turnIndex === 0 ? 1 : 0;
             const nextPlayer = room.playerData[room.turnIndex];
             
             io.to(roomId).emit('move_made', { 
                 newState: nextState, 
                 nextTurnEmail: nextPlayer.email,
-                timers: room.timers // 🔥 Envia timers sincronizados
+                timers: room.timers 
             });
         }
     }
 };
 
-exports.handleWinClaim = () => {}; 
+exports.claimTimeout = async (io, socket, { roomId }) => {
+    const room = rooms[roomId];
+    if (!room || room.status !== 'playing') return;
 
-exports.handleDisconnect = (io, socket) => {
-    console.log(`🔌 Player caiu: ${socket.id}`);
-    // Futuro: Implementar pausa no relógio se alguém cair? Por enquanto, o tempo corre.
+    const now = Date.now();
+    const lastTime = room.lastMoveTime || now;
+    const timeSpent = (now - lastTime) / 1000;
+
+    room.timers[room.turnIndex] -= timeSpent;
+    room.lastMoveTime = now;
+
+    // Tolerância de 2s para lag
+    if (room.timers[room.turnIndex] <= 2) {
+        room.timers[room.turnIndex] = 0;
+        const loserIndex = room.turnIndex;
+        const winnerIndex = loserIndex === 0 ? 1 : 0; 
+        
+        await processEndGame(io, room, winnerIndex);
+        io.to(roomId).emit('game_over_timeout', { loser: loserIndex });
+    } else {
+        socket.emit('sync_timer', { timers: room.timers });
+    }
 };
 
+exports.handleWinClaim = () => {}; 
+exports.handleDisconnect = (io, socket) => {};
+
+// ==========================================
+// 4. PAGAMENTO E FINALIZAÇÃO
+// ==========================================
 async function processEndGame(io, room, result) {
     const winnerData = result === 'draw' ? null : room.playerData[result];
     const loserData = result === 'draw' ? null : room.playerData[result === 0 ? 1 : 0];
+    
     const tax = Math.floor(room.pot * TOKEN.GAMES.TAX_RATE);
     const prize = room.pot - tax;
 
     if (result === 'draw') {
+        // EMPATE: Reembolso Integral (Sem taxas)
         const reembolso = room.pot / 2;
         for (let p of room.playerData) {
             await UsuarioModel.updateOne({ email: p.email }, { 
                 $inc: { saldo_coins: reembolso },
-                $push: { extrato: { tipo: 'ENTRADA', valor: reembolso, descricao: 'Reembolso: Empate', data: new Date() } }
+                $push: { extrato: { tipo: 'ENTRADA', valor: reembolso, descricao: 'Reembolso: Empate', categoria: 'GAME', data: new Date() } }
             });
         }
         io.to(room.id).emit('game_over', { winner: null, draw: true });
     } else {
+        // VITÓRIA
         await UsuarioModel.updateOne({ email: winnerData.email }, {
             $inc: { saldo_coins: prize, xp: TOKEN.XP.GAME_WIN },
-            $push: { extrato: { tipo: 'ENTRADA', valor: prize, descricao: `Vitória: ${room.gameType}`, data: new Date() } }
+            $push: { extrato: { tipo: 'ENTRADA', valor: prize, descricao: `Vitória: ${room.gameType}`, categoria: 'GAME', data: new Date() } }
         });
+        // XP de Consolação para o perdedor
         await UsuarioModel.updateOne({ email: loserData.email }, {
             $inc: { xp: TOKEN.XP.GAME_LOSS }
         });
+
+        // Coleta da Taxa para o Tesouro
+        if (tax > 0) {
+             await UsuarioModel.updateOne({ email: TOKEN.WALLETS.TREASURY }, {
+                $inc: { saldo_coins: tax },
+                $push: { extrato: { tipo: 'ENTRADA', valor: tax, descricao: `Taxa Jogo: ${room.gameType}`, categoria: 'SYSTEM', data: new Date() } }
+            });
+        }
+
         io.to(room.id).emit('game_over', { winner: winnerData.nome, prize, draw: false });
     }
 
@@ -330,37 +376,3 @@ async function processEndGame(io, room, result) {
     delete rooms[room.id];
     io.emit('rooms_update');
 }
-
-// Adicione isso junto com os outros exports
-
-exports.claimTimeout = async (io, socket, { roomId }) => {
-    const room = rooms[roomId];
-    if (!room || room.status !== 'playing') return;
-
-    // 1. Recalcula o tempo oficial
-    const now = Date.now();
-    const lastTime = room.lastMoveTime || now;
-    const timeSpent = (now - lastTime) / 1000;
-
-    // Atualiza o timer do jogador da vez no servidor
-    room.timers[room.turnIndex] -= timeSpent;
-    room.lastMoveTime = now;
-
-    // 2. Verifica se realmente acabou (Margem de erro de 2s para latência)
-    if (room.timers[room.turnIndex] <= 2) {
-        room.timers[room.turnIndex] = 0;
-        
-        const loserIndex = room.turnIndex;
-        const winnerIndex = loserIndex === 0 ? 1 : 0; // O outro ganha
-
-        console.log(`⏰ Timeout Reivindicado na sala ${roomId}. Vencedor: P${winnerIndex}`);
-        
-        await processEndGame(io, room, winnerIndex);
-        
-        // Avisa a todos
-        io.to(roomId).emit('game_over_timeout', { loser: loserIndex });
-    } else {
-        // Se o cliente mentiu ou está com lag, mandamos o tempo real de volta pra ele corrigir
-        socket.emit('sync_timer', { timers: room.timers });
-    }
-};
