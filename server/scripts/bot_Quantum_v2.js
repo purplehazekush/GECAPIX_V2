@@ -10,7 +10,7 @@ const CONFIG = {
     TICK_RATE: 5000,   // 5 segundos entre trades
     PRICE_CAP: 100000, // Teto onde o bias vira neutro
     BASE_HAND: 1,      // Mão mínima
-    MAX_HAND: 10       // Mão máxima (segurança)
+    MAX_HAND: 3       // Mão máxima (segurança)
 };
 
 // ============================================================================
@@ -123,7 +123,7 @@ function pickNewRegime() {
 async function quantumTick() {
     try {
         // 1. Obter Preço Atual (Com Fallback de Segurança)
-        let currentPrice = 50.0;
+        let currentPrice = 200.00;
         try {
             const res = await axios.get(`${CONFIG.API_URL}/exchange/quote`, { 
                 headers: { 'x-bot-secret': CONFIG.SECRET },

@@ -205,8 +205,8 @@ app.get('/api/admin/config', authMiddleware, checkRole(['admin']), adminConfigCo
 app.put('/api/admin/config', authMiddleware, checkRole(['admin']), adminConfigController.updateConfig);
 // ROTA DE DEBUG (Apagar em produção)
 
-app.get('/api/exchange/quote', authMiddleware, checkRole(['admin']), exchangeController.getQuote);
-app.get('/api/exchange/chart', authMiddleware, checkRole(['admin']), exchangeController.getChartData);
+app.get('/api/exchange/quote', authMiddleware, exchangeController.getQuote);
+app.get('/api/exchange/chart', authMiddleware, exchangeController.getChartData);
 
 
 // 2. Aplique ele na rota de trade
