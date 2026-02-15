@@ -181,7 +181,7 @@ async function resetV4() {
             season_start_date: new Date(),
             current_day: 0,
             glue_price_base: 200,
-            glue_price_multiplier: 1.05, // <--- ALTERADO DE 1.20 PARA 1.03 (3%)
+            glue_price_multiplier: 1.015, // <--- ALTERADO DE 1.20 PARA 1.03 (3%)
             glue_supply_circulating: 0,
             referral_pool_available: 5000,
             cashback_pool_available: 10000,
