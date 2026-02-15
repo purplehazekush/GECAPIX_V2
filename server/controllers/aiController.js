@@ -1,4 +1,3 @@
-// server/controllers/aiController.js
 const UsuarioModel = require('../models/Usuario');
 const ChatModel = require('../models/Mensagem');
 const TOKEN = require('../config/tokenomics');
@@ -6,192 +5,128 @@ const { GoogleGenerativeAI, SchemaType } = require("@google/generative-ai");
 const axios = require('axios');
 
 // =================================================================================
-// ⚙️ CONFIGURAÇÃO DA ERA GEMINI (HÍBRIDO)
+// ⚙️ CONFIGURAÇÃO DO ORÁCULO GEMINI 3
 // =================================================================================
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// ⚡ O VELOCISTA (Triagem e OCR)
-const modelFlash = genAI.getGenerativeModel({ 
-    model: "gemini-2.0-flash", // Flash 2.0 é excelente e free tier
+// Configuração do Modelo (Use 'gemini-3-pro-preview' se tiver billing, senão 'gemini-2.0-flash')
+const MODEL_NAME = "gemini-2.0-flash"; // Altere para "gemini-3-pro-preview" quando quiser potência máxima
+
+const model = genAI.getGenerativeModel({ 
+    model: MODEL_NAME,
     generationConfig: {
         responseMimeType: "application/json",
-        temperature: 0.1
+        temperature: 0.1 // Criatividade baixa para precisão matemática
     }
 });
 
-// 🧠 O GÊNIO (Resolução Complexa)
-// OBS: Usando 2.0 Flash temporariamente para testes sem cartão. 
-// Quando ativar o billing, mude para "gemini-3-pro-preview"
-const modelPro = genAI.getGenerativeModel({ 
-    model: "gemini-2.0-flash", 
-    generationConfig: {
-        responseMimeType: "application/json",
-        temperature: 0.2
-    }
-});
-
-// --- SCHEMAS ---
-
-const segmentationSchema = {
+// --- NOVO SCHEMA: "A PROVA PERFEITA" ---
+const oracleSchema = {
     type: SchemaType.OBJECT,
     properties: {
-        questoes: {
-            type: SchemaType.ARRAY,
-            description: "Lista de questões distintas identificadas na imagem.",
-            items: {
-                type: SchemaType.OBJECT,
-                properties: {
-                    id: { type: SchemaType.NUMBER },
-                    texto_extraido: { type: SchemaType.STRING },
-                    dificuldade: { type: SchemaType.STRING, enum: ["EASY", "HARD"] },
-                    topico: { type: SchemaType.STRING }
-                },
-                required: ["texto_extraido", "dificuldade", "topico"]
-            }
+        titulo_elegante: { type: SchemaType.STRING, description: "Um título curto e acadêmico para a questão (ex: 'Integral por Partes com Logaritmo')." },
+        
+        estrategia_analitica: { 
+            type: SchemaType.STRING, 
+            description: "O 'Pulo do Gato'. Explique QUAL método vai usar e POR QUE ele é o melhor antes de começar a conta." 
         },
-        analise_global: { type: SchemaType.STRING, description: "Resumo do que tem na imagem." }
-    },
-    required: ["questoes"]
-};
+        
+        resolucao_narrativa: { 
+            type: SchemaType.ARRAY,
+            description: "A resolução passo-a-passo. Cada item do array é um parágrafo ou bloco lógico. Misture texto explicativo com LaTeX ($...$).",
+            items: { type: SchemaType.STRING }
+        },
 
-const resolutionSchema = {
-    type: SchemaType.OBJECT,
-    properties: {
-        resolucao_rapida: { type: SchemaType.STRING, description: "Resultado final em LaTeX (ex: \\\\frac{1}{2})." },
-        multipla_escolha: { type: SchemaType.STRING, description: "Letra do gabarito ou N/A." },
-        resolucao_eficiente: { type: SchemaType.STRING, description: "Passo a passo direto e otimizado." },
-        resolucao_completa: { type: SchemaType.STRING, description: "Explicação didática profunda." },
-        dica_extra: { type: SchemaType.STRING }
+        resultado_destaque: { type: SchemaType.STRING, description: "A resposta final em LaTeX puro, pronta para ser exibida em destaque." },
+        
+        gabarito_letra: { type: SchemaType.STRING, description: "Se for múltipla escolha, a letra (A, B, C...). Se não, 'N/A'." },
+        
+        verificacao_rapida: { type: SchemaType.STRING, description: "Uma frase curta provando que o resultado faz sentido (ex: 'A unidade está em Joules, conforme esperado')." }
     },
-    required: ["resolucao_rapida", "resolucao_eficiente", "resolucao_completa"]
+    required: ["titulo_elegante", "estrategia_analitica", "resolucao_narrativa", "resultado_destaque"]
 };
 
 // --- PROMPTS ---
 
 const PROMPT_SEGMENTACAO = `
-ANÁLISE DE IMAGEM ACADÊMICA.
-1. Identifique QUANTAS questões distintas existem nesta imagem.
-2. Para CADA questão:
-   - Transcreva o texto/fórmula completo (OCR).
-   - Classifique a dificuldade (EASY = Teoria/Básico, HARD = Cálculo/Física/Complexo).
-   - Identifique a matéria.
+ANÁLISE INICIAL.
+Identifique APENAS se há questões legíveis na imagem.
+Se houver múltiplas, foque na primeira ou na que parece ser a principal/mais complexa.
+Retorne um resumo do que foi encontrado.
 `;
 
 const PROMPT_RESOLVER = `
-RESOLVA ESTA QUESTÃO ESPECÍFICA.
-Contexto: Você recebeu o texto extraído e a imagem original.
-Foque APENAS no texto fornecido abaixo. Ignore outras questões na imagem.
-Use LaTeX para matemática. Seja didático.
+VOCÊ É UM PROFESSOR DOUTOR PRESTANDO UM EXAME DE ADMISSÃO.
+Sua reputação depende de uma resolução ELEGANTE, PRECISA e HUMANA.
+
+DIRETRIZES:
+1. **Nada de Robô:** Não use listas secas. Escreva como alguém explicando para um aluno brilhante. Use conectivos ("Portanto", "Note que", "Aplicando a regra...").
+2. **LaTeX Impecável:** - Use '$' para matemática inline e '$$' para blocos destacados.
+   - Use '\\\\' (dupla barra) para escapar comandos LaTeX no JSON.
+   - Exemplo: "A integral de $\\sin(x)$ é $-\\cos(x)$."
+3. **Estratégia Primeiro:** Antes de resolver, pare e pense: "Qual o caminho mais inteligente?". Escreva isso no campo 'estrategia_analitica'.
+4. **Passo a Passo:** Quebre a lógica em parágrafos no array 'resolucao_narrativa'.
+
+IMAGEM FORNECIDA: Resolva a questão apresentada.
 `;
 
 exports.resolverQuestao = async (req, res) => {
     try {
         const { email, imagem_url, materia } = req.body; 
 
+        // Validações Básicas
         if (!email || !imagem_url) return res.status(400).json({ error: "Dados incompletos." });
-        
         const user = await UsuarioModel.findOne({ email });
         if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
 
-        // Custos Unitários
-        const custoGlueUnitario = (TOKEN.COSTS?.AI_SOLVER_GLUE) || 1;
-        let custoCoinsUnitario = (TOKEN.COSTS?.AI_SOLVER_COINS) || 50;
-        if (user.classe === 'TECNOMANTE') custoCoinsUnitario = Math.floor(custoCoinsUnitario * TOKEN.CLASSES.TECNOMANTE.ORACLE_DISCOUNT);
+        // Custos
+        const custoGlue = (TOKEN.COSTS?.AI_SOLVER_GLUE) || 1;
+        let custoCoins = (TOKEN.COSTS?.AI_SOLVER_COINS) || 50;
+        if (user.classe === 'TECNOMANTE') custoCoins = Math.floor(custoCoins * TOKEN.CLASSES.TECNOMANTE.ORACLE_DISCOUNT);
 
-        if ((user.saldo_glue || 0) < custoGlueUnitario) return res.status(402).json({ error: "Sem GLUE suficiente." });
+        if ((user.saldo_glue || 0) < custoGlue) return res.status(402).json({ error: "Sem GLUE suficiente." });
 
-        // 1. Download da Imagem
+        // Download Imagem
         let imageBase64 = "";
         let imageMime = "image/jpeg";
         try {
             const imgRes = await axios.get(imagem_url, { responseType: 'arraybuffer' });
             imageBase64 = Buffer.from(imgRes.data, 'binary').toString('base64');
             if (imgRes.headers['content-type']) imageMime = imgRes.headers['content-type'];
-        } catch (e) {
-            return res.status(400).json({ error: "Erro ao baixar imagem." });
-        }
+        } catch (e) { return res.status(400).json({ error: "Erro ao baixar imagem." }); }
 
         const imagemPart = { inlineData: { data: imageBase64, mimeType: imageMime } };
 
         // =====================================================================
-        // 🚦 FASE 1: SEGMENTAÇÃO (GEMINI FLASH)
+        // 🔮 O RITUAL ÚNICO (GEMINI)
         // =====================================================================
-        console.log("⚡ [ORÁCULO] Segmentando imagem...");
+        console.log("🧠 [ORÁCULO] Invocando a Sabedoria Suprema...");
+
+        // Nota: Removemos a etapa de segmentação separada por enquanto para focar na qualidade da resolução única.
+        // O Gemini vai olhar a imagem e resolver a questão principal com profundidade máxima.
         
-        const chatSeg = modelFlash.startChat({
+        const chatSession = model.startChat({
             generationConfig: { 
-                responseSchema: segmentationSchema,
+                responseSchema: oracleSchema,
                 responseMimeType: "application/json"
             }
         });
 
-        const resSeg = await chatSeg.sendMessage([PROMPT_SEGMENTACAO, imagemPart]);
-        const dadosSeg = JSON.parse(resSeg.response.text());
-        
-        const listaQuestoes = dadosSeg.questoes || [];
-        console.log(`📊 [ORÁCULO] Encontradas: ${listaQuestoes.length} questões.`);
+        const result = await chatSession.sendMessage([PROMPT_RESOLVER, imagemPart]);
+        const jsonFinal = JSON.parse(result.response.text());
 
-        if (listaQuestoes.length === 0) {
-            return res.status(400).json({ error: "Não identifiquei nenhuma questão legível." });
-        }
-
-        // --- LIMITAÇÃO TEMPORÁRIA ---
-        // Pega apenas a primeira questão para evitar consumo excessivo no teste
-        const questoesParaResolver = [listaQuestoes[0]]; 
-        const custoTotalGlue = custoGlueUnitario * questoesParaResolver.length;
-        const custoTotalCoins = custoCoinsUnitario * questoesParaResolver.length;
-
-        // =====================================================================
-        // ⚔️ FASE 2: RESOLUÇÃO (GEMINI PRO/FLASH)
-        // =====================================================================
-        console.log(`🧠 [ORÁCULO] Resolvendo ${questoesParaResolver.length} questões...`);
-
-        const promises = questoesParaResolver.map(async (q) => {
-            const modeloResolver = q.dificuldade === 'HARD' ? modelPro : modelFlash;
-            const nomeModelo = q.dificuldade === 'HARD' ? "Gemini Pro" : "Gemini Flash";
-
-            console.log(`   -> Questão ${q.id} (${q.dificuldade}): Enviando para ${nomeModelo}`);
-
-            const chatRes = modeloResolver.startChat({
-                generationConfig: { 
-                    responseSchema: resolutionSchema,
-                    responseMimeType: "application/json" // 🔥 CORREÇÃO AQUI
-                }
-            });
-
-            const promptFinal = `
-                ${PROMPT_RESOLVER}
-                --- TEXTO ALVO ---
-                ${q.texto_extraido}
-                --- TÓPICO ---
-                ${q.topico}
-            `;
-
-            const resFinal = await chatRes.sendMessage([promptFinal, imagemPart]);
-            const jsonFinal = JSON.parse(resFinal.response.text());
-            
-            return {
-                ...jsonFinal,
-                topico: q.topico,
-                dificuldade: q.dificuldade
-            };
-        });
-
-        const resultados = await Promise.all(promises);
-        const resultadoFinal = resultados[0]; 
+        console.log(`✅ [ORÁCULO] Solução gerada: ${jsonFinal.titulo_elegante}`);
 
         // =====================================================================
         // 💾 SALVA E PAGA
         // =====================================================================
         await UsuarioModel.updateOne({ email }, {
-            $inc: { saldo_glue: -custoTotalGlue, saldo_coins: -custoTotalCoins },
+            $inc: { saldo_glue: -custoGlue, saldo_coins: -custoCoins },
             $push: {
                 extrato: {
-                    tipo: 'SAIDA',
-                    valor: custoTotalCoins,
-                    descricao: `Oráculo (${questoesParaResolver.length}x): ${resultadoFinal.topico}`,
-                    categoria: 'SYSTEM',
-                    data: new Date()
+                    tipo: 'SAIDA', valor: custoCoins,
+                    descricao: `Oráculo: ${jsonFinal.titulo_elegante}`,
+                    categoria: 'SYSTEM', data: new Date()
                 }
             }
         });
@@ -205,16 +140,16 @@ exports.resolverQuestao = async (req, res) => {
                 autor_avatar: "robot_01",
                 autor_classe: "IA",
                 tipo: "resolucao_ia",
-                dados_ia: resultadoFinal,
+                dados_ia: jsonFinal, // Salvamos o novo formato
                 imagem_original: imagem_url,
                 data: new Date()
             });
         }
 
-        res.json({ success: true, data: resultadoFinal });
+        res.json({ success: true, data: jsonFinal });
 
     } catch (error) {
         console.error("❌ ERRO ORÁCULO:", error);
-        res.status(500).json({ error: "A Superinteligência está calibrando seus sensores." });
+        res.status(500).json({ error: "O Oráculo está meditando. Tente novamente." });
     }
 };
