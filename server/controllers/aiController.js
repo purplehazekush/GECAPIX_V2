@@ -2,18 +2,40 @@
 const UsuarioModel = require('../models/Usuario');
 const ChatModel = require('../models/Mensagem');
 const TOKEN = require('../config/tokenomics');
-const Anthropic = require('@anthropic-ai/sdk');
+const { GoogleGenerativeAI, SchemaType } = require("@google/generative-ai");
 const axios = require('axios');
-const { oracleToolDefinition, sanitizarJsonComLatex } = require('../utils/aiTools');
-const { ORACLE_SYSTEM_PROMPT } = require('../utils/oraclePrompts');
 
 // =================================================================================
-// ⚙️ CONFIGURAÇÃO DO CLAUDE
+// ⚙️ CONFIGURAÇÃO DO GEMINI
 // =================================================================================
-const anthropic = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY,
-    defaultHeaders: { 'anthropic-version': '2023-06-01' }
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// Definição do Schema de Resposta (JSON Controlado)
+// Isso substitui a "tool definition" do Claude por "Response Schema" do Gemini
+const resolutionSchema = {
+  description: "Gabarito detalhado da questão acadêmica",
+  type: SchemaType.OBJECT,
+  properties: {
+    topico: { type: SchemaType.STRING, description: "Tópico principal da questão (ex: Cálculo I, História do Brasil)" },
+    resolucao_rapida: { type: SchemaType.STRING, description: "A resposta final direta e curta." },
+    multipla_escolha: { type: SchemaType.STRING, description: "Se for questão de marcar, a letra correta (ex: 'B'). Se não, 'N/A'." },
+    resolucao_eficiente: { type: SchemaType.STRING, description: "Passo a passo resumido e direto ao ponto." },
+    resolucao_completa: { type: SchemaType.STRING, description: "Explicação didática detalhada, cobrindo a teoria por trás." },
+    dica_extra: { type: SchemaType.STRING, description: "Uma dica de ouro ou mnemônico para lembrar desse conceito." }
+  },
+  required: ["topico", "resolucao_rapida", "multipla_escolha", "resolucao_eficiente", "resolucao_completa"]
+};
+
+// System Prompt adaptado para o Gemini
+const ORACLE_SYSTEM_INSTRUCTION = `
+Você é o Oráculo, uma IA suprema de educação focada em exatas e engenharia.
+Seu objetivo é resolver questões a partir de imagens com precisão absoluta.
+1. Analise a imagem com cuidado (OCR de alta precisão).
+2. Se for cálculo, verifique cada etapa.
+3. Use LaTeX para fórmulas matemáticas (entre $...$).
+4. Seja didático mas direto.
+5. Retorne APENAS o JSON estrito conforme o schema.
+`;
 
 exports.resolverQuestao = async (req, res) => {
     try {
@@ -34,7 +56,7 @@ exports.resolverQuestao = async (req, res) => {
         let custoCoins = (TOKEN.COSTS && TOKEN.COSTS.AI_SOLVER_COINS) || 50;
 
         if (user.classe === 'TECNOMANTE') {
-            const discount = TOKEN.CLASSES.TECNOMANTE.ORACLE_DISCOUNT
+            const discount = TOKEN.CLASSES.TECNOMANTE.ORACLE_DISCOUNT;
             custoCoins = Math.floor(custoCoins * discount);
         }
 
@@ -48,7 +70,7 @@ exports.resolverQuestao = async (req, res) => {
         let imageBase64 = "";
 
         try {
-            console.log("📥 Baixando imagem para o Claude...");
+            console.log("📥 Baixando imagem para o Gemini...");
             const imageResponse = await axios.get(imagem_url, {
                 responseType: 'arraybuffer',
                 timeout: 20000
@@ -66,72 +88,52 @@ exports.resolverQuestao = async (req, res) => {
         }
 
         // =================================================================================
-        // 🚀 CHAMADA AO CLAUDE
+        // 🚀 CHAMADA AO GEMINI (MODELO HÍBRIDO)
         // =================================================================================
-        console.log("🔮 Invocando Claude...");
+        console.log("🔮 Invocando Gemini...");
 
-        const msg = await anthropic.messages.create({
-            model: "claude-sonnet-4-5-20250929", // Verifique se este modelo está disponível na sua conta
-            max_tokens: 3000,
-            temperature: 0.1,
-            system: ORACLE_SYSTEM_PROMPT,
-            tools: [oracleToolDefinition],
-            tool_choice: { type: "tool", name: "entregar_gabarito" },
-            messages: [
-                {
-                    role: "user",
-                    content: [
-                        {
-                            type: "image",
-                            source: {
-                                type: "base64",
-                                media_type: imageMediaType,
-                                data: imageBase64,
-                            },
-                        },
-                        {
-                            type: "text",
-                            text: "Resolva esta questão. Use a ferramenta 'entregar_gabarito' para fornecer a resposta."
-                        }
-                    ],
-                }
-            ],
+        // Estratégia: Usar Gemini 1.5 Pro (ou 3 Pro se disponível na sua chave) para raciocínio complexo visual.
+        // O Flash é ótimo, mas para OCR de fórmulas matemáticas manuscritas, o Pro é mais garantido.
+        // Se custo for prioridade máxima, troque para "gemini-1.5-flash".
+        const model = genAI.getGenerativeModel({
+            model: "gemini-1.5-pro", // Pode mudar para "gemini-2.0-flash" para ultra velocidade
+            systemInstruction: ORACLE_SYSTEM_INSTRUCTION,
+            generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: resolutionSchema,
+                temperature: 0.2, // Baixa temperatura para precisão em exatas
+            }
         });
 
-        // =================================================================================
-        // 🧩 PARSE DA RESPOSTA (CORRIGIDO)
-        // =================================================================================
+        const promptPart = {
+            inlineData: {
+                data: imageBase64,
+                mimeType: imageMediaType
+            }
+        };
+
+        const result = await model.generateContent([
+            "Resolva esta questão detalhadamente seguindo o schema JSON.", 
+            promptPart
+        ]);
+
+        const response = await result.response;
+        const textResponse = response.text();
+        
+        console.log("🛠️ Resposta Gemini Recebida");
 
         let resultadoAI;
-
-        // 1. Tenta encontrar o uso da ferramenta (Caminho Feliz - Solução 3)
-        const toolUse = msg.content.find(c => c.type === "tool_use" && c.name === "entregar_gabarito");
-
-        if (toolUse) {
-            console.log("🛠️ Tool Use detectado. JSON estruturado recebido com sucesso.");
-            // O SDK já parseou o JSON para nós dentro de 'input'
-            resultadoAI = toolUse.input;
-        } else {
-            // 2. Fallback (Plano B): Se a IA ignorou a tool e mandou texto
-            console.warn("⚠️ Tool Use não encontrado. Tentando parse manual de texto...");
-
-            const textBlock = msg.content.find(c => c.type === "text");
-            const textContent = textBlock ? textBlock.text : "";
-
-            if (!textContent) {
-                console.error("❌ Conteúdo da mensagem:", JSON.stringify(msg.content, null, 2));
-                throw new Error("A IA não retornou nem Tool nem Texto legível.");
-            }
-
-            // Sanitização (Solução 1)
-            const rawText = textContent.trim().startsWith('{') ? textContent : "{" + textContent;
-            const jsonSanitizado = sanitizarJsonComLatex(rawText);
-
+        try {
+            resultadoAI = JSON.parse(textResponse);
+        } catch (e) {
+            console.error("❌ Erro ao parsear JSON do Gemini:", e);
+            // Fallback manual se o JSON vier sujo (raro com responseMimeType definido)
+            // Tenta limpar markdown ```json ... ```
+            const cleanText = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
             try {
-                resultadoAI = JSON.parse(jsonSanitizado);
-            } catch (e) {
-                console.error("❌ Falha no Parse Manual:", e.message);
-                throw new Error("Erro de sintaxe na resposta da IA.");
+                resultadoAI = JSON.parse(cleanText);
+            } catch (e2) {
+                throw new Error("A IA falhou em gerar uma resposta estruturada.");
             }
         }
 
@@ -146,7 +148,7 @@ exports.resolverQuestao = async (req, res) => {
                 extrato: {
                     tipo: 'SAIDA',
                     valor: custoCoins,
-                    descricao: `Oráculo: ${resultadoAI.topico || 'Geral'}`,
+                    descricao: `Oráculo (Gemini): ${resultadoAI.topico || 'Geral'}`,
                     categoria: 'SYSTEM',
                     data: new Date()
                 }
@@ -172,9 +174,7 @@ exports.resolverQuestao = async (req, res) => {
         res.json({ success: true, data: resultadoAI });
 
     } catch (error) {
-        console.error("❌ ERRO CRÍTICO CLAUDE CONTROLLER:", error);
-        if (error.error) console.error("Detalhe Anthropic:", JSON.stringify(error.error, null, 2));
-
-        res.status(500).json({ error: "Erro interno no Oráculo (Claude API)." });
+        console.error("❌ ERRO CRÍTICO GEMINI CONTROLLER:", error);
+        res.status(500).json({ error: "Erro interno no Oráculo (Gemini API)." });
     }
 };
