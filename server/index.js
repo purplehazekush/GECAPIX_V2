@@ -208,6 +208,10 @@ app.put('/api/admin/config', authMiddleware, checkRole(['admin']), adminConfigCo
 app.get('/api/exchange/quote', authMiddleware, exchangeController.getQuote);
 app.get('/api/exchange/chart', authMiddleware, exchangeController.getChartData);
 
+// 🔥 NOVA ROTA PARA O BOT (Ticker)
+// Não precisa de auth pesada se for publica, ou usa o middleware do bot
+app.get('/api/exchange/ticker', authMiddleware, exchangeController.getTicker);
+
 
 // 2. Aplique ele na rota de trade
 app.post('/api/exchange/trade', authMiddleware, requireActive, exchangeController.executeTrade);

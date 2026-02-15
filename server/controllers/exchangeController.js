@@ -537,4 +537,27 @@ exports.simulateMarketV7 = (config) => {
     return data;
 };
 
+// 🔥 NOVO ENDPOINT LEVE PARA O BOT
+exports.getTicker = async (req, res) => {
+    try {
+        const state = await SystemState.findOne({ season_id: 1 });
+        if (!state) return res.status(500).json({ error: "Market Offline" });
+
+        const supply = state.glue_supply_circulating;
+        const base = state.glue_price_base;
+        const mult = state.glue_price_multiplier;
+
+        // Fórmula da Bonding Curve: Preço = Base * (Multiplicador ^ Supply)
+        const currentPrice = base * Math.pow(mult, supply);
+
+        res.json({
+            price: currentPrice,
+            supply: supply,
+            market_open: state.market_is_open
+        });
+    } catch (error) {
+        res.status(500).json({ error: "Ticker Error" });
+    }
+};
+
 
