@@ -189,8 +189,6 @@ export const SwipeDeck = ({ filters }: { filters: any }) => {
             {showSuperModal && (
                 <SuperLikeModal 
                     targetName={profile.nome}
-                    // 🔴 ANTES: userBalance={user?.saldo_coins || 0}
-                    // 🟢 DEPOIS:
                     userBalance={dbUser?.saldo_coins || 0}
                     onClose={() => setShowSuperModal(false)}
                     onConfirm={(amount) => handleInteraction('super', amount)}
