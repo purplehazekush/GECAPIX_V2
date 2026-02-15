@@ -23,14 +23,14 @@ module.exports = {
     },
 
     CAPS: {
-        TOTAL_SUPPLY: 10000000,
+        TOTAL_SUPPLY: 1000000000, // 1 Bilhão (Atualizado)
         INITIAL_USER_BALANCE: 1000
     },
     
     ALLOCATION: {
-        LOCKED_TREASURY: 2000000,
-        CASHBACK_FUND: 1000000,
-        CENTRAL_BANK: 500000
+        LOCKED_TREASURY: 500000000,
+        CASHBACK_FUND: 380000000,
+        CENTRAL_BANK: 120000000
     },
 
     WALLETS: {
