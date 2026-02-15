@@ -2,6 +2,7 @@
 const UsuarioModel = require('../models/Usuario');
 const SystemState = require('../models/SystemState'); // Certifique-se que o arquivo acima existe!
 const TOKEN = require('../config/tokenomics');
+const EmailService = require('../services/EmailService'); // Importe o serviço
 
 const EMAILS_ADMINS = ["joaovictorrabelo95@gmail.com"];
 
@@ -221,5 +222,87 @@ exports.getMe = async (req, res) => {
         res.json(usuario);
     } catch (error) {
         res.status(500).json({ error: "Erro ao buscar perfil" });
+    }
+};
+
+// ==========================================
+// 🆕 VALIDAÇÃO AUTOMÁTICA (UFMG)
+// ==========================================
+
+// 1. ENVIAR CÓDIGO
+exports.sendVerification = async (req, res) => {
+    try {
+        const { email_ufmg } = req.body;
+        const userId = req.user._id; // Vem do middleware auth
+
+        // Validação de Domínio (Opcional, mas recomendado)
+        if (!email_ufmg.endsWith('@ufmg.br') && !email_ufmg.endsWith('@demet.ufmg.br')) {
+            return res.status(400).json({ error: "Use um e-mail institucional UFMG válido." });
+        }
+
+        // Verifica se já existe (unicidade)
+        const emUso = await UsuarioModel.findOne({ email_institucional: email_ufmg });
+        if (emUso && emUso._id.toString() !== userId) {
+            return res.status(409).json({ error: "Este e-mail já está vinculado a outra conta." });
+        }
+
+        // Gera Código (6 dígitos)
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiration = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+
+        // Salva no Banco (Sem salvar o email ainda como definitivo para evitar bloqueio antes da hora)
+        // Salvamos o email temporariamente junto com o token ou confiamos que o user mandará o mesmo email na confirmação?
+        // Melhor: Salva o email no user mas mantém status 'pendente'
+        await UsuarioModel.findByIdAndUpdate(userId, {
+            email_institucional: email_ufmg,
+            token_validacao: code,
+            token_expiracao: expiration
+        });
+
+        // Envia Email
+        await EmailService.sendCode(email_ufmg, code);
+
+        res.json({ success: true, message: `Código enviado para ${email_ufmg}` });
+
+    } catch (error) {
+        console.error("Erro envio código:", error);
+        res.status(500).json({ error: "Falha ao enviar e-mail. Tente mais tarde." });
+    }
+};
+
+// 2. CONFIRMAR CÓDIGO
+exports.confirmVerification = async (req, res) => {
+    try {
+        const { code } = req.body;
+        const userId = req.user._id;
+
+        // Busca user com o token (precisa do select('+token_validacao') pois está oculto)
+        const user = await UsuarioModel.findById(userId).select('+token_validacao +token_expiracao');
+
+        if (!user.token_validacao || user.token_validacao !== code) {
+            return res.status(400).json({ error: "Código inválido." });
+        }
+
+        if (user.token_expiracao < new Date()) {
+            return res.status(400).json({ error: "Código expirado. Solicite outro." });
+        }
+
+        // SUCESSO: Ativa a conta
+        user.status = 'ativo';
+        user.validado = true;
+        user.token_validacao = undefined; // Limpa o token
+        user.token_expiracao = undefined;
+        
+        // Bônus de Validação? (Opcional)
+        user.saldo_coins += 100; 
+        user.extrato.push({ tipo: 'ENTRADA', valor: 100, descricao: 'Bônus: Identidade Verificada', data: new Date() });
+
+        await user.save();
+
+        res.json({ success: true, user: { ...user.toObject(), token_validacao: undefined } });
+
+    } catch (error) {
+        console.error("Erro confirmação:", error);
+        res.status(500).json({ error: "Erro ao validar código." });
     }
 };

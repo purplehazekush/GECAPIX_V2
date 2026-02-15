@@ -146,7 +146,10 @@ app.get('/api/tokenomics/ledger', authMiddleware, requireActive, statsController
 
 // 1. AUTH
 app.post('/api/auth/login', authLimiter, authController.login);
-app.get('/api/auth/me', authMiddleware, authController.getMe);
+app.get('/api/auth/me', authMiddleware, authController.getMe); // FAZ SENTIDO POR AUTH MIDDLEWARE AQUI? CORRIGIR TALVEZ?
+
+app.post('/api/auth/send-verification', authMiddleware, authController.sendVerification);
+app.post('/api/auth/confirm-verification', authMiddleware, authController.confirmVerification);
 
 // 2. PIX & VENDAS
 app.get('/api/pix', pixController.getFeed);
