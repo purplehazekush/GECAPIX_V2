@@ -116,7 +116,18 @@ async function quantumTick() {
         const res = await axios.get(`${CONFIG.API_URL}/exchange/quote`, { 
             headers: { 'x-bot-secret': CONFIG.SECRET } 
         });
-        const currentPrice = res.data.price;
+
+        // 🔥 DEBUG E CORREÇÃO AQUI
+        // Se a API não devolver { price: 123 }, usamos um fallback seguro (50.0)
+        let currentPrice = res.data.price;
+
+        if (currentPrice === undefined || currentPrice === null) {
+            console.warn("⚠️ API retornou preço nulo. Usando fallback (50.0). Resposta:", res.data);
+            currentPrice = 50.0; // Preço base do sistema
+        }
+
+        // Garante que é número para o toFixed não quebrar
+        currentPrice = Number(currentPrice);
 
         // 2. Verifica Tempo do Regime
         const now = Date.now();
