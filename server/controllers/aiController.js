@@ -23,7 +23,7 @@ const modelFlash = genAI.getGenerativeModel({
 // 🧠 O GÊNIO (Resolução Complexa)
 // Custo: $2.00 / 1M tokens (Preço agressivo, melhor que Claude Opus)
 const modelPro = genAI.getGenerativeModel({ 
-    model: "gemini-3-pro-preview", 
+    model: "gemini-2.0-flash",  //model: "gemini-3-pro-preview", 
     generationConfig: {
         responseMimeType: "application/json",
         temperature: 0.2
