@@ -7,24 +7,24 @@ require('dotenv').config({ path: '../.env' });
 const CONFIG = {
     API_URL: 'http://localhost:3001/api', 
     SECRET: process.env.BOT_SECRET,
-    TICK_RATE: 5000,   // 5 segundos entre trades
-    PRICE_CAP: 100000, // Teto onde o bias vira neutro
+    TICK_RATE: 4000,   // 5 segundos entre trades
+    PRICE_CAP: 50000, // Teto onde o bias vira neutro
     BASE_HAND: 1,      // Mão mínima
-    MAX_HAND: 5        // Aumentei um pouco a mão máxima para dar liquidez
+    MAX_HAND: 6        // Aumentei um pouco a mão máxima para dar liquidez
 };
 
 // ============================================================================
 // 🎭 REGIMES DE MERCADO (V31 QUANTUM DYNAMICS)
 // ============================================================================
 const REGIMES = {
-    0: { name: '🌊 LAMINAR',   duration: [120, 300], drift: [0.02, 0.07], curve: 'convex',  noise: 0.01 },
-    1: { name: '🌪️ TURBULENT', duration: [60, 180],  drift: [0.01, 0.05], curve: 'convex',  noise: 0.05 },
-    2: { name: '🍋 SQUEEZE',   duration: [40, 120],  drift: [0.01, 0.03], curve: 'convex',  noise: 0.02 },
-    3: { name: '☢️ CRITICAL',  duration: [30, 90],   drift: [0.01, 0.06], curve: 'concave', noise: 0.15 },
-    4: { name: '🚀 PARABOLA',  duration: [30, 60],   drift: [0.05, 0.18], curve: 'concave', noise: 0.04 },
-    5: { name: '🥴 INSTABLE',  duration: [60, 120],  drift: [0.05, 0.01], curve: 'linear',  noise: 0.06 },
-    6: { name: '🪤 TRAP',      duration: [60, 150],  drift: [0.003, 0.01], curve: 'linear', noise: 0.03, mode: 'trap' },
-    7: { name: '⚙️ GRIND',     duration: [100, 200], drift: [0.03, 0.001], curve: 'convex',  noise: 0.02 }
+    0: { name: '🌊 LAMINAR',   duration: [360, 900], drift: [0.02, 0.07], curve: 'convex',  noise: 0.01 },
+    1: { name: '🌪️ TURBULENT', duration: [180, 540],  drift: [0.01, 0.05], curve: 'convex',  noise: 0.05 },
+    2: { name: '🍋 SQUEEZE',   duration: [120, 360],  drift: [0.01, 0.03], curve: 'convex',  noise: 0.02 },
+    3: { name: '☢️ CRITICAL',  duration: [90, 270],   drift: [0.01, 0.06], curve: 'concave', noise: 0.15 },
+    4: { name: '🚀 PARABOLA',  duration: [90, 120],   drift: [0.05, 0.18], curve: 'concave', noise: 0.04 },
+    5: { name: '🥴 INSTABLE',  duration: [180, 360],  drift: [0.05, 0.01], curve: 'linear',  noise: 0.06 },
+    6: { name: '🪤 TRAP',      duration: [180, 900],  drift: [0.003, 0.01], curve: 'linear', noise: 0.03, mode: 'trap' },
+    7: { name: '⚙️ GRIND',     duration: [300, 600], drift: [0.03, 0.001], curve: 'convex',  noise: 0.02 }
 };
 
 // ============================================================================
@@ -69,7 +69,7 @@ function getBullishProbability(currentPrice) {
     
     // Curva Quadrática Suave
     // Começa em 60% (0.5 + 0.1) e cai para 50%
-    const bonus = 0.10 * Math.pow(1 - x, 2);
+    const bonus = 0.4 * Math.pow(1 - x, 2);
     
     return 0.50 + bonus;
 }
