@@ -69,7 +69,7 @@ function getBullishProbability(currentPrice) {
     
     // Curva Quadrática Suave
     // Começa em 60% (0.5 + 0.1) e cai para 50%
-    const bonus = 0.4 * Math.pow(1 - x, 2);
+    const bonus = 0.05 * Math.pow(1 - x, 2);
     
     return 0.50 + bonus;
 }
